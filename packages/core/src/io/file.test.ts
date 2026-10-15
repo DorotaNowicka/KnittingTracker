@@ -1,0 +1,128 @@
+import { describe, expect, it } from 'vitest';
+import { makePattern } from '../__tests__/fixtures';
+import { FILE_FORMATS, SCHEMA_VERSION } from '../basics';
+import { projectSchema } from '../schema/pattern';
+import { migrate, readPatternFile, serializePattern, type Migration } from './file';
+
+describe('pattern files', () => {
+  it('round-trips a pattern through serialize → read', () => {
+    const pattern = makePattern({
+      designer: 'Me',
+      symbols: [
+        {
+          id: 'user:bobble',
+          numbers: { own: 'B' },
+          family: 'other' as never,
+          width: 1,
+          consumes: 1,
+          produces: 1,
+          worked: true,
+          ws: { mode: 'explicit', text: { pl: 'lewe', en: 'p' } },
+          glyph: { primitives: [{ kind: 'circle', center: [0.5, 0.5], radius: 0.3, fill: 'ink' }] },
+          label: { pl: 'bąbel', en: 'bobble' },
+          description: { pl: 'Bąbel.', en: 'Bobble.' },
+        },
+      ],
+    });
+    // 'other' is not a valid family: reading must reject it with a precise path.
+    const rejected = readPatternFile(serializePattern(pattern));
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) expect(rejected.errors[0]).toMatch(/^symbols\.0\.family/);
+
+    const symbol = pattern.symbols[0];
+    if (!symbol) throw new Error('missing symbol');
+    const good = { ...pattern, symbols: [{ ...symbol, family: 'basic' as const }] };
+    const text = serializePattern(good, new Date('2026-10-15T20:00:00Z'));
+    const json = JSON.parse(text) as Record<string, unknown>;
+    expect(json).toMatchObject({
+      format: FILE_FORMATS.pattern,
+      schemaVersion: SCHEMA_VERSION,
+      exportedAt: '2026-10-15T20:00:00.000Z',
+    });
+    const back = readPatternFile(text);
+    expect(back).toEqual({ ok: true, value: good });
+  });
+
+  it('rejects garbage, foreign files, newer versions and oversized input', () => {
+    expect(readPatternFile('{ nope')).toMatchObject({
+      ok: false,
+      errors: ['The file is not valid JSON.'],
+    });
+    expect(readPatternFile('[]')).toMatchObject({ ok: false });
+    expect(readPatternFile(JSON.stringify({ format: 'other' }))).toMatchObject({ ok: false });
+    expect(
+      readPatternFile(
+        JSON.stringify({
+          format: FILE_FORMATS.pattern,
+          schemaVersion: SCHEMA_VERSION + 1,
+          pattern: {},
+        }),
+      ),
+    ).toMatchObject({ ok: false, errors: [expect.stringMatching(/newer version/)] });
+    expect(
+      readPatternFile(JSON.stringify({ format: FILE_FORMATS.pattern, pattern: {} })),
+    ).toMatchObject({ ok: false });
+    expect(readPatternFile('x'.repeat(20 * 1024 * 1024 + 1))).toMatchObject({
+      ok: false,
+      errors: ['The file is too large.'],
+    });
+  });
+
+  it('migrates step by step and refuses gaps', () => {
+    const migrations: Record<number, Migration> = {
+      1: (d) => ({ ...d, renamed: d['old'], old: undefined }),
+      2: (d) => ({ ...d, extra: true }),
+    };
+    const result = migrate({ schemaVersion: 1, old: 'x' }, migrations, 3);
+    expect(result).toEqual({
+      ok: true,
+      value: { schemaVersion: 3, renamed: 'x', old: undefined, extra: true },
+    });
+    expect(migrate({ schemaVersion: 0 }, migrations, 3)).toMatchObject({
+      ok: false,
+      errors: ['No migration from schema version 0.'],
+    });
+    expect(migrate('text', migrations, 3)).toMatchObject({ ok: false });
+    expect(migrate({ schemaVersion: -1 }, migrations, 3)).toMatchObject({ ok: false });
+    expect(migrate({ schemaVersion: SCHEMA_VERSION })).toEqual({
+      ok: true,
+      value: { schemaVersion: SCHEMA_VERSION },
+    });
+  });
+});
+
+describe('project schema', () => {
+  it('accepts a project with progress per stage and modifications', () => {
+    const project = {
+      id: 'p1',
+      name: 'My sweater',
+      patternId: 'test-pattern',
+      patternRevision: 1,
+      sizeIndex: 1,
+      activeStageId: 'body',
+      modifications: [
+        {
+          kind: 'replaceChart',
+          chartId: 'seed',
+          chart: {
+            id: 'st',
+            name: 'St',
+            width: 1,
+            height: 1,
+            palette: { k: 'std:k' },
+            rows: ['k'],
+          },
+          note: 'Filler worked as plain knit',
+        },
+      ],
+      progress: { body: { done: 42, undo: [0, 26], redo: [] } },
+      createdAt: '2026-10-15T20:00:00.000Z',
+      updatedAt: '2026-10-15T20:05:00.000Z',
+    };
+    expect(projectSchema.safeParse(project).success).toBe(true);
+    expect(
+      projectSchema.safeParse({ ...project, progress: { body: { done: -1, undo: [], redo: [] } } })
+        .success,
+    ).toBe(false);
+  });
+});
