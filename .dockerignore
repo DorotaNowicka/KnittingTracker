@@ -1,0 +1,18 @@
+# Keep the build context small and free of protected or local data (R-5).
+**/node_modules
+**/dist
+**/coverage
+**/playwright-report
+**/test-results
+.git
+.github
+.husky
+inspirations
+local
+docs
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+.DS_Store
