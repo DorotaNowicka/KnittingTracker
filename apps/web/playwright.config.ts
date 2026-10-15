@@ -55,13 +55,15 @@ export default defineConfig({
     locale: 'pl-PL',
   },
   projects,
-  webServer: externalBaseUrl
-    ? undefined
+  // e2e runs against the production build (service worker included). Build first: `pnpm build`.
+  ...(externalBaseUrl
+    ? {}
     : {
-        // e2e runs against the production build (service worker included). Build first: `pnpm build`.
-        command: 'pnpm run preview',
-        url: 'http://localhost:4173',
-        reuseExistingServer: !process.env.CI,
-        timeout: 60_000,
-      },
+        webServer: {
+          command: 'pnpm run preview',
+          url: 'http://localhost:4173',
+          reuseExistingServer: !process.env.CI,
+          timeout: 60_000,
+        },
+      }),
 });
