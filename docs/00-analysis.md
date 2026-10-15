@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | **Proposed**. Waiting for owner approval. Decisions marked *(default)* apply if a question stays unanswered. |
+| Status | **Accepted** (2026-10-15). Owner answers are recorded in §9.1 and override the defaults. |
 | Date | 2026-10-15 |
 | Branch | `feat/phase-0-analysis` |
 | Scope | Phase 0 only. No application code. |
@@ -210,7 +210,7 @@ milestone acceptance test refers to these IDs.
 | DR-5 | **Open-ended stages** ("until X cm") with a gauge-based row estimate and a manual "finish stage" | Body, sleeves, neckband |
 | DR-6 | **Rows of varying width**: bind-off and increase symbols, "no stitch" cells, pattern growth around a marker stitch (new stitches join the filler texture) | Underarm bind-offs, sleeve increases, neckline |
 | DR-7 | **First flat row can be WS**. Every stage defines the side of its first row | Back/front after split |
-| DR-8 | **Manual position entry** ("row R, stitch S") using the prototype's numbering. Also used after knitting away from the app | Migration from the prototype |
+| DR-8 | **Manual position entry** ("row R, stitch S"), e.g. after knitting away from the app. *(Q2: no migration from the prototype is needed, so this moves to M5)* | Practical use |
 | DR-9 | Simple stitch patterns (1×1 rib, garter) can be stages, either as tiny charts or in **row-counter mode** (count rows only, no per-stitch taps) | Ribbing and garter sections |
 | DR-10 | Symbol number is optional metadata. Identity = library id. Legend pairing comes from document geometry | Chart PDF has no numbers |
 | DR-11 | Glyph = **single source of truth** for grid, legend, editor palette and recognizer templates, so the prototype's legend/grid divergence cannot happen again | Prototype legend bug |
@@ -242,9 +242,9 @@ milestone acceptance test refers to these IDs.
 | A-3 | Cables appear only on RS rows in supported patterns. WS cables need `ws: explicit` | Warning shown, the user supplies WS text |
 | A-4 | One person, several devices, never two people on one project at once | Sync conflict model would need CRDTs |
 | A-5 | Pattern files are the user's own copies for personal use and stay on their devices | — |
-| A-6 | The knitter is on the body (in the round) of size M with A.1 knitted as plain knit *(default of Q2)* | Milestone order may change |
+| A-6 | ~~The knitter is on the body of size M~~. **Resolved by Q2**: the real-world project may start from scratch in the new app, so there is no time pressure from the armhole split and no progress migration from the prototype | — |
 | A-7 | Golden data (Ocean Ropes transcription → pattern JSON) lives in git-ignored `local/` and reaches the knitter's device as a private file (AirDrop/share), never via the build | — |
-| A-8 | Hosting has HTTPS (required for service workers, Wake Lock and persistent storage on real devices) | LAN testing needs a local TLS setup |
+| A-8 | **Resolved by Q4**: local only for now. Phones on the LAN still need HTTPS (service worker, Wake Lock, `persist()`), so local HTTPS is part of M2 | If the phones won't trust a local CA, test over USB port forwarding (`localhost` is a secure context) |
 
 ---
 
@@ -664,11 +664,10 @@ decisions. UI milestones include screenshots of 3 viewports × 2 themes.
 |---|---|---|
 | **M0** Skeleton (lean) | pnpm monorepo, TS strict, ESLint/Prettier, husky + lint-staged + commitlint, Vitest + coverage gate, Playwright config, empty PWA shell, Dockerfile + nginx + compose, GitHub Actions workflow, Renovate, README/CONTRIBUTING stubs, ADRs moved to `docs/adr/`, forbidden-content check | `pnpm i && pnpm lint && pnpm typecheck && pnpm test && pnpm build` green locally. `docker build` succeeds, the container is healthy, headers are verified with `curl -I`. `actionlint` passes. CI itself is "unverified" until pushed |
 | **M1** Core | Model + zod, symbol library (std + DROPS subset: own glyphs, own wording), layout engine (DR-2/3), progress engine (round + flat, WS inversion), validation (count chain + flow lint), serialization, migrations scaffold. Golden Ocean Ropes M built from the local transcription **with the real A.1 + the "A.1 → knit" modification** | Coverage ≥ 90%. Property tests pass. Golden (local, auto-skip): 262 stitches, markers at 131, rows of A.2/A.3/A.4 equal the transcription, the control values from §4 of the description pass, flow lint is clean for A.2/A.4, and stitch numbering is identical to the prototype for (row, stitch) ↔ `done` |
-| **M2** Tracker (ASAP) | Canvas renderer, tracking UX (tap, eraser, undo/redo, complete row, shortcuts, status, auto-scroll), Dexie storage, PWA offline, Wake Lock, themes, `docs/design.md` + design tokens, **pattern JSON import** (pulled forward from M5 so the knitter can load the local Ocean Ropes file), **manual position entry** (DR-8), segment focus (DR-13), backup export | E2E on 3 viewports: create a synthetic pattern via file → tap stitches → reload → progress kept → offline reload works. axe clean on non-canvas UI. Perf budget met on the synthetic 500×300 grid. Side-by-side screenshots with the prototype for the local Ocean Ropes file (screenshots stay local). Real-device smoke test by the knitter |
-| **M2.5** *(conditional, Q2)* Ocean Ropes split | Flat stages with first row on WS, inheritance of chart phases, bind-off cells, parity constraint helper, "A.4 without cables" override | The local golden stages "Back" and "Front" resolve with the correct widths and phases. The WS row text instructions are correct |
+| **M2** Tracker (ASAP) | Canvas renderer, tracking UX (tap, eraser, undo/redo, complete row, shortcuts, status, auto-scroll), Dexie storage, PWA offline, Wake Lock, themes, `docs/design.md` + design tokens, **pattern JSON import** (pulled forward from M5 so the knitter can load the local Ocean Ropes file), segment focus (DR-13), backup export | E2E on 3 viewports: create a synthetic pattern via file → tap stitches → reload → progress kept → offline reload works. axe clean on non-canvas UI. Perf budget met on the synthetic 500×300 grid. Side-by-side screenshots with the prototype for the local Ocean Ropes file (screenshots stay local). Local HTTPS on the LAN documented and smoke-tested on a real iPhone and Android phone by the knitter |
 | **M3** Editor + layout wizard | Chart editor (paint, select, copy/paste, mirror, resize, palette, undo), symbol library browser + custom symbols, layout wizard (sizes, segments, fillers with partial repeat, markers), onboarding sample pattern | E2E: build a 3-chart pattern from scratch, track it, export it, re-import it, identical result. Validation messages shown inline |
 | **M4** Import | Worker pipeline, legend pairing, vector + raster recognizers, crop & straighten, DP segmentation, verification screen (original next to the grid, low-confidence highlight, quick fixes), description parser (pl) | Local acceptance: `DROPS 246-2.pdf` → 4 charts with exact dimensions, the cell-diff vs. golden is reported (target 0 for A.2–A.4). Synthetic rendered PDFs/PNGs in the repo: ≥ 99% cell accuracy. Upload limits enforced. Import never touches the network (asserted in e2e) |
-| **M5** Stages and projects | General stages (round/flat, layout patches, increases/decreases, open-ended + gauge estimate, row-counter mode), multiple projects per pattern, full backup import/export, migrations with fixtures | E2E: a two-stage synthetic pattern (round → split flat) tracked across the stage boundary, with phases continuing. Migration tests from frozen v1 fixtures |
+| **M5** Stages and projects | Manual position entry (DR-8), general stages (round/flat, layout patches, increases/decreases, open-ended + gauge estimate, row-counter mode), multiple projects per pattern, full backup import/export, migrations with fixtures | E2E: a two-stage synthetic pattern (round → split flat) tracked across the stage boundary, with phases continuing. Migration tests from frozen v1 fixtures |
 | **M6** Hardening and release | WCAG 2.2 AA audit, perf pass (OffscreenCanvas if needed), CSP/Trusted Types, security review, docs (README with diagram, pattern-format.md), release 1.0.0. Optional sync per ADR-4 | All DoD items checked. The list of unverified items is published |
 
 ---
@@ -685,6 +684,16 @@ decisions. UI milestones include screenshots of 3 viewports × 2 themes.
 
 When a default is applied without an answer, it is recorded in the relevant ADR as
 "*Default applied — not confirmed by owner*".
+
+### 9.1 Owner answers (2026-10-15)
+
+| # | Answer | Consequence |
+|---|---|---|
+| Q1 | Default accepted | The project copy of the spec is authoritative. `PROMPT.md` stays untracked |
+| Q2 | "Don't worry about it, assume what is convenient; that part can start from scratch" | No migration from the prototype. M2.5 is dropped, and the Ocean Ropes split is covered by the general stages in M5. DR-8 moves to M5. Milestone order: M0 → M1 → M2 → M3 → M4 → M5 → M6 |
+| Q3 | iPhone, Android and web | Primary targets: **iPhone Safari (installed PWA), Android Chrome (installed PWA), desktop browsers**. Tablet viewport stays in the e2e matrix (spec). E2E projects: mobile WebKit (iPhone), mobile Chromium (Pixel), tablet, desktop Chromium. WebKit runs in CI. In the local sandbox only Chromium is available, so WebKit results are "unverified" until CI runs |
+| Q4 | Local for now. The app moves to the internet when it is ready and working | No public hosting and **no sync server in v1**. Docker compose runs locally (`dev` and `prod` profiles). Local HTTPS for phones on the LAN is documented in M2. Hosting and sync (ADR-4 options) are decided at the move to the internet |
+| Q5 | Act as Dorota Nowicka | All commits are authored as `Dorota Nowicka` (her GitHub no-reply address), including the two Phase 0 commits (rewritten locally, never pushed) |
 
 ---
 
