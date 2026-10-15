@@ -1,0 +1,106 @@
+/*
+ * Minimal M0 base styles. The real design system (tokens for colour, type, spacing, radii,
+ * motion; separately designed light and dark themes) is defined in M2 together with docs/design.md.
+ */
+:root {
+  --c-bg: #f5f1ea;
+  --c-surface: #fffdf9;
+  --c-text: #2a2621;
+  --c-text-muted: #5f574c;
+  --c-line: #d9d1c4;
+  --radius: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 40px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #1c1a17;
+    --c-surface: #26231f;
+    --c-text: #eee8de;
+    --c-text-muted: #b7ad9f;
+    --c-line: #423c34;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font:
+    16px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+.shell__header {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--c-line);
+}
+
+.shell__brand {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.shell__main {
+  flex: 1;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+}
+
+.shell__title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.empty {
+  padding: var(--space-4);
+  border: 1px dashed var(--c-line);
+  border-radius: var(--radius);
+  background: var(--c-surface);
+}
+
+.empty__title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.125rem;
+}
+
+.empty__body {
+  margin: 0;
+  color: var(--c-text-muted);
+}
+
+.shell__footer {
+  padding: var(--space-3) var(--space-4);
+  color: var(--c-text-muted);
+  font-size: 0.875rem;
+}
+
+.shell__footer p {
+  margin: 0;
+}
