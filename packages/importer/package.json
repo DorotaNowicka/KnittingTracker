@@ -1,0 +1,13 @@
+{
+  "name": "@kt/importer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pattern import: PDF/image analysis and chart recognizers. Runs in Web Workers.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
