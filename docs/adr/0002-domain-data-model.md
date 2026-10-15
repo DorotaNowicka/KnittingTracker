@@ -105,3 +105,31 @@ Storing work order instead of RS view (it breaks WS inversion and editor symmetr
 **Consequences.** Pattern edits after progress exists can shift `done`. Rule: on a revision change,
 the project keeps its **(stage, row, stitch-in-work-order)** coordinate and recomputes `done`. If that
 coordinate no longer exists, it asks.
+
+## Implementation notes (M1, 2026-10-15)
+
+Decisions made while implementing `@kt/core`:
+
+- **Progress unit = worked cell** in work order (G2). "No stitch" cells (`std:none`) are skipped.
+  The prototype numbering is preserved: in a round of *n* stitches, `index = (row − 1) · n + stitch`.
+  The golden test verifies this for Ocean Ropes M.
+- **Tap semantics** (`reduceProgress`): *mark* never removes work. Tapping a done stitch is a no-op.
+  *Erase* makes the tapped stitch the last done one (prototype behaviour), and tapping the last done
+  stitch itself un-marks it. *Complete row* finishes the row of the next stitch. History keeps 500
+  steps (spec: ≥ 300). Redo is cleared by any new change.
+- **Modifications keep the layout width**: a `replaceChart` changes content only. Segment widths
+  come from the original pattern, so a project's stitch numbering never shifts because of a
+  modification.
+- **Cable flows are derived, not hand-entered**: `cable()` builds the knit/purl permutation from
+  how the cable is worked (held front/back, worked group, group from the cable needle). The DROPS
+  numbers 201/202/218/302/306/401 are mapped to these built-ins, and tests pin the direction
+  (front-held stitches travel left).
+- **Flow lint severities**: a cable fed the wrong stitch kind is a `warning`. A plain knit/purl
+  change is `info` (texture), because purl ridges are intentional.
+- **Markers inside a filler**: the filler is split into two segments around the marker. No
+  "marker inside zone" concept is needed.
+- **Open-ended stages** use lazily memoized prefix sums, so `done → (row, stitch)` works without a
+  known row count.
+- **Not yet in M1** (planned for M5): layout changes within a stage (increases/decreases from row
+  *r*), stage inheritance of chart phases (`inheritsFrom`), stage start constraints. The schema will
+  gain these fields with a migration.

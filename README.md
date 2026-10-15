@@ -5,8 +5,9 @@ on charts. All charts of a round or row are shown side by side in one grid, and 
 position in the continuous sequence of stitches: tap a stitch, and it and everything before it are
 done. The UI is in Polish by default, with English available.
 
-> **Status:** M0, the project skeleton (tooling, CI, Docker, PWA shell). The domain core, tracker and
-> importer follow in milestones M1–M6. See [`docs/00-analysis.md`](docs/00-analysis.md) §8.
+> **Status:** M1. The project skeleton (M0) and the domain core (`@kt/core`: model, layout, progress
+> engine, validation, file format) are done. The tracker UI (M2) and importer follow. See
+> [`docs/00-analysis.md`](docs/00-analysis.md) §8.
 
 Your data stays on your device. There is no account, no server-side storage and no telemetry. Pattern
 files you import are copyrighted by their authors, so they are never uploaded anywhere.
