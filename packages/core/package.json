@@ -1,0 +1,13 @@
+{
+  "name": "@kt/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pure domain model: charts, symbols, layout, progress and direction engine, validation, serialization. No DOM.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
