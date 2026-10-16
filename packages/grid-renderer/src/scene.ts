@@ -410,16 +410,12 @@ function gutters(
   overlay: Overlay,
 ): DrawCommand[] {
   const m = geo.m;
+  // Gutters stay on screen while scrolling, but hug the grid when it is narrower than the view.
+  const left = Math.max(0, -cam.scrollX);
+  const right = Math.min(cam.width, geo.width - cam.scrollX) - m.gutter;
   const out: DrawCommand[] = [
-    { t: 'rect', x: 0, y: m.header, w: m.gutter, h: cam.height - m.header, fill: 'paper' },
-    {
-      t: 'rect',
-      x: cam.width - m.gutter,
-      y: m.header,
-      w: m.gutter,
-      h: cam.height - m.header,
-      fill: 'paper',
-    },
+    { t: 'rect', x: left, y: m.header, w: m.gutter, h: cam.height - m.header, fill: 'paper' },
+    { t: 'rect', x: right, y: m.header, w: m.gutter, h: cam.height - m.header, fill: 'paper' },
   ];
   if (!rows) return out;
   out.push({ t: 'clip', x: 0, y: m.header, w: cam.width, h: cam.height - m.header });
@@ -433,7 +429,7 @@ function gutters(
     const weight = current ? 700 : 450;
     out.push({
       t: 'text',
-      x: m.gutter - 6,
+      x: left + m.gutter - 6,
       y,
       text: String(row),
       size,
@@ -443,7 +439,7 @@ function gutters(
     });
     out.push({
       t: 'text',
-      x: cam.width - m.gutter + 6,
+      x: right + 6,
       y,
       text: String(row),
       size,
@@ -461,8 +457,8 @@ function gutters(
     const dir = overlay.direction === 'right-to-left' ? 'left' : 'right';
     const a = Math.min(12, Math.max(7, m.cell * 0.55));
     // Arrows point the way the row is worked, on the side where work starts and ends.
-    out.push({ t: 'arrow', x: a + 3, y, size: a, dir, color: 'indigo' });
-    out.push({ t: 'arrow', x: cam.width - a - 3, y, size: a, dir, color: 'indigo' });
+    out.push({ t: 'arrow', x: left + a + 3, y, size: a, dir, color: 'indigo' });
+    out.push({ t: 'arrow', x: right + m.gutter - a - 3, y, size: a, dir, color: 'indigo' });
   }
   out.push({ t: 'unclip' });
   return out;
