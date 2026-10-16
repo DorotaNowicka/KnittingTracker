@@ -16,7 +16,8 @@ export type ColorRole =
   | 'done'
   | 'doneHatch'
   | 'marker'
-  | 'noStitch';
+  | 'noStitch'
+  | 'danger';
 
 /** Progress state shown on top of the chart. Rows/cols are grid coordinates. */
 export interface Overlay {
@@ -37,6 +38,15 @@ export interface Overlay {
    * layer (which includes done cells) cached while this key stays the same.
    */
   readonly staticKey?: string;
+  /** Editor selection (inclusive grid rectangle). */
+  readonly selection?: {
+    readonly row1: number;
+    readonly col1: number;
+    readonly row2: number;
+    readonly col2: number;
+  } | null;
+  /** Cells to flag, e.g. validation problems in the editor. */
+  readonly highlights?: readonly { readonly row: number; readonly col: number }[];
 }
 
 export type DrawCommand =
@@ -308,6 +318,33 @@ export function buildScene(
         });
         out.push({ t: 'rect', x: x - 2, y: y - strip, w: w + 4, h: strip, fill: 'indigo' });
       }
+    }
+    if (doOverlay && overlay.highlights) {
+      const segs: number[] = [];
+      for (const h of overlay.highlights) {
+        if (h.row < rows.first || h.row > rows.last) continue;
+        const x = sx(geo.colX(h.col));
+        const y = sy(geo.rowY(h.row));
+        segs.push(x + 1, y + 1, x + c - 1, y + 1, x + c - 1, y + 1, x + c - 1, y + c - 1);
+        segs.push(x + c - 1, y + c - 1, x + 1, y + c - 1, x + 1, y + c - 1, x + 1, y + 1);
+      }
+      if (segs.length > 0) out.push({ t: 'lines', segments: segs, stroke: 'danger', width: 2.5 });
+    }
+    if (doOverlay && overlay.selection) {
+      const s = overlay.selection;
+      const x1 = sx(geo.colX(Math.min(s.col1, s.col2)));
+      const x2 = sx(geo.colX(Math.max(s.col1, s.col2)) + c);
+      // Rows grow upwards: the top edge belongs to the higher row.
+      const y1 = sy(geo.rowY(Math.max(s.row1, s.row2)));
+      const y2 = sy(geo.rowY(Math.min(s.row1, s.row2)) + c);
+      out.push({ t: 'rect', x: x1, y: y1, w: x2 - x1, h: y2 - y1, fill: 'indigo', alpha: 0.12 });
+      out.push({
+        t: 'lines',
+        segments: [x1, y1, x2, y1, x2, y1, x2, y2, x2, y2, x1, y2, x1, y2, x1, y1],
+        stroke: 'indigo',
+        width: 2,
+        dash: [6, 4],
+      });
     }
     if (doOverlay && overlay.cursor) {
       const { row, col } = overlay.cursor;

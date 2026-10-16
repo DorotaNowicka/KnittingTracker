@@ -1,4 +1,11 @@
-import { lastDone, nextStitch, type ResolvedStage, type RowModel } from '@kt/core';
+import {
+  lastDone,
+  nextStitch,
+  type ParsedChart,
+  type ResolvedStage,
+  type RowModel,
+  type SymbolRegistry,
+} from '@kt/core';
 import type { Band, GridCell, GridSource } from './geometry';
 import type { Overlay } from './scene';
 
@@ -48,6 +55,51 @@ export function stageSource(stage: ResolvedStage, rows: number): GridSource {
       }
       return cell;
     },
+  };
+}
+
+/**
+ * Adapt a single chart (chart editor): one zone, columns numbered from the right like the stitches
+ * of an RS row. Unknown symbols are drawn as knit so a broken chart can still be fixed.
+ */
+export function chartSource(parsed: ParsedChart, registry: SymbolRegistry): GridSource {
+  const { width, height, name } = parsed.chart;
+  return {
+    cols: width,
+    rows: height,
+    zones: [{ label: name, firstCol: 1, lastCol: width }],
+    sections: [],
+    continuesAbove: false,
+    stitchNumber: (col) => width - col + 1,
+    cell(row, col) {
+      const c = parsed.cells[row - 1]?.[col - 1];
+      const def = (c && registry.get(c.symbolId)) ?? registry.require('std:k');
+      return {
+        glyph: def.glyph,
+        width: c?.width ?? 1,
+        part: c?.part ?? 0,
+        noStitch: !def.worked,
+      };
+    },
+  };
+}
+
+/** An overlay without progress, for editing. */
+export function editorOverlay(options: {
+  readonly cursor?: { readonly row: number; readonly col: number } | null;
+  readonly selection?: Overlay['selection'];
+  readonly highlights?: Overlay['highlights'];
+}): Overlay {
+  return {
+    done: () => null,
+    currentRow: null,
+    direction: 'right-to-left',
+    marker: null,
+    cursor: options.cursor ?? null,
+    veilAbove: false,
+    staticKey: 'editor',
+    selection: options.selection ?? null,
+    highlights: options.highlights ?? [],
   };
 }
 

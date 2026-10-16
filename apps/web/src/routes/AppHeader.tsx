@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from '../lib/Link';
-import { paths } from '../lib/router';
+import { paths, usePathname } from '../lib/router';
 import { Icon } from '../ui/Icon';
 
 /** Header of the non-tracker screens: wordmark (home) and settings. */
 export function AppHeader() {
   const { t } = useTranslation();
+  const path = usePathname();
   return (
     <header className="app-header">
       <Link to={paths.projects()} className="wordmark" aria-label={t('nav.home')}>
@@ -22,9 +23,36 @@ export function AppHeader() {
         </svg>
         <span>KnittingTracker</span>
       </Link>
+      <nav className="app-nav" aria-label={t('nav.main')}>
+        <NavLink
+          to={paths.projects()}
+          active={['/', '/nowy'].includes(path) || path.startsWith('/projekt')}
+        >
+          {t('nav.projects')}
+        </NavLink>
+        <NavLink to={paths.patterns()} active={path === '/wzory' || path.startsWith('/wzor/')}>
+          {t('nav.patterns')}
+        </NavLink>
+      </nav>
       <Link to={paths.settings()} className="icon-btn" aria-label={t('nav.settings')}>
         <Icon name="settings" />
       </Link>
     </header>
+  );
+}
+
+function NavLink({
+  to,
+  active,
+  children,
+}: {
+  to: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link to={to} className="app-nav__link" aria-current={active ? 'page' : undefined}>
+      {children}
+    </Link>
   );
 }

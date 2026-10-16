@@ -41,6 +41,10 @@ interface LibraryState {
   readonly progress: Readonly<Record<string, StoredProgress | undefined>>;
   load(): Promise<void>;
   savePattern(pattern: Pattern, source: StoredPattern['source']): Promise<StoredPattern>;
+  /** Write an edited pattern (same stored id). */
+  updatePattern(stored: StoredPattern): Promise<void>;
+  /** Delete a pattern; refused (false) while projects use it. */
+  deletePattern(id: string): Promise<boolean>;
   createProject(input: NewProjectInput): Promise<StoredProject>;
   deleteProject(id: string): Promise<void>;
   touchProject(project: StoredProject): void;
@@ -103,6 +107,25 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     await storage.putPattern(stored);
     set({ patterns: [...get().patterns, stored] });
     return stored;
+  },
+
+  async updatePattern(stored) {
+    const storage = await getStorage();
+    await storage.putPattern(stored);
+    const exists = get().patterns.some((p) => p.id === stored.id);
+    set({
+      patterns: exists
+        ? get().patterns.map((p) => (p.id === stored.id ? stored : p))
+        : [...get().patterns, stored],
+    });
+  },
+
+  async deletePattern(id) {
+    if (get().projects.some((p) => p.patternId === id)) return false;
+    const storage = await getStorage();
+    await storage.deletePattern(id);
+    set({ patterns: get().patterns.filter((p) => p.id !== id) });
+    return true;
   },
 
   async createProject(input) {

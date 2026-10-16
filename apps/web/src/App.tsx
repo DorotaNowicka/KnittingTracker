@@ -1,10 +1,14 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoute } from './lib/router';
+import { ChartEditorPage } from './editor/ChartEditorPage';
 import { NewProjectPage } from './routes/NewProjectPage';
 import { NotFoundPage } from './routes/NotFoundPage';
+import { PatternPage } from './routes/PatternPage';
+import { PatternsPage } from './routes/PatternsPage';
 import { ProjectsPage } from './routes/ProjectsPage';
 import { SettingsPage } from './routes/SettingsPage';
+import { StagePage } from './routes/StagePage';
 import { TrackerPage } from './routes/TrackerPage';
 import { useLibrary } from './state/library';
 import { useUpdate } from './state/update';
@@ -33,6 +37,16 @@ export function App() {
         <TrackerPage projectId={route.id} />
       ) : route.name === 'settings' ? (
         <SettingsPage />
+      ) : route.name === 'patterns' ? (
+        <PatternsPage />
+      ) : route.name === 'pattern' ? (
+        <PatternPage patternId={route.id} />
+      ) : route.name === 'patternProject' ? (
+        <NewProjectPage patternId={route.id} />
+      ) : route.name === 'chart' ? (
+        <ChartEditorPage patternId={route.id} chartId={route.chartId} />
+      ) : route.name === 'stage' ? (
+        <StagePage patternId={route.id} stageId={route.stageId} />
       ) : (
         <NotFoundPage />
       )}

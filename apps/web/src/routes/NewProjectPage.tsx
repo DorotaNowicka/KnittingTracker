@@ -7,24 +7,34 @@ import {
 } from '@kt/core';
 import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { createBlankPattern } from '../editor/createBlankPattern';
 import { readTextFile } from '../lib/files';
 import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
+import type { StoredPattern } from '../lib/storage';
 import { samplePattern } from '../sample/samplePattern';
 import { useLibrary } from '../state/library';
+import { useDiagnosticText } from '../ui/diagnosticText';
 import { Icon } from '../ui/Icon';
 import { AppHeader } from './AppHeader';
 
 interface Loaded {
   readonly pattern: Pattern;
-  readonly source: 'file' | 'sample';
+  readonly source: StoredPattern['source'];
   readonly fileName?: string;
+  /** Already on the device (a pattern from the library or the editor). */
+  readonly stored?: StoredPattern;
 }
 
 /** "From file to grid": pick a pattern file (or the sample), check it, set up the project (FR-1 subset for M2). */
-export function NewProjectPage() {
+export function NewProjectPage({ patternId }: { patternId?: string } = {}) {
   const { t } = useTranslation();
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const preset = useLibrary((s) =>
+    patternId ? s.patterns.find((p) => p.id === patternId) : undefined,
+  );
+  const [picked, setLoaded] = useState<Loaded | null>(null);
+  const loaded: Loaded | null =
+    picked ?? (preset ? { pattern: preset.pattern, source: preset.source, stored: preset } : null);
   const [errors, setErrors] = useState<readonly string[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -79,11 +89,30 @@ export function NewProjectPage() {
               <button
                 type="button"
                 className="btn"
+                onClick={() =>
+                  void createBlankPattern(
+                    t('editor.newTitle'),
+                    t('editor.oneSize'),
+                    t('editor.firstStage'),
+                  )
+                }
+              >
+                <Icon name="edit" />
+                {t('newProject.fromScratch')}
+              </button>
+              <button
+                type="button"
+                className="btn"
                 onClick={() => setLoaded({ pattern: samplePattern, source: 'sample' })}
               >
                 {t('newProject.useSample')}
               </button>
             </div>
+            {useLibrary.getState().patterns.length > 0 && (
+              <p className="hint">
+                {t('newProject.fromLibrary')} <Link to={paths.patterns()}>{t('nav.patterns')}</Link>
+              </p>
+            )}
             <p className="hint">{t('newProject.privacy')}</p>
             {errors.length > 0 && (
               <div className="notice notice--danger" role="alert">
@@ -97,7 +126,10 @@ export function NewProjectPage() {
             )}
           </section>
         ) : (
-          <ConfigureProject loaded={loaded} onBack={() => setLoaded(null)} />
+          <ConfigureProject
+            loaded={loaded}
+            onBack={() => (picked ? setLoaded(null) : navigate(paths.pattern(patternId ?? '')))}
+          />
         )}
       </main>
     </>
@@ -141,7 +173,7 @@ function ConfigureProject({ loaded, onBack }: { loaded: Loaded; onBack: () => vo
     setBusy(true);
     try {
       const lib = useLibrary.getState();
-      const stored = await lib.savePattern(pattern, loaded.source);
+      const stored = loaded.stored ?? (await lib.savePattern(pattern, loaded.source));
       const project = await lib.createProject({
         pattern: stored,
         name,
@@ -250,7 +282,7 @@ function ConfigureProject({ loaded, onBack }: { loaded: Loaded; onBack: () => vo
       </fieldset>
       <div className="form-actions">
         <button type="button" className="btn" onClick={onBack}>
-          {t('newProject.otherFile')}
+          {loaded.stored ? t('newProject.backToPattern') : t('newProject.otherFile')}
         </button>
         <button type="submit" className="btn btn--primary" disabled={!report.ok || busy}>
           {t('newProject.create')}
@@ -269,13 +301,14 @@ function DiagnosticsList({
   items: readonly Diagnostic[];
   tone: 'danger' | 'warning';
 }) {
+  const text = useDiagnosticText();
   const shown = items.slice(0, 8);
   return (
     <div className={`notice notice--${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>
       <p className="notice__title">{title}</p>
       <ul>
         {shown.map((d, i) => (
-          <li key={`${d.code}-${i}`}>{d.message}</li>
+          <li key={`${d.code}-${i}`}>{text(d)}</li>
         ))}
         {items.length > shown.length && <li>… +{items.length - shown.length}</li>}
       </ul>

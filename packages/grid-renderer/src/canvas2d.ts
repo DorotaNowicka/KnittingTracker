@@ -18,6 +18,7 @@ export const PALETTE_VARS: Readonly<Record<ColorRole, string>> = {
   doneHatch: '--done-hatch',
   marker: '--marker',
   noStitch: '--no-stitch',
+  danger: '--danger',
 };
 
 /** Read the palette from computed CSS custom properties of an element. */

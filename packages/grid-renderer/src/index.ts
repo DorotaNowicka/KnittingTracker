@@ -27,4 +27,11 @@ export {
 } from './scene';
 export { paint, PALETTE_VARS, readPalette, type Palette } from './canvas2d';
 export { alignmentStep, GridRenderer, type RendererStats } from './renderer';
-export { progressOverlay, stageSource, visibleRowCount, type OverlayOptions } from './fromStage';
+export {
+  chartSource,
+  editorOverlay,
+  progressOverlay,
+  stageSource,
+  visibleRowCount,
+  type OverlayOptions,
+} from './fromStage';

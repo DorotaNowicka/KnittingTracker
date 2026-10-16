@@ -1,8 +1,14 @@
-import { createRowModel, resolveStage, type Pattern } from '@kt/core';
+import { createRegistry, createRowModel, parseChart, resolveStage, type Pattern } from '@kt/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { clampCamera, hitTest, panBy, revealCell, zoomAt, type CameraState } from './camera';
-import { progressOverlay, stageSource, visibleRowCount } from './fromStage';
+import {
+  chartSource,
+  editorOverlay,
+  progressOverlay,
+  stageSource,
+  visibleRowCount,
+} from './fromStage';
 import { CELL_PX_MAX, CELL_PX_MIN, clampCellPx, GridGeometry, type GridSource } from './geometry';
 import { alignmentStep } from './renderer';
 import { buildScene, LOD, type DrawCommand } from './scene';
@@ -301,5 +307,38 @@ describe('static layer cache helpers', () => {
       cmds.reduce((n, c) => n + (c.t === 'glyphs' ? c.items.length : 0), 0);
     expect(glyphCount(strip)).toBeLessThan(glyphCount(full));
     expect(strip.some((c) => c.t === 'text')).toBe(false);
+  });
+});
+
+describe('editor', () => {
+  const registry = createRegistry();
+  const chart = pattern.charts[0];
+  if (!chart) throw new Error('fixture');
+  const src = chartSource(parseChart(chart, registry), registry);
+
+  it('adapts one chart with columns numbered from the right', () => {
+    expect(src.cols).toBe(6);
+    expect(src.rows).toBe(2);
+    expect(src.zones).toEqual([{ label: 'A', firstCol: 1, lastCol: 6 }]);
+    expect(src.stitchNumber(1)).toBe(6);
+    expect(src.cell(1, 2)).toMatchObject({ width: 2, part: 0, noStitch: false });
+    expect(src.cell(9, 9)).toMatchObject({ width: 1, part: 0 });
+  });
+
+  it('draws the selection and flagged cells only in the overlay layer', () => {
+    const geo = new GridGeometry(src, 20);
+    const overlay = editorOverlay({
+      selection: { row1: 1, col1: 2, row2: 2, col2: 3 },
+      highlights: [{ row: 1, col: 1 }],
+      cursor: { row: 2, col: 2 },
+    });
+    const all = buildScene(src, geo, cam(), overlay, 'overlay');
+    expect(all.some((d) => d.t === 'rect' && d.fill === 'indigo' && d.alpha === 0.12)).toBe(true);
+    expect(all.some((d) => d.t === 'lines' && d.stroke === 'danger')).toBe(true);
+    const sel = all.find((d) => d.t === 'rect' && d.fill === 'indigo' && d.alpha === 0.12);
+    expect(sel).toMatchObject({ w: 40, h: 40 });
+    const stat = buildScene(src, geo, cam(), overlay, 'static');
+    expect(stat.some((d) => d.t === 'lines' && d.stroke === 'danger')).toBe(false);
+    expect(editorOverlay({}).done(1)).toBeNull();
   });
 });

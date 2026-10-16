@@ -4,8 +4,11 @@ import type { Pattern, Project } from '@kt/core';
 export interface StoredPattern {
   readonly id: string;
   readonly pattern: Pattern;
-  readonly source: 'file' | 'sample';
+  /** Where it came from: an imported file, the built-in sample, or built in the editor. */
+  readonly source: 'file' | 'sample' | 'user';
   readonly importedAt: string;
+  /** Last edit in the pattern editor. */
+  readonly updatedAt?: string;
 }
 
 /** Project metadata. Progress lives in its own small records (hot writes, ADR-3). */
