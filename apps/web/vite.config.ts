@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig, type PluginOption } from 'vite';
 import react from '@vitejs/plugin-react';
 import basicSsl from '@vitejs/plugin-basic-ssl';
@@ -6,6 +7,22 @@ import { VitePWA } from 'vite-plugin-pwa';
 // HTTPS=1 enables a self-signed certificate so phones on the LAN get a secure context
 // (service worker, Wake Lock, storage.persist). See README "Testing on a phone".
 const https = process.env.HTTPS === '1';
+
+/**
+ * The production security headers live in docker/nginx/security-headers.conf. `vite preview`
+ * sends the same headers, so every e2e run happens under the real Content-Security-Policy.
+ */
+function productionHeaders(): Record<string, string> {
+  const conf = readFileSync(
+    new URL('../../docker/nginx/security-headers.conf', import.meta.url),
+    'utf8',
+  );
+  const headers: Record<string, string> = {};
+  for (const m of conf.matchAll(/^add_header\s+([\w-]+)\s+"([^"]*)"\s+always;/gm)) {
+    if (m[1] && m[2] !== undefined) headers[m[1]] = m[2];
+  }
+  return headers;
+}
 
 export default defineConfig({
   plugins: [
@@ -53,5 +70,5 @@ export default defineConfig({
     sourcemap: true,
   },
   server: { port: 5173 },
-  preview: { port: 4173, strictPort: true },
+  preview: { port: 4173, strictPort: true, headers: productionHeaders() },
 });

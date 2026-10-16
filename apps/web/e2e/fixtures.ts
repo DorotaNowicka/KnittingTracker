@@ -127,3 +127,18 @@ export async function tapCell(page: Page, row: number, col: number) {
   if (!point) throw new Error('grid test hook missing (is this a prod build?)');
   await page.mouse.click(point.x, point.y);
 }
+
+/** Collect Content-Security-Policy violations (preview and nginx send the production CSP). */
+export async function watchCsp(page: Page): Promise<() => Promise<string[]>> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __cspViolations?: string[] };
+    w.__cspViolations = [];
+    document.addEventListener('securitypolicyviolation', (e) => {
+      w.__cspViolations?.push(`${e.violatedDirective} ${e.blockedURI}`);
+    });
+  });
+  return () =>
+    page.evaluate(
+      () => (window as unknown as { __cspViolations?: string[] }).__cspViolations ?? [],
+    );
+}

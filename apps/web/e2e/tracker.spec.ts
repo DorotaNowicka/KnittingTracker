@@ -1,11 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { createProjectFromFile, tapCell, testPattern } from './fixtures';
+import { createProjectFromFile, tapCell, testPattern, watchCsp } from './fixtures';
 
 const detail = (page: Page) => page.getByTestId('status-detail');
 
 test.describe('tracking a pattern from a file', () => {
   test('import → tap → reload keeps progress → works offline', async ({ page, context }) => {
+    const csp = await watchCsp(page);
     await createProjectFromFile(page, testPattern);
     await expect(detail(page)).toContainText('Nic jeszcze nie zrobione');
 
@@ -34,6 +35,7 @@ test.describe('tracking a pattern from a file', () => {
     await tapCell(page, 2, 26);
     await expect(detail(page)).toContainText('okrążenie 2, oczko 1');
     await context.setOffline(false);
+    expect(await csp()).toEqual([]);
   });
 
   test('buttons and shortcuts: row done, undo, redo, eraser', async ({ page }) => {
