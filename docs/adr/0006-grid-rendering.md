@@ -54,3 +54,18 @@ levels × 2 themes.
   This is the e2e test `e2e/perf.spec.ts`. Real-device GPU canvases should be faster.
 - **Test hook**: outside production builds `window.__ktGrid` exposes the renderer and a
   `pointOf(row, col)` helper for e2e tests. It is not present when `VITE_APP_ENV=prod`.
+
+## Editor notes (M3, 2026-10-16)
+
+- The chart editor and the layout preview reuse `GridRenderer`. `chartSource()` adapts a single
+  parsed chart (columns numbered from the right, like the stitches of an RS row) and
+  `editorOverlay()` is an overlay without progress.
+- The overlay gained `selection` (tinted rectangle with a dashed indigo border) and `highlights`
+  (cells with a validation problem, outlined in the danger colour). Both are overlay-only, so the
+  tile cache is untouched while selecting.
+- Gestures in the editor: with *Draw* and *Select*, one finger or the mouse draws a stroke over
+  cells and two fingers pan and pinch (a touch stroke waits for a 6-px slop, so a second finger can
+  still turn it into a pinch and cancel the stroke). *Move* pans with one finger. Painting a wide
+  symbol while dragging doesn't stamp over the copy just placed.
+- The view keeps itself fitted to the chart while the layout settles and when the chart changes
+  size, until the user pans or zooms.

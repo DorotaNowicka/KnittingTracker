@@ -69,6 +69,16 @@ device. To get a file onto a phone, AirDrop/share it and pick it in **Nowy proje
 wzoru**. A private pattern kept in the git-ignored `local/` folder (e.g. a golden copy of a real
 pattern) is loaded the same way and never becomes part of the build.
 
+## Building a pattern in the app
+
+**Wzory → Nowy wzór** starts an empty pattern. On the pattern page you set the name, sizes, charts,
+stages and the legend; a check at the bottom lists problems with a link to the chart or layout
+that has them. **Dodaj schemat** opens the chart editor: pick a symbol and draw (tap or drag),
+select a rectangle to copy, paste, fill or mirror it, and change the size. **Ustaw układ** opens the
+layout wizard: put the charts in the order of the pattern text, set partial repeats ("A.1 over 22
+stitches") per size, add markers for front and back, and compare the stitch count with the
+pattern. **Zacznij dziergać** creates a project; **Zapisz do pliku** exports the pattern.
+
 ## Architecture
 
 ```mermaid

@@ -133,3 +133,29 @@ Decisions made while implementing `@kt/core`:
 - **Not yet in M1** (planned for M5): layout changes within a stage (increases/decreases from row
   *r*), stage inheritance of chart phases (`inheritsFrom`), stage start constraints. The schema will
   gain these fields with a migration.
+
+## Authoring notes (M3, 2026-10-16)
+
+- **Editing works on a symbol grid** (`chart/edit.ts`): each cell holds the symbol id anchored
+  there or `.` for a continuation cell. Every operation (paint, fill, paste, mirror, resize,
+  insert/delete rows and columns) ends with `repairRows`, so a wide symbol that an edit cut in half
+  becomes the fill symbol (knit) instead of leaving a broken chart. A property test runs every
+  operation on random grids and checks that the result parses without errors.
+- **Selections snap to whole symbols**, so copy, paste and mirror never split a cable.
+- **Horizontal mirror swaps symbol directions** (k2tog ↔ ssk, p2tog ↔ ssp, M1L ↔ M1R, every
+  right/left cable pair). Custom symbols mirror to themselves.
+- **Palette keys are stable**: writing a grid back keeps the chart's existing palette characters,
+  adds new ones for new symbols (keeping `k`/`p` for knit/purl) and drops unused ones, so a small
+  edit gives a small file diff.
+- **Per-size lists stay in sync with the sizes**: adding a size copies the neighbour's values into
+  every per-size list (rows, expected stitches, segment stitches); removing one removes that index.
+- **Diagnostics carry `params`** for localized messages; `message` stays as the English fallback.
+  Findings that are the same in every size are reported once without a size label. A stage
+  without stitches is the error `empty-layout`.
+- **Editing a pattern in place**: a pattern edited in the editor keeps its id and gets
+  `revision + 1` once per editing session. Projects that use it follow the new content (they store
+  progress as a stitch count). Revision checks and migrations of existing progress after a layout
+  change come with stages in M5.
+- **Storage never holds a pattern that fails the schema**: the editor's fields only commit valid
+  values, and the draft store refuses to write anything that fails `patternSchema` (it shows
+  "Nie zapisano" instead).
