@@ -57,3 +57,22 @@ Exact versions were pinned when M0 installed them. Deviations from "latest" and 
   (`PW_CHROMIUM_PATH`, `PW_NO_WEBKIT=1`). WebKit (iPhone project) runs only in CI.
 - React Aria Components, zustand, React Router, Dexie, zod and comlink are installed in the milestone
   that first uses them, not in M0.
+
+## Implementation notes (M2, 2026-10-16)
+
+- **No router dependency**: the app has four screens, so `apps/web/src/lib/router.ts` (History API,
+  `useSyncExternalStore`, ~60 lines) replaces React Router. Polish paths: `/`, `/nowy`,
+  `/projekt/:id`, `/ustawienia`.
+- **Native controls first, React Aria not installed (yet)**: buttons, `<select>`, `<input
+  type="range">`, checkbox/radio groups and `<dialog>` are accessible as is and pass axe. React
+  Aria Components stay the plan for custom widgets that need it (editor palette, menus in M3).
+- **State**: zustand stores `library` (patterns, projects, backup export) and `session` (the open
+  project: resolved stage, row model, progress). Progress writes are queued so they reach storage in
+  order.
+- **Storage**: Dexie 4 (`patterns`, `projects`, `progress[projectId+stageId]`, `settings`). The memory
+  fallback shows a permanent warning. `navigator.storage.persist()` is requested when the first
+  project is created.
+- **Fonts**: `@fontsource-variable/atkinson-hyperlegible-next` (latin + latin-ext), self-hosted and
+  precached.
+- **Theme before first paint**: `/theme-init.js` (an external script, because the CSP forbids inline
+  scripts) applies the saved theme and language.

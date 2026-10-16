@@ -34,3 +34,23 @@ quality and complexity are not worth it for ≤150k cells, and the Canvas2D tile
 **Verification.** A perf page in e2e (500×300 synthetic grid, scripted pan/zoom, rAF frame timing,
 4× CPU throttle) asserts NFR-3 budgets. Visual regression covers synthetic patterns at 3 zoom
 levels × 2 themes.
+
+## Implementation notes (M2, 2026-10-16)
+
+- **Two layers, as decided**: the static layer (paper, done cells with hatch, symbols, rules, zone
+  borders) is rendered into **256-px tiles** kept in an LRU cache (about twice the visible tiles).
+  Each frame blits the visible tiles and draws the overlay: veil above the current row, row keeper,
+  stitch marker, keyboard cursor, frozen header (sections, zones, stitch numbers) and row-number
+  gutters. Tiles overlap by 2 px, so rounding to device pixels never opens a seam. The hatch is
+  anchored to chart coordinates.
+- A tap changes `done`, which invalidates all tiles (one full repaint per tap). Zooming re-renders the
+  visible tiles at the new cell size. **Not done yet**: scaling cached tiles during a pinch and
+  re-rendering only when it ends (planned for M6 if pinch feels heavy on real devices).
+- **Level of detail**: glyphs and rules from 4.5 px cells. The renderer clamps cells to 4–64 px.
+- **Hairlines**: whole device pixels (≈ 0.75 CSS px), snapped to the pixel grid.
+- **Measured** (Playwright, Chromium software rendering, CPU throttled 4×, 500 × 300 synthetic grid,
+  60 wheel-pan frames): desktop 1440×900 average ≈ 2.5–3 ms per frame, p95 ≈ 6–7 ms; tablet 820×1180
+  @2× average ≈ 3 ms, p95 ≈ 8–9 ms. Budget 16 ms. Before the tile cache, p95 was 16–37 ms.
+  This is the e2e test `e2e/perf.spec.ts`. Real-device GPU canvases should be faster.
+- **Test hook**: outside production builds `window.__ktGrid` exposes the renderer and a
+  `pointOf(row, col)` helper for e2e tests. It is not present when `VITE_APP_ENV=prod`.

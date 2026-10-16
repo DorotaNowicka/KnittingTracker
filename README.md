@@ -5,9 +5,9 @@ on charts. All charts of a round or row are shown side by side in one grid, and 
 position in the continuous sequence of stitches: tap a stitch, and it and everything before it are
 done. The UI is in Polish by default, with English available.
 
-> **Status:** M1. The project skeleton (M0) and the domain core (`@kt/core`: model, layout, progress
-> engine, validation, file format) are done. The tracker UI (M2) and importer follow. See
-> [`docs/00-analysis.md`](docs/00-analysis.md) §8.
+> **Status:** M2. Usable for knitting: pattern files (`*.ktpattern.json`) or the built-in sample,
+> chart grid with progress tracking, offline PWA, local storage, backup export. The chart editor
+> (M3) and PDF/photo import (M4) follow. See [`docs/00-analysis.md`](docs/00-analysis.md) §8.
 
 Your data stays on your device. There is no account, no server-side storage and no telemetry. Pattern
 files you import are copyrighted by their authors, so they are never uploaded anywhere.
@@ -46,17 +46,28 @@ Content-Security-Policy and security headers, caches hashed assets for a year, a
 revalidates `index.html`, `sw.js` and the manifest. Docker is only for **serving** the app. Phones
 use the PWA from the browser and don't need it.
 
-## Testing on a phone
+## Using it on a phone
 
 Service workers, the screen Wake Lock and persistent storage need a **secure context** (HTTPS or
 `localhost`). On your LAN:
 
-1. `pnpm --filter @kt/web dev:https` (or `docker compose --profile dev up`).
-2. Open `https://<your-computer's-LAN-IP>:5173` on the phone and accept the self-signed certificate
-   warning.
+1. `pnpm build && pnpm --filter @kt/web preview:https` (production build, works offline once
+   installed). Use `pnpm --filter @kt/web dev:https` (or `docker compose --profile dev up`) for
+   development with hot reload. The dev server has no service worker.
+2. Open `https://<your-computer's-LAN-IP>:4173` (preview) or `:5173` (dev) on the phone and accept
+   the self-signed certificate warning. Then use the browser's "Add to Home Screen" (iPhone: Share →
+   Add to Home Screen; Android: menu → Install app). On iPhone, the home-screen app has **its own
+   storage**, separate from Safari tabs, so create your projects in the installed app.
 3. If a browser refuses to run the service worker with a self-signed certificate, use USB port
    forwarding instead: Chrome on Android via `chrome://inspect` → _Port forwarding_ → `5173`, then
    open `http://localhost:5173` on the phone.
+
+## Your own pattern files
+
+The app opens `*.ktpattern.json` files ([format](docs/pattern-format.md)). Files stay on the
+device. To get a file onto a phone, AirDrop/share it and pick it in **Nowy projekt → Wybierz plik
+wzoru**. A private pattern kept in the git-ignored `local/` folder (e.g. a golden copy of a real
+pattern) is loaded the same way and never becomes part of the build.
 
 ## Architecture
 
