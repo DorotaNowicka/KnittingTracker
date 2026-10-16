@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+// No eval (NFR-5): zod's JIT compiles validators with `new Function`, which a strict CSP blocks
+// (and reports as a violation even when zod falls back). Validation speed is not a concern here.
+z.config({ jitless: true });
+
 /**
  * Persisted data model (ADR-2), defined as zod schemas so every external boundary (files, storage,
  * worker messages) is validated. TypeScript types are inferred from the schemas.
