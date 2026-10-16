@@ -1,13 +1,158 @@
 {
   "app": {
-    "name": "KnittingTracker",
-    "buildInfo": "Wersja deweloperska · środowisko: {{env}}"
+    "name": "KnittingTracker"
+  },
+  "nav": {
+    "home": "KnittingTracker – projekty",
+    "settings": "Ustawienia",
+    "projects": "Projekty"
+  },
+  "common": {
+    "cancel": "Anuluj"
   },
   "projects": {
     "title": "Twoje projekty",
     "empty": {
-      "title": "Nie masz jeszcze żadnych projektów",
-      "body": "Tu pojawią się dziergane przez Ciebie wzory. Import i edytor schematów są w przygotowaniu."
+      "title": "Zacznij od wzoru",
+      "body": "Wczytaj plik wzoru albo wypróbuj przykład z warkoczami. Wszystko zostaje na tym urządzeniu."
+    },
+    "loadFile": "Wczytaj plik wzoru",
+    "trySample": "Wypróbuj przykładowy wzór",
+    "sampleName": "Przykład: warkocze i ścieżka",
+    "new": "Nowy projekt",
+    "patternMissing": "Brak wzoru",
+    "updated": "Ostatnio: {{date}}",
+    "delete": "Usuń projekt {{name}}",
+    "deleteTitle": "Usunąć „{{name}}”?",
+    "deleteBody": "Postęp tego projektu zostanie usunięty z urządzenia. Wzór zostaje.",
+    "deleteConfirm": "Usuń projekt"
+  },
+  "newProject": {
+    "title": "Nowy projekt",
+    "intro": "Wybierz plik wzoru KnittingTracker (.json). Import PDF i zdjęć schematów pojawi się wkrótce.",
+    "pickFile": "Wybierz plik wzoru",
+    "useSample": "Użyj przykładowego wzoru",
+    "privacy": "Plik jest czytany tylko na tym urządzeniu. Nic nie jest wysyłane.",
+    "invalid": "Tego pliku nie da się wczytać",
+    "tooLarge": "Plik jest za duży (limit 20 MB).",
+    "unreadable": "Nie udało się odczytać pliku.",
+    "charts": "Schematy",
+    "stages": "Etapy",
+    "errors": "Wzór ma błędy – popraw plik, zanim zaczniesz",
+    "warnings": "Uwagi do wzoru",
+    "name": "Nazwa projektu",
+    "size": "Rozmiar",
+    "startStage": "Zacznij od etapu",
+    "variants": "Twoje zmiany we wzorze",
+    "variantsHint": "Wzór zostaje bez zmian, zmiana dotyczy tylko tego projektu. Liczba oczek się nie zmienia.",
+    "knitOnly": "Przerabiaj schemat {{name}} samymi oczkami prawymi",
+    "otherFile": "Inny plik",
+    "create": "Utwórz projekt"
+  },
+  "settings": {
+    "title": "Ustawienia",
+    "theme": "Motyw",
+    "themes": {
+      "system": "Jak w systemie",
+      "light": "Jasny",
+      "dark": "Ciemny"
+    },
+    "language": "Język",
+    "wakeLock": "Nie wygaszaj ekranu podczas dziergania",
+    "wakeLockHint": "Działa, gdy otwarty jest projekt. Niektóre przeglądarki tego nie obsługują.",
+    "data": "Twoje dane",
+    "storageMemory": "Ta przeglądarka nie pozwala zapisywać danych. Postęp zniknie po zamknięciu strony.",
+    "storagePersisted": "Dane są zapisane na tym urządzeniu i przeglądarka nie usunie ich sama.",
+    "storageBestEffort": "Dane są zapisane na tym urządzeniu. Przeglądarka może je usunąć przy braku miejsca – rób kopie zapasowe.",
+    "privacy": "Wzory i postęp nie opuszczają urządzenia. Aplikacja nie ma konta ani statystyk.",
+    "backup": "Zapisz kopię zapasową",
+    "backupShared": "Kopia zapasowa przekazana.",
+    "backupSaved": "Kopia zapasowa zapisana w pobranych plikach."
+  },
+  "storage": {
+    "memory": {
+      "title": "Postęp nie będzie zapisany.",
+      "body": "Przeglądarka blokuje zapis danych (np. tryb prywatny). Otwórz aplikację w zwykłym oknie."
     }
+  },
+  "update": {
+    "available": "Jest nowa wersja aplikacji.",
+    "apply": "Zaktualizuj teraz"
+  },
+  "notFound": {
+    "title": "Nie ma takiej strony",
+    "body": "Ten adres nie prowadzi do żadnego ekranu.",
+    "back": "Wróć do projektów"
+  },
+  "tracker": {
+    "error": {
+      "not-found": "Nie ma takiego projektu",
+      "pattern-missing": "Brakuje wzoru tego projektu",
+      "invalid-pattern": "Wzoru tego projektu nie da się otworzyć"
+    },
+    "stage": "Etap",
+    "showPanel": "Pokaż panel",
+    "hidePanel": "Ukryj panel",
+    "panel": "Rząd, legenda i widok",
+    "saveFailed": "Nie udało się zapisać ostatniej zmiany. Spróbuję ponownie przy następnej."
+  },
+  "status": {
+    "label": "Bieżąca pozycja",
+    "row": "Rząd {{row}}",
+    "roundWord": "Okrążenie",
+    "rowWord": "Rząd",
+    "stitch": "Oczko",
+    "stage": "Etap",
+    "complete": "Etap ukończony.",
+    "nothingYet": "Nic jeszcze nie zrobione. Dotknij oczka, aby zaznaczyć je i wszystkie przed nim.",
+    "lastDone": "Ostatnie zrobione: {{rowWord}} {{row}}, oczko {{stitch}}{{section}}, razem {{done}}",
+    "announce": "{{rowWord}} {{row}}, oczko {{stitch}}. Razem {{done}}.",
+    "roundInline": "okrążenie",
+    "rowInline": "rząd",
+    "round": "Okrążenie {{row}}"
+  },
+  "grid": {
+    "roleDescription": "siatka schematu",
+    "label": "Siatka schematu",
+    "help": "Dotknij oczka, aby je zaznaczyć. Przeciągnij, aby przesunąć, rozsuń palce, aby powiększyć. Klawiatura: strzałki przesuwają kursor, Enter zaznacza oczko pod kursorem.",
+    "unsupported": "Ta przeglądarka nie potrafi narysować siatki. Spróbuj w aktualnej wersji Safari, Chrome lub Firefox."
+  },
+  "rowText": {
+    "titleRound": "Okrążenie {{row}}",
+    "titleRow": "Rząd {{row}}",
+    "rs": "Prawa strona",
+    "ws": "Lewa strona",
+    "rtl": "czytaj od prawej do lewej",
+    "ltr": "czytaj od lewej do prawej",
+    "wsProblem": "brak opisu na lewą stronę"
+  },
+  "legend": {
+    "title": "Legenda"
+  },
+  "view": {
+    "title": "Widok",
+    "cell": "Wielkość kratki",
+    "zoomOut": "Pomniejsz",
+    "zoomIn": "Powiększ",
+    "rows": "Pokazane rzędy",
+    "rowsStageEnd": "Do końca etapu",
+    "veil": "Przyciemnij rzędy powyżej bieżącego",
+    "fit": "Dopasuj szerokość:",
+    "fitAll": "Całość"
+  },
+  "actions": {
+    "label": "Działania",
+    "undo": "Cofnij",
+    "undoHint": "Cofnij (Ctrl+Z)",
+    "redo": "Ponów",
+    "redoHint": "Ponów (Ctrl+Shift+Z)",
+    "eraser": "Gumka",
+    "eraserOn": "Gumka włączona",
+    "eraserHint": "Gumka: dotknij zrobionego oczka, aby cofnąć do niego (E)",
+    "center": "Bieżące",
+    "centerHint": "Pokaż bieżące miejsce (C)",
+    "rowDone": "Ukończ rząd",
+    "roundDone": "Ukończ okrążenie",
+    "rowDoneHint": "Ukończ bieżący rząd (Enter)"
   }
 }

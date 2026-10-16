@@ -1,13 +1,158 @@
 {
   "app": {
-    "name": "KnittingTracker",
-    "buildInfo": "Development build · environment: {{env}}"
+    "name": "KnittingTracker"
+  },
+  "nav": {
+    "home": "KnittingTracker – projects",
+    "settings": "Settings",
+    "projects": "Projects"
+  },
+  "common": {
+    "cancel": "Cancel"
   },
   "projects": {
     "title": "Your projects",
     "empty": {
-      "title": "You have no projects yet",
-      "body": "Patterns you knit will appear here. Import and the chart editor are on their way."
+      "title": "Start with a pattern",
+      "body": "Open a pattern file or try the cable sample. Everything stays on this device."
+    },
+    "loadFile": "Open a pattern file",
+    "trySample": "Try the sample pattern",
+    "sampleName": "Sample: cables and a path",
+    "new": "New project",
+    "patternMissing": "Pattern missing",
+    "updated": "Last: {{date}}",
+    "delete": "Delete project {{name}}",
+    "deleteTitle": "Delete “{{name}}”?",
+    "deleteBody": "This project's progress will be removed from the device. The pattern stays.",
+    "deleteConfirm": "Delete project"
+  },
+  "newProject": {
+    "title": "New project",
+    "intro": "Choose a KnittingTracker pattern file (.json). Importing PDFs and chart photos is coming soon.",
+    "pickFile": "Choose a pattern file",
+    "useSample": "Use the sample pattern",
+    "privacy": "The file is read on this device only. Nothing is uploaded.",
+    "invalid": "This file can't be opened",
+    "tooLarge": "The file is too large (20 MB limit).",
+    "unreadable": "The file couldn't be read.",
+    "charts": "Charts",
+    "stages": "Stages",
+    "errors": "The pattern has errors – fix the file before you start",
+    "warnings": "Notes on the pattern",
+    "name": "Project name",
+    "size": "Size",
+    "startStage": "Start with stage",
+    "variants": "Your changes to the pattern",
+    "variantsHint": "The pattern stays as it is; changes apply to this project only. Stitch counts stay the same.",
+    "knitOnly": "Work chart {{name}} in plain knit stitches",
+    "otherFile": "Another file",
+    "create": "Create project"
+  },
+  "settings": {
+    "title": "Settings",
+    "theme": "Theme",
+    "themes": {
+      "system": "Match system",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "language": "Language",
+    "wakeLock": "Keep the screen on while knitting",
+    "wakeLockHint": "Works while a project is open. Some browsers don't support it.",
+    "data": "Your data",
+    "storageMemory": "This browser doesn't allow saving data. Progress will be lost when the page closes.",
+    "storagePersisted": "Data is saved on this device and the browser won't remove it on its own.",
+    "storageBestEffort": "Data is saved on this device. The browser may remove it when space runs low – keep backups.",
+    "privacy": "Patterns and progress never leave the device. There is no account and no analytics.",
+    "backup": "Save a backup",
+    "backupShared": "Backup shared.",
+    "backupSaved": "Backup saved to your downloads."
+  },
+  "storage": {
+    "memory": {
+      "title": "Progress won't be saved.",
+      "body": "The browser blocks saving data (for example in private mode). Open the app in a normal window."
     }
+  },
+  "update": {
+    "available": "A new version of the app is ready.",
+    "apply": "Update now"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "This address doesn't lead to any screen.",
+    "back": "Back to projects"
+  },
+  "tracker": {
+    "error": {
+      "not-found": "Project not found",
+      "pattern-missing": "This project's pattern is missing",
+      "invalid-pattern": "This project's pattern can't be opened"
+    },
+    "stage": "Stage",
+    "showPanel": "Show panel",
+    "hidePanel": "Hide panel",
+    "panel": "Row, legend and view",
+    "saveFailed": "The last change couldn't be saved. It will be retried with the next one."
+  },
+  "status": {
+    "label": "Current position",
+    "row": "Row {{row}}",
+    "roundWord": "Round",
+    "rowWord": "Row",
+    "stitch": "Stitch",
+    "stage": "Stage",
+    "complete": "Stage complete.",
+    "nothingYet": "Nothing done yet. Tap a stitch to mark it and every stitch before it.",
+    "lastDone": "Last done: {{rowWord}} {{row}}, stitch {{stitch}}{{section}}, {{done}} in total",
+    "announce": "{{rowWord}} {{row}}, stitch {{stitch}}. {{done}} in total.",
+    "roundInline": "round",
+    "rowInline": "row",
+    "round": "Round {{row}}"
+  },
+  "grid": {
+    "roleDescription": "chart grid",
+    "label": "Chart grid",
+    "help": "Tap a stitch to mark it. Drag to move, pinch to zoom. Keyboard: arrow keys move the cursor, Enter marks the stitch under it.",
+    "unsupported": "This browser can’t draw the grid. Try a current version of Safari, Chrome or Firefox."
+  },
+  "rowText": {
+    "titleRound": "Round {{row}}",
+    "titleRow": "Row {{row}}",
+    "rs": "Right side",
+    "ws": "Wrong side",
+    "rtl": "read right to left",
+    "ltr": "read left to right",
+    "wsProblem": "no wrong-side instruction"
+  },
+  "legend": {
+    "title": "Legend"
+  },
+  "view": {
+    "title": "View",
+    "cell": "Cell size",
+    "zoomOut": "Zoom out",
+    "zoomIn": "Zoom in",
+    "rows": "Rows shown",
+    "rowsStageEnd": "To the end of the stage",
+    "veil": "Dim rows above the current one",
+    "fit": "Fit width:",
+    "fitAll": "Everything"
+  },
+  "actions": {
+    "label": "Actions",
+    "undo": "Undo",
+    "undoHint": "Undo (Ctrl+Z)",
+    "redo": "Redo",
+    "redoHint": "Redo (Ctrl+Shift+Z)",
+    "eraser": "Eraser",
+    "eraserOn": "Eraser on",
+    "eraserHint": "Eraser: tap a done stitch to go back to it (E)",
+    "center": "Current",
+    "centerHint": "Show the current place (C)",
+    "rowDone": "Row done",
+    "roundDone": "Round done",
+    "rowDoneHint": "Finish the current row (Enter)"
   }
 }

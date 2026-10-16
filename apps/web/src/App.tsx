@@ -1,28 +1,64 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRoute } from './lib/router';
+import { NewProjectPage } from './routes/NewProjectPage';
+import { NotFoundPage } from './routes/NotFoundPage';
+import { ProjectsPage } from './routes/ProjectsPage';
+import { SettingsPage } from './routes/SettingsPage';
+import { TrackerPage } from './routes/TrackerPage';
+import { useLibrary } from './state/library';
+import { useUpdate } from './state/update';
 
 export function App() {
-  const { t } = useTranslation();
-  const env = import.meta.env.VITE_APP_ENV ?? 'dev';
+  const route = useRoute();
+  const load = useLibrary((s) => s.load);
+  const status = useLibrary((s) => s.status);
+  const storageKind = useLibrary((s) => s.storageKind);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   return (
-    <div className="shell">
-      <header className="shell__header">
-        <p className="shell__brand">{t('app.name')}</p>
-      </header>
-      <main className="shell__main" id="main">
-        <h1 className="shell__title">{t('projects.title')}</h1>
-        <section className="empty" aria-labelledby="empty-title">
-          <h2 id="empty-title" className="empty__title">
-            {t('projects.empty.title')}
-          </h2>
-          <p className="empty__body">{t('projects.empty.body')}</p>
-        </section>
-      </main>
-      {env !== 'prod' && (
-        <footer className="shell__footer">
-          <p>{t('app.buildInfo', { env })}</p>
-        </footer>
+    <>
+      {storageKind === 'memory' && <StorageWarning />}
+      <UpdateBanner />
+      {status !== 'ready' ? (
+        <main className="page page--loading" aria-busy="true" />
+      ) : route.name === 'projects' ? (
+        <ProjectsPage />
+      ) : route.name === 'new' ? (
+        <NewProjectPage />
+      ) : route.name === 'project' ? (
+        <TrackerPage projectId={route.id} />
+      ) : route.name === 'settings' ? (
+        <SettingsPage />
+      ) : (
+        <NotFoundPage />
       )}
+    </>
+  );
+}
+
+function StorageWarning() {
+  const { t } = useTranslation();
+  return (
+    <div className="banner banner--danger" role="alert">
+      <strong>{t('storage.memory.title')}</strong> {t('storage.memory.body')}
+    </div>
+  );
+}
+
+function UpdateBanner() {
+  const { t } = useTranslation();
+  const apply = useUpdate((s) => s.apply);
+  if (!apply) return null;
+  return (
+    <div className="banner" role="status">
+      <span>{t('update.available')}</span>
+      <button type="button" className="btn btn--small" onClick={apply}>
+        {t('update.apply')}
+      </button>
     </div>
   );
 }
