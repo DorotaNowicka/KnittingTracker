@@ -6,6 +6,7 @@ import {
   type ImportResult,
   type ParsedDescription,
   type RecognizedChart,
+  UNCERTAIN_BELOW,
 } from '@kt/importer';
 import { create } from 'zustand';
 import { newId } from '../lib/files';
@@ -14,7 +15,7 @@ import { useLibrary } from '../state/library';
 import { ImportClient, ImportError, type CheckedFile } from './client';
 
 /** Cells below this confidence are highlighted for checking. */
-export const UNCERTAIN = 0.5;
+export const UNCERTAIN = UNCERTAIN_BELOW;
 
 export interface ChartDraft {
   include: boolean;

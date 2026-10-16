@@ -82,6 +82,11 @@ export function StraightenStep({
       <div
         ref={box}
         className="straighten__box"
+        // Small pictures are shown larger so the corners can be placed precisely; tall ones are
+        // limited by the screen height (the aspect ratio is kept so the corners stay aligned).
+        style={{
+          width: `min(100% - var(--target), ${Math.max(image.width, 560)}px, ${((70 * image.width) / image.height).toFixed(2)}dvh)`,
+        }}
         onPointerMove={(e) => {
           if (drag.current === null) return;
           const p = toImage(e);

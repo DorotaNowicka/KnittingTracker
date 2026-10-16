@@ -93,8 +93,10 @@ export type ImportProgress =
 export interface ImportOptions {
   /** Restrict recognition to these symbols (the user's choice in the verification screen). */
   readonly symbols?: readonly string[];
-  /** Photos: local thresholding. */
+  /** Force one binarization (default: global, plus local for dark images and photos). */
   readonly threshold?: 'global' | 'local';
+  /** The source is a photo: always try local thresholding too (uneven light). */
+  readonly photo?: boolean;
   readonly registry?: SymbolRegistry;
   readonly signal?: AbortSignal;
   readonly onProgress?: (p: ImportProgress) => void;
@@ -130,12 +132,7 @@ function recognizeSources(
   sources.forEach(({ gray, index }, n) => {
     if (options.signal?.aborted) throw new Error('aborted');
     options.onProgress?.({ stage: 'grids', done: n, total: sources.length });
-    const threshold = options.threshold ?? (meanGray(gray) < 200 ? 'local' : 'global');
-    for (const grid of detectGrids(gray, { threshold })) {
-      // A chart has at least 2 columns, 2 rows and a regular lattice.
-      if (grid.cols < 2 || grid.rows < 2 || grid.cols * grid.rows < 6 || grid.regularity < 0.6)
-        continue;
-      if (!mostlyPaper(gray, grid)) continue;
+    for (const grid of findGrids(gray, options.threshold, options.photo)) {
       const pad = grid.pitch * 0.6;
       const title = grid.pitch * 3.2;
       const x = Math.max(0, grid.box.x - pad);
@@ -154,6 +151,42 @@ function recognizeSources(
     }
   });
   return charts;
+}
+
+/** A chart has at least 2 columns, 2 rows, a regular lattice and mostly paper in its cells. */
+function plausible(gray: GrayImage, grid: DetectedGrid): boolean {
+  return (
+    grid.cols >= 2 &&
+    grid.rows >= 2 &&
+    grid.cols * grid.rows >= 6 &&
+    grid.regularity >= 0.6 &&
+    mostlyPaper(gray, grid)
+  );
+}
+
+/**
+ * Grids of an image. Without a fixed threshold both binarizations run: the global one keeps every
+ * rule of a clean or noisy picture, the local one copes with uneven light. Where both find a grid
+ * in the same place, the one with more cells wins (a lost rule only ever removes cells).
+ */
+function findGrids(gray: GrayImage, threshold?: 'global' | 'local', photo = false): DetectedGrid[] {
+  if (threshold) return detectGrids(gray, { threshold }).filter((g) => plausible(gray, g));
+  const all = [
+    ...detectGrids(gray, { threshold: 'global' }),
+    ...(photo || meanGray(gray) < 200 ? detectGrids(gray, { threshold: 'local' }) : []),
+  ].filter((g) => plausible(gray, g));
+  const overlap = (a: DetectedGrid, b: DetectedGrid) => {
+    const w = Math.min(a.box.x + a.box.w, b.box.x + b.box.w) - Math.max(a.box.x, b.box.x);
+    const h = Math.min(a.box.y + a.box.h, b.box.y + b.box.h) - Math.max(a.box.y, b.box.y);
+    return w > 0 && h > 0 && w * h > 0.3 * Math.min(a.box.w * a.box.h, b.box.w * b.box.h);
+  };
+  const kept: DetectedGrid[] = [];
+  for (const g of [...all].sort((a, b) => b.cols * b.rows - a.cols * a.rows)) {
+    if (!kept.some((k) => overlap(k, g))) kept.push(g);
+  }
+  return kept.sort((a, b) =>
+    Math.abs(a.box.y - b.box.y) > a.pitch * 2 ? a.box.y - b.box.y : a.box.x - b.box.x,
+  );
 }
 
 /** Chart cells are mostly paper; a photo that happens to contain a lattice is not. */
@@ -326,7 +359,7 @@ export async function importPdf(
 
 /**
  * Import a decoded image (photo, screenshot, scan). With `corners` (a photo), the quadrilateral is
- * straightened first and read with local thresholding.
+ * straightened first and also read with local thresholding.
  */
 export function importImage(
   image: { width: number; height: number; rgba: Uint8ClampedArray },
@@ -343,7 +376,7 @@ export function importImage(
   }
   const charts = recognizeSources([{ gray, index: 0 }], registry, symbols, [], {
     ...options,
-    ...(options.corners ? { threshold: options.threshold ?? 'local' } : {}),
+    ...(options.corners ? { photo: true } : {}),
   });
   return {
     kind: 'image',

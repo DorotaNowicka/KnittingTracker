@@ -2,7 +2,7 @@ import { chartToSymbolRows, createRegistry, type Chart } from '@kt/core';
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { writePdf, type PdfOp } from './__tests__/pdf';
-import { drawChart, randomChart, rng } from './__tests__/synth';
+import { degrade, drawChart, randomChart, rng } from './__tests__/synth';
 import type { PdfJsLike } from './pdf/analyze';
 import {
   cropRgba,
@@ -12,6 +12,7 @@ import {
   rerecognize,
   type FoundChart,
 } from './pipeline';
+import { UNCERTAIN_BELOW } from './raster/classify';
 import { renderCells } from './raster/draw';
 
 const reg = createRegistry();
@@ -234,6 +235,34 @@ describe.skipIf(!haveLocal)('local acceptance: DROPS 246-2.pdf', () => {
     console.info('[acceptance] cell differences vs golden:', report);
     expect(report).toEqual({ 'A.1': 0, 'A.2': 0, 'A.3': 0, 'A.4': 0 });
     expect(result.legend.filter((l) => l.confidence >= 0.6)).toHaveLength(8);
+  }, 60_000);
+});
+
+describe('poor photos', () => {
+  it('finds the whole grid and leaves no misread cell unflagged in faint, noisy pictures', () => {
+    let cells = 0;
+    let wrong = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const r = rng(seed);
+      const chart = randomChart(r, reg, DEFAULT_SYMBOLS, 12, 10);
+      // Thin strokes, heavy noise and a light gradient: a dim phone picture of a small chart.
+      const g = degrade(drawChart(chart, reg, { cell: 14, stroke: 0.8 }), r, 45, 60);
+      const rgba = new Uint8ClampedArray(g.width * g.height * 4);
+      g.data.forEach((v, i) => rgba.set([v, v, v, 255], i * 4));
+      const found = importImage({ width: g.width, height: g.height, rgba }).charts[0];
+      expect(found && `${found.grid.cols}x${found.grid.rows}`).toBe('12x10');
+      const truth = chartToSymbolRows(chart);
+      found?.recognized.cells.forEach((row, rr) =>
+        row.forEach((cell, c) => {
+          cells += 1;
+          if ((cell.part === 0 ? cell.symbolId : '.') === truth[rr]?.[c]) return;
+          wrong += 1;
+          // A misread cell must be among those the user is asked to check.
+          expect(cell.confidence).toBeLessThan(UNCERTAIN_BELOW);
+        }),
+      );
+    }
+    expect(wrong / cells).toBeLessThan(0.02);
   }, 60_000);
 });
 

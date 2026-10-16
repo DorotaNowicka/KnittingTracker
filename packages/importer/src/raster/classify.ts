@@ -129,11 +129,12 @@ export function normalize(
   const range = Math.max(1, levels.paper - levels.ink);
   const ink = new Float32Array(img.width * img.height);
   for (let i = 0; i < ink.length; i++) {
-    ink[i] = Math.max(0, Math.min(1, (levels.paper - (img.data[i] ?? 255)) / range));
+    // Not clipped yet: noise above and below the paper level cancels out in the blur.
+    ink[i] = Math.min(1, (levels.paper - (img.data[i] ?? 255)) / range);
   }
   const b = blur3(ink, img.width, img.height);
   const mask = interiorMask(Math.max(1, Math.round(img.width / TEMPLATE_CELL)));
-  for (let i = 0; i < b.length; i++) if (!mask[i]) b[i] = 0;
+  for (let i = 0; i < b.length; i++) b[i] = mask[i] ? Math.max(0, b[i] ?? 0) : 0;
   return b;
 }
 
@@ -226,8 +227,18 @@ export function discriminate(v: Float32Array, a: Float32Array, b: Float32Array):
   return da <= db ? 'a' : 'b';
 }
 
+/** Median grey of a region: the paper level of a cell that is mostly paper, even in a noisy photo. */
+function median(img: GrayImage, x: number, y: number, w: number, h: number): number {
+  const v: number[] = [];
+  for (let yy = Math.max(0, Math.floor(y)); yy < Math.min(img.height, Math.ceil(y + h)); yy++)
+    for (let xx = Math.max(0, Math.floor(x)); xx < Math.min(img.width, Math.ceil(x + w)); xx++)
+      v.push(img.data[yy * img.width + xx] ?? 255);
+  v.sort((a, b) => a - b);
+  return v[v.length >> 1] ?? 255;
+}
+
 /**
- * Paper level per cell: a bright percentile of the cell, then the maximum over the 3×3
+ * Paper level per cell: the median of the cell, then the maximum over the 3×3
  * neighbourhood, so a shaded "no stitch" cell still gets the paper level of its neighbours while a
  * dim corner of a photo gets its own.
  */
@@ -244,7 +255,7 @@ function localPaper(img: GrayImage, grid: DetectedGrid, levels: InkLevels): numb
       row.push(
         Math.min(
           levels.paper,
-          inkLevels(img, x0 + pad, y0 + pad, x1 - x0 - 2 * pad, y1 - y0 - 2 * pad).paper,
+          median(img, x0 + pad, y0 + pad, x1 - x0 - 2 * pad, y1 - y0 - 2 * pad),
         ),
       );
     }
@@ -259,6 +270,43 @@ function localPaper(img: GrayImage, grid: DetectedGrid, levels: InkLevels): numb
     }),
   );
 }
+
+interface Fill {
+  /** Lower quartile, median and upper quartile of the ink inside the cell rules. */
+  readonly q1: number;
+  readonly q2: number;
+  readonly q3: number;
+}
+
+/** Ink quartiles inside the cell rules: a filled (shaded) cell is dark and even throughout. */
+function fillOf(vec: Float32Array, cells: number): Fill {
+  const mask = interiorMask(cells);
+  const v: number[] = [];
+  for (let i = 0; i < vec.length; i++) if (mask[i]) v.push(vec[i] ?? 0);
+  v.sort((a, b) => a - b);
+  const q = (f: number) => v[Math.floor(v.length * f)] ?? 0;
+  return { q1: q(0.25), q2: q(0.5), q3: q(0.75) };
+}
+
+const fills = new WeakMap<Template, Fill>();
+const templateFill = (t: Template) => {
+  let f = fills.get(t);
+  if (f === undefined) fills.set(t, (f = fillOf(t.vec, t.width)));
+  return f;
+};
+
+/**
+ * A filled symbol ("no stitch") must look filled: a thin ring blurred by noise (a yarn-over in a
+ * poor photo) can score close to a grey fill, but its ink is uneven (bright inside the ring).
+ */
+const FILL_PENALTY = 0.3;
+const looksFilled = (f: Fill, template: Fill) => f.q2 >= template.q2 / 3 && f.q1 >= f.q3 * 0.5;
+
+/**
+ * Cells below this confidence must be checked by the user. Calibrated on noisy synthetic photos,
+ * where every misread cell stayed below it; clean PDFs have no cells under 0.8.
+ */
+export const UNCERTAIN_BELOW = 0.7;
 
 /** Map a score margin to a 0…1 confidence (calibrated on synthetic charts). */
 export const confidenceOf = (margin: number) => Math.max(0, Math.min(1, margin / 0.12));
@@ -298,9 +346,12 @@ export function recognizeGrid(
         );
         const best = new Map<string, number>();
         const tpl = new Map<string, Template>();
+        const fill = fillOf(v, w);
         for (const t of templates) {
           if (t.width !== w) continue;
-          const s = similarity(v, t.vec);
+          const tf = templateFill(t);
+          const filled = tf.q2 > 0.15 && tf.q1 > tf.q3 * 0.7;
+          const s = similarity(v, t.vec) - (filled && !looksFilled(fill, tf) ? FILL_PENALTY : 0);
           if (s > (best.get(t.symbolId) ?? -Infinity)) {
             best.set(t.symbolId, s);
             tpl.set(t.symbolId, t);

@@ -171,7 +171,7 @@ export function ChartReview({
             </figure>
             <div className="review__pane review__pane--grid">
               <p className="hint">{t('importer.recognised')}</p>
-              <div className="review__grid">
+              <div className="review__grid" style={{ aspectRatio: `${width + 3} / ${height + 4}` }}>
                 <EditorCanvas
                   source={source}
                   overlay={overlay}

@@ -5,7 +5,12 @@
 import { createRegistry, type Chart } from '@kt/core';
 import { writePdf, type PdfOp } from '../../../packages/importer/src/__tests__/pdf';
 import { encodePng } from '../../../packages/importer/src/__tests__/png';
-import { drawChart, randomChart, rng } from '../../../packages/importer/src/__tests__/synth';
+import {
+  degrade,
+  drawChart,
+  randomChart,
+  rng,
+} from '../../../packages/importer/src/__tests__/synth';
 import { renderCells } from '../../../packages/importer/src/raster/draw';
 
 const reg = createRegistry();
@@ -75,15 +80,17 @@ export function syntheticPdf(): SyntheticPdf {
   };
 }
 
-export function syntheticPng(): { buffer: Buffer; chart: Chart } {
+/** A chart picture; `poor` makes a faint, noisy one where a few cells come out uncertain. */
+export function syntheticPng(poor = false): { buffer: Buffer; chart: Chart } {
+  const r = rng(7);
   const chart = randomChart(
-    rng(7),
+    r,
     reg,
     ['std:k', 'std:p', 'cable:1-1-rpc', 'cable:1-1-lpc'],
     10,
     8,
     'png',
   );
-  const img = drawChart(chart, reg, { cell: 18, stroke: 2.4 });
-  return { buffer: Buffer.from(encodePng(img)), chart };
+  const img = drawChart(chart, reg, poor ? { cell: 14, stroke: 0.6 } : { cell: 18, stroke: 2.4 });
+  return { buffer: Buffer.from(encodePng(poor ? degrade(img, r, 55, 60) : img)), chart };
 }

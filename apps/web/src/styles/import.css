@@ -7,16 +7,15 @@
 
 .straighten__box {
   position: relative;
-  width: fit-content;
-  max-width: 100%;
+  /* Width set inline; room for the corner handles, which are centred on the image edges. */
+  margin-inline: calc(var(--target) / 2);
   touch-action: none;
   user-select: none;
 }
 
 .straighten__image {
   display: block;
-  max-width: 100%;
-  max-height: 70dvh;
+  width: 100%;
   height: auto;
   border-radius: var(--r-control);
 }
@@ -242,8 +241,10 @@
 }
 
 .review__grid {
-  height: min(60dvh, 520px);
-  min-height: 260px;
+  /* Height follows the chart's proportions (set inline), within limits. */
+  width: 100%;
+  max-height: min(60dvh, 520px);
+  min-height: 220px;
   border: 1px solid var(--rule);
   border-radius: var(--r-control);
   overflow: hidden;

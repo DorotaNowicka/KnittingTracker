@@ -40,6 +40,7 @@ export {
   type SourceImage,
 } from './pipeline';
 export type { RecognizedCell, RecognizedChart, Scored } from './raster/classify';
+export { UNCERTAIN_BELOW } from './raster/classify';
 export type { DetectedGrid } from './raster/grid';
 export type { LegendItem } from './legend/pair';
 export type { ParsedDescription, SequenceItem } from './describe/parse';
