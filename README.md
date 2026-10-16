@@ -79,6 +79,25 @@ layout wizard: put the charts in the order of the pattern text, set partial repe
 stitches") per size, add markers for front and back, and compare the stitch count with the
 pattern. **Zacznij dziergać** creates a project; **Zapisz do pliku** exports the pattern.
 
+## Importing a pattern from a PDF or a photo
+
+**Wzory → Rozpoznaj z PDF lub zdjęcia** reads a pattern PDF, a screenshot, a scan or a photo of a chart. Everything
+happens on the device, in a background worker; the file is never uploaded. For a photo you first
+drag the four corners onto the chart. Then you check what was found:
+
+- **Legend**: each symbol from the file is matched with a symbol of the app. Fix a wrong match and
+  press **Rozpoznaj ponownie z tymi symbolami**.
+- **Charts**: the original is shown next to the recognised grid. Doubtful cells are outlined; **Następna
+  niepewna kratka** jumps to the next one, and you confirm it or pick another symbol (also with the
+  arrow keys, Enter and 1–9). Give each chart its name from the pattern (e.g. A.1).
+- **Description**: sizes, the order of the charts, stitch counts and the marker are read from the
+  pattern text (from the same PDF, or add the description PDF separately). Correct anything that
+  is wrong.
+
+**Utwórz wzór** creates a normal pattern that you can still edit and lay out before you start
+knitting. Limits: 25 MB per file, 30 PDF pages, 40 megapixels per image. Recognition works best on
+PDFs and sharp, evenly lit photos; always compare the result with the original.
+
 ## Architecture
 
 ```mermaid
@@ -114,7 +133,7 @@ locally. There are no secrets in v1.
 | Variable             | Default | Meaning                                                             |
 | -------------------- | ------- | ------------------------------------------------------------------- |
 | `VITE_APP_ENV`       | `dev`   | `dev` · `test` · `prod`. Non-prod builds show an environment footer |
-| `VITE_ENABLE_VISION` | `false` | Opt-in vision-model recognizer (planned for M4, off by default)     |
+| `VITE_ENABLE_VISION` | `false` | Reserved for an opt-in vision-model recognizer (not built yet)      |
 
 ## Copyright and privacy
 
