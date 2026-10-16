@@ -53,8 +53,11 @@ export function EditorCanvas(props: Props) {
     cb.current = props;
   });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
-  /** A fit was asked for before the canvas had a size: do it on the first resize. */
-  const pendingFit = useRef(true);
+  /**
+   * Keep the view fitted while the layout settles (fonts, panels) until the user pans or zooms
+   * themselves; after that a resize keeps their view.
+   */
+  const autoFit = useRef(true);
   const g = useRef<{
     mode: 'stroke' | 'pan' | 'pinch' | 'pending';
     startX: number;
@@ -83,7 +86,7 @@ export function EditorCanvas(props: Props) {
     const ro = new ResizeObserver(([entry]) => {
       if (!entry) return;
       r.resize(entry.contentRect.width, entry.contentRect.height, window.devicePixelRatio);
-      if (pendingFit.current && fitView(r, cb.current.source)) pendingFit.current = false;
+      if (autoFit.current) fitView(r, cb.current.source);
       r.draw();
     });
     ro.observe(canvas);
@@ -94,6 +97,7 @@ export function EditorCanvas(props: Props) {
     void document.fonts?.ready.then(() => r.invalidate());
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      autoFit.current = false;
       const rect = canvas.getBoundingClientRect();
       if (e.ctrlKey || e.metaKey) {
         r.zoomTo(
@@ -117,8 +121,15 @@ export function EditorCanvas(props: Props) {
     };
   }, [unsupported]);
 
+  const dims = useRef('');
   useEffect(() => {
-    rendererRef.current?.setSource(source);
+    const r = rendererRef.current;
+    if (!r) return;
+    r.setSource(source);
+    // A new size (rows/columns added or removed) re-fits, unless the user has taken over the view.
+    const next = `${source.cols}x${source.rows}`;
+    if (dims.current && dims.current !== next && autoFit.current) fitView(r, source);
+    dims.current = next;
   }, [source]);
 
   useEffect(() => {
@@ -128,7 +139,8 @@ export function EditorCanvas(props: Props) {
   // Fit the whole chart on open (and when asked to), at a comfortable size for painting.
   useEffect(() => {
     const r = rendererRef.current;
-    pendingFit.current = !r || !fitView(r, source);
+    autoFit.current = true;
+    if (r) fitView(r, source);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only on fitKey changes
   }, [fitKey]);
 
@@ -181,6 +193,7 @@ export function EditorCanvas(props: Props) {
     if (!prev || !s || !r) return;
     const next = { x: e.clientX, y: e.clientY };
     pointers.current.set(e.pointerId, next);
+    if (s.mode === 'pinch' || s.mode === 'pan') autoFit.current = false;
     if (s.mode === 'pinch') {
       const [a, b] = [...pointers.current.values()];
       if (!a || !b || s.pinchDist === 0) return;

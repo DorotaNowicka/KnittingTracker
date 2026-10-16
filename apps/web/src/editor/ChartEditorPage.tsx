@@ -497,7 +497,11 @@ function ChartEditor({
                       title={i < 9 ? `${s.label[lang]} (${i + 1})` : s.label[lang]}
                       onClick={() => pick(id)}
                     >
-                      <SymbolGlyph glyph={s.glyph} width={s.width} cell={26} />
+                      <SymbolGlyph
+                        glyph={s.glyph}
+                        width={s.width}
+                        cell={Math.min(26, 64 / s.width)}
+                      />
                       <span className="palette__label">{s.label[lang]}</span>
                     </button>
                   </li>

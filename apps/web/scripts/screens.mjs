@@ -68,6 +68,38 @@ for (const [name, vp] of Object.entries(viewports)) {
     await page.goto(`${base}/ustawienia`);
     await page.getByRole('heading', { level: 1 }).waitFor();
     await shot('7-settings');
+
+    // M3: pattern library, pattern editor, chart editor, layout wizard (sample pattern only).
+    await page.goto(`${base}/wzory`);
+    await page.getByRole('heading', { level: 1 }).waitFor();
+    await shot('8-patterns');
+    await page
+      .getByRole('link', { name: /Przykład: warkocze/ })
+      .first()
+      .click();
+    await page.getByRole('heading', { level: 2, name: 'Schematy' }).waitFor();
+    await page.waitForTimeout(300);
+    await shot('9-pattern');
+    await page
+      .getByRole('link', { name: /Ścieżka/ })
+      .first()
+      .click();
+    await page.getByTestId('chart-editor').waitFor();
+    await page.getByRole('radio', { name: 'Zaznacz' }).check();
+    await page.getByTestId('chart-editor').focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('Shift+ArrowUp');
+    await page.keyboard.press('Shift+ArrowLeft');
+    await page.waitForTimeout(400);
+    await shot('10-chart-editor');
+    await page.getByRole('link', { name: 'Wróć do wzoru' }).click();
+    await page.getByRole('link', { name: 'Ustaw układ' }).first().click();
+    await page.getByTestId('stage-preview').waitFor();
+    await page.waitForTimeout(400);
+    await shot('11-layout');
+    await page.getByRole('heading', { level: 2, name: 'Podgląd siatki' }).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await shot('12-layout-preview');
     await ctx.close();
   }
 }

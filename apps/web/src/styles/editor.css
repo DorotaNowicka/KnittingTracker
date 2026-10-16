@@ -574,8 +574,9 @@ textarea {
 .editor__canvas {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  height: min(62dvh, 640px);
-  min-height: 320px;
+  /* Leaves the first row of the palette in view on phones. */
+  height: min(52dvh, 640px);
+  min-height: 300px;
 }
 
 .editor-canvas {
@@ -690,8 +691,14 @@ textarea {
 }
 
 @media (max-width: 520px) {
+  /* Icons only on phones; the names stay available to screen readers. */
   .editor__toolbar .segmented__text {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 
