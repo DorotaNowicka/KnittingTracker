@@ -34,6 +34,11 @@ export default tseslint.config(
       'no-new-func': 'error',
     },
   },
+  // Plain browser scripts served as-is (e.g. theme-init.js).
+  {
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { globals: { ...globals.browser }, sourceType: 'script' },
+  },
   // Node scripts and config files.
   {
     files: ['**/*.{js,mjs,cjs}', '**/*.config.ts', 'scripts/**'],
