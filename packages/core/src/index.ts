@@ -31,6 +31,46 @@ export {
 } from './chart/parse';
 
 export {
+  anchorAt,
+  applySymbolRows,
+  blankChart,
+  chartToSymbolRows,
+  copyRect,
+  DEFAULT_FILL,
+  deleteColumns,
+  deleteRows,
+  fillRect,
+  gridWidth,
+  insertColumns,
+  insertRows,
+  mirrorRect,
+  mirrorSymbolId,
+  normalizeRect,
+  paintCell,
+  pasteClip,
+  repairRows,
+  resizeRows,
+  snapRect,
+  symbolUsage,
+  type CellRect,
+  type Clip,
+  type ResizeAnchor,
+  type SymbolRows,
+} from './chart/edit';
+
+export {
+  createHistory,
+  EDITOR_HISTORY_LIMIT,
+  pushHistory,
+  redoHistory,
+  replacePresent,
+  undoHistory,
+  type History,
+} from './history';
+
+export * from './authoring/pattern';
+
+export {
   customToSymbolDef,
   effectiveCharts,
   findStage,

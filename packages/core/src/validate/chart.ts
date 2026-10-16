@@ -36,6 +36,7 @@ export function checkStitchChain(parsed: ParsedChart, registry: SymbolRegistry):
           'warning',
           `${name}: the top row leaves ${produced} stitches but row 1 needs ${consumed}; the chart can't repeat vertically as is.`,
           { chartId: id, row: 1 },
+          { chart: name, produced, consumed },
         ),
       );
     } else {
@@ -45,6 +46,7 @@ export function checkStitchChain(parsed: ParsedChart, registry: SymbolRegistry):
           'error',
           `${name}: row ${r} leaves ${produced} stitches but row ${nextRow} needs ${consumed}.`,
           { chartId: id, row: nextRow },
+          { chart: name, row: r, nextRow, produced, consumed },
         ),
       );
     }
@@ -105,6 +107,7 @@ export function checkStitchFlow(
             ? `${name}: the cable in row ${nextRow}, column ${c + 1} expects a ${a === 'k' ? 'knit' : 'purl'} stitch but row ${r} leaves a ${b === 'k' ? 'knit' : 'purl'} one.`
             : `${name}: texture changes from ${b} to ${a} at row ${nextRow}, column ${c + 1}.`,
           { chartId: id, row: nextRow, col: c + 1 },
+          { chart: name, row: nextRow, col: c + 1, expected: a, actual: b },
         ),
       );
     }
