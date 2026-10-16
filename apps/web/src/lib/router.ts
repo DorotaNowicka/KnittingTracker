@@ -10,6 +10,7 @@ export type Route =
   | { readonly name: 'project'; readonly id: string }
   | { readonly name: 'settings' }
   | { readonly name: 'patterns' }
+  | { readonly name: 'import' }
   | { readonly name: 'pattern'; readonly id: string }
   | { readonly name: 'patternProject'; readonly id: string }
   | { readonly name: 'chart'; readonly id: string; readonly chartId: string }
@@ -24,6 +25,7 @@ export const paths = {
   project: (id: string) => `/projekt/${enc(id)}`,
   settings: () => '/ustawienia',
   patterns: () => '/wzory',
+  import: () => '/import',
   pattern: (id: string) => `/wzor/${enc(id)}`,
   patternProject: (id: string) => `/wzor/${enc(id)}/nowy-projekt`,
   chart: (id: string, chartId: string) => `/wzor/${enc(id)}/schemat/${enc(chartId)}`,
@@ -43,6 +45,7 @@ export function parseRoute(pathname: string): Route {
   if (pathname === '/nowy') return { name: 'new' };
   if (pathname === '/ustawienia') return { name: 'settings' };
   if (pathname === '/wzory') return { name: 'patterns' };
+  if (pathname === '/import') return { name: 'import' };
   let m = /^\/projekt\/([^/]+)$/.exec(pathname);
   if (m) {
     const [id] = decode([m[1]]) ?? [];

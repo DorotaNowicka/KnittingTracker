@@ -37,8 +37,8 @@ export default defineConfig({
       injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
-        // Fonts: latin + latin-ext of one variable family (normal and italic) stay well under this.
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // The import worker bundles pdf.js (a few MB) so import also works offline.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
       manifest: {
         name: 'KnittingTracker',

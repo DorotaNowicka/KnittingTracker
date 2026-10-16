@@ -28,6 +28,7 @@ export {
   buildTemplates,
   cropRgba,
   DEFAULT_SYMBOLS,
+  extractPdfText,
   importImage,
   importPdf,
   rerecognize,
@@ -44,3 +45,6 @@ export type { LegendItem } from './legend/pair';
 export type { ParsedDescription, SequenceItem } from './describe/parse';
 export { parseDescription } from './describe/parse';
 export type { PdfJsLike } from './pdf/analyze';
+export { loadPdfJs } from './pdf/load';
+export { buildPattern, placeMarker, type DraftChart, type DraftInput } from './draft';
+export type { Point } from './raster/warp';

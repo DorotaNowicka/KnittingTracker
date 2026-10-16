@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoute } from './lib/router';
 import { ChartEditorPage } from './editor/ChartEditorPage';
@@ -12,6 +12,11 @@ import { StagePage } from './routes/StagePage';
 import { TrackerPage } from './routes/TrackerPage';
 import { useLibrary } from './state/library';
 import { useUpdate } from './state/update';
+
+// The import wizard (and its worker) loads only when it is opened.
+const ImportPage = lazy(() =>
+  import('./import/ImportPage').then((m) => ({ default: m.ImportPage })),
+);
 
 export function App() {
   const route = useRoute();
@@ -39,6 +44,10 @@ export function App() {
         <SettingsPage />
       ) : route.name === 'patterns' ? (
         <PatternsPage />
+      ) : route.name === 'import' ? (
+        <Suspense fallback={<main className="page page--loading" aria-busy="true" />}>
+          <ImportPage />
+        </Suspense>
       ) : route.name === 'pattern' ? (
         <PatternPage patternId={route.id} />
       ) : route.name === 'patternProject' ? (

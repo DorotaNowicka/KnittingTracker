@@ -236,3 +236,26 @@ describe.skipIf(!haveLocal)('local acceptance: DROPS 246-2.pdf', () => {
     expect(result.legend.filter((l) => l.confidence >= 0.6)).toHaveLength(8);
   }, 60_000);
 });
+
+describe('photo import with corners', () => {
+  it('straightens before reading', () => {
+    const chart = randomChart(rng(11), reg, ['std:k', 'std:p'], 10, 8);
+    const g = drawChart(chart, reg, { cell: 16, margin: 4 });
+    const rgba = new Uint8ClampedArray(g.width * g.height * 4);
+    g.data.forEach((v, i) => rgba.set([v, v, v, 255], i * 4));
+    const result = importImage(
+      { width: g.width, height: g.height, rgba },
+      {
+        symbols: ['std:k', 'std:p'],
+        corners: [
+          [0, 0],
+          [g.width, 0],
+          [g.width, g.height],
+          [0, g.height],
+        ],
+      },
+    );
+    expect(result.sources[0]?.width).toBe(g.width);
+    expect(errors(result.charts[0], chart)).toBe(0);
+  });
+});

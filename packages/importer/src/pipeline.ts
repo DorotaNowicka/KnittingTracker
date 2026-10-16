@@ -12,6 +12,7 @@ import {
 import { rasterizeVectors } from './raster/draw';
 import { crop, meanGray, toGray, type GrayImage } from './raster/gray';
 import { detectGrids, type DetectedGrid } from './raster/grid';
+import { straighten, type Point } from './raster/warp';
 
 /**
  * The import pipeline (ADR-5): file → analysed document → legend → grids → recognised cells →
@@ -323,19 +324,30 @@ export async function importPdf(
   };
 }
 
-/** Import a decoded image (photo, screenshot, scan); `rgba` may come from crop & straighten. */
+/**
+ * Import a decoded image (photo, screenshot, scan). With `corners` (a photo), the quadrilateral is
+ * straightened first and read with local thresholding.
+ */
 export function importImage(
   image: { width: number; height: number; rgba: Uint8ClampedArray },
-  options: ImportOptions = {},
+  options: ImportOptions & { readonly corners?: readonly Point[] } = {},
 ): ImportResult {
   const registry = options.registry ?? createRegistry();
   if (image.width * image.height > UPLOAD_LIMITS.maxImagePixels) throw new Error('too-many-pixels');
   const symbols = options.symbols ?? DEFAULT_SYMBOLS;
-  const gray = toGray(image.rgba, image.width, image.height, 4);
-  const charts = recognizeSources([{ gray, index: 0 }], registry, symbols, [], options);
+  let gray = toGray(image.rgba, image.width, image.height, 4);
+  let rgba = image.rgba;
+  if (options.corners?.length === 4) {
+    gray = straighten(gray, options.corners);
+    rgba = grayToRgba(gray);
+  }
+  const charts = recognizeSources([{ gray, index: 0 }], registry, symbols, [], {
+    ...options,
+    ...(options.corners ? { threshold: options.threshold ?? 'local' } : {}),
+  });
   return {
     kind: 'image',
-    sources: [{ page: 0, width: image.width, height: image.height, rgba: image.rgba }],
+    sources: [{ page: 0, width: gray.width, height: gray.height, rgba }],
     charts,
     legend: [],
     symbols,
@@ -343,6 +355,16 @@ export function importImage(
     description: parseDescription(''),
     notes: [],
   };
+}
+
+/** Only the text of a PDF (a pattern description in a second file) and what the parser found. */
+export async function extractPdfText(
+  pdfjs: PdfJsLike,
+  bytes: Uint8Array,
+): Promise<{ text: string; description: ParsedDescription }> {
+  const doc = await analyzePdf(pdfjs, bytes, { maxPages: UPLOAD_LIMITS.maxPdfPages });
+  const text = documentText(doc);
+  return { text, description: parseDescription(text) };
 }
 
 /** Re-run recognition with another symbol set (after the user fixed the legend). */

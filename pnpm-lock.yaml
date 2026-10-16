@@ -71,6 +71,9 @@ importers:
       '@kt/grid-renderer':
         specifier: workspace:*
         version: link:../../packages/grid-renderer
+      '@kt/importer':
+        specifier: workspace:*
+        version: link:../../packages/importer
       dexie:
         specifier: 4.4.6
         version: 4.4.6

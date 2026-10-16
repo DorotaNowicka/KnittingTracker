@@ -86,6 +86,9 @@ export function NewProjectPage({ patternId }: { patternId?: string } = {}) {
                   onChange={(e) => void onFile(e.target.files?.[0])}
                 />
               </label>
+              <Link className="btn" to={paths.import()}>
+                {t('newProject.recognise')}
+              </Link>
               <button
                 type="button"
                 className="btn"
