@@ -132,7 +132,7 @@ Decisions made while implementing `@kt/core`:
   known row count.
 - **Not yet in M1** (planned for M5): layout changes within a stage (increases/decreases from row
   *r*), stage inheritance of chart phases (`inheritsFrom`), stage start constraints. The schema will
-  gain these fields with a migration.
+  gain these fields with a migration. *(M5 outcome: see "Stage notes" below.)*
 
 ## Authoring notes (M3, 2026-10-16)
 
@@ -159,3 +159,36 @@ Decisions made while implementing `@kt/core`:
 - **Storage never holds a pattern that fails the schema**: the editor's fields only commit valid
   values, and the draft store refuses to write anything that fails `patternSchema` (it shows
   "Nie zapisano" instead).
+
+## Stage notes (M5, 2026-10-17)
+
+How the stage requirements were built, and where this differs from the plan above.
+
+- **Phase continuation (DR-3) is per placement, not per stage.** Instead of
+  `inheritsFrom: { stageId, stitchRange }`, a chart segment has
+  `continueFrom: { stageId, placementId }`. The front after a split names exactly which body
+  placement each of its charts continues, which also covers charts that change width or move. The
+  offset is the source's own start offset plus the rows of its stage; chains are followed and loops
+  reported (`continue-cycle`).
+- **Layout changes from row *r* are chained stages**, not `layoutChanges` patches inside a stage.
+  A stage keeps a fixed width, so the renderer, the progress engine and validation stay simple;
+  "decrease from row 40" is a stage of 40 rows followed by a stage whose placements continue the
+  first one. `continueStage()` builds that stage from an existing one.
+- **Open-ended stages (DR-5)**: `targetCm` (per size) plus a gauge (`pattern.gauge`, or the
+  project's own) gives an estimate in rows. The knitter ends the stage; the project records
+  `finishedRows[stageId]`, which also feeds later continuing placements. A recorded finish also
+  overrides planned rows (stopping early), and it can be undone.
+- **Start constraints (DR-4) are not modelled as data.** The finish dialog shows the chart row of
+  every chart in the last finished row, so "end after an even row of A.2" is checked by the knitter
+  where it matters. A formal constraint can still be added as an optional field later.
+- **Row counter (DR-9)**: `tracking: 'rows'`. The progress model treats every row as one unit, so
+  the same reducer (complete row, set, undo/redo) and storage are reused; a stage without stitches
+  is allowed in this mode.
+- **Manual position (DR-8)** is the existing `set` action with `done = rowStart(row) + stitches`.
+- **Validation without a project**: a pattern check has no `finishedRows`, so placements that
+  continue an open-ended stage are resolved with offset 0 and an info `continue-unknown`. The
+  tracker resolves with the project's `finishedRows` and is exact.
+- **Pattern edits and existing progress**: still stored as a count per stage. Changing a finished
+  stage's layout keeps the recorded rows; changing the rows of a planned stage shifts later
+  continuing placements, as it should.
+

@@ -79,6 +79,24 @@ layout wizard: put the charts in the order of the pattern text, set partial repe
 stitches") per size, add markers for front and back, and compare the stitch count with the
 pattern. **Zacznij dziergać** creates a project; **Zapisz do pliku** exports the pattern.
 
+## Stages, finishing and backups
+
+A pattern can have several **stages** (e.g. body in the round, then front and back flat). In the
+stage editor a chart can **continue as in an earlier stage**: after the split, the front's A.2 starts
+with the row after the last one knitted in the body. **Zmiana układu** on the pattern page creates
+such a continuing stage, for decreases or increases from a given row. A stage can be **open-ended**
+("until 34 cm"): with the gauge (in the pattern, or your own in the project settings) the app
+estimates the rows left, and you end it with **Zakończ etap**, which shows the chart rows of the
+last row so you can check them against the pattern. Ribbing and plain sections can use a **row
+counter** instead of tapping stitches.
+
+If you knitted without the app, **Ustaw** next to the position (or the G key) sets the row and the
+stitches done in it. This can be undone.
+
+**Ustawienia → Zapisz kopię zapasową** saves everything to one file; **Przywróć z kopii** reads it
+back on any device. Before writing, it shows what is new, what is newer in the backup and what is
+newer on this device; newer work on the device is never overwritten.
+
 ## Importing a pattern from a PDF or a photo
 
 **Wzory → Rozpoznaj z PDF lub zdjęcia** reads a pattern PDF, a screenshot, a scan or a photo of a chart. Everything
