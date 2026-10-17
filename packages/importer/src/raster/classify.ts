@@ -229,12 +229,23 @@ export function discriminate(v: Float32Array, a: Float32Array, b: Float32Array):
 
 /** Median grey of a region: the paper level of a cell that is mostly paper, even in a noisy photo. */
 function median(img: GrayImage, x: number, y: number, w: number, h: number): number {
-  const v: number[] = [];
+  // Counting, not sorting: grey levels are bytes, and this runs for every cell.
+  const hist = new Uint32Array(256);
+  let n = 0;
   for (let yy = Math.max(0, Math.floor(y)); yy < Math.min(img.height, Math.ceil(y + h)); yy++)
-    for (let xx = Math.max(0, Math.floor(x)); xx < Math.min(img.width, Math.ceil(x + w)); xx++)
-      v.push(img.data[yy * img.width + xx] ?? 255);
-  v.sort((a, b) => a - b);
-  return v[v.length >> 1] ?? 255;
+    for (let xx = Math.max(0, Math.floor(x)); xx < Math.min(img.width, Math.ceil(x + w)); xx++) {
+      const g = img.data[yy * img.width + xx] ?? 255;
+      hist[g] = (hist[g] ?? 0) + 1;
+      n += 1;
+    }
+  if (n === 0) return 255;
+  const half = n >> 1;
+  let acc = 0;
+  for (let v = 0; v < 256; v++) {
+    acc += hist[v] ?? 0;
+    if (acc > half) return v;
+  }
+  return 255;
 }
 
 /**
@@ -280,11 +291,25 @@ interface Fill {
 
 /** Ink quartiles inside the cell rules: a filled (shaded) cell is dark and even throughout. */
 function fillOf(vec: Float32Array, cells: number): Fill {
+  // Quartiles from a 256-bin histogram of ink (0…1): no sorting in the per-span hot path.
   const mask = interiorMask(cells);
-  const v: number[] = [];
-  for (let i = 0; i < vec.length; i++) if (mask[i]) v.push(vec[i] ?? 0);
-  v.sort((a, b) => a - b);
-  const q = (f: number) => v[Math.floor(v.length * f)] ?? 0;
+  const hist = new Uint32Array(256);
+  let n = 0;
+  for (let i = 0; i < vec.length; i++) {
+    if (!mask[i]) continue;
+    const b = Math.max(0, Math.min(255, Math.round((vec[i] ?? 0) * 255)));
+    hist[b] = (hist[b] ?? 0) + 1;
+    n += 1;
+  }
+  const q = (f: number) => {
+    const target = Math.floor(n * f);
+    let acc = 0;
+    for (let b = 0; b < 256; b++) {
+      acc += hist[b] ?? 0;
+      if (acc > target) return b / 255;
+    }
+    return 1;
+  };
   return { q1: q(0.25), q2: q(0.5), q3: q(0.75) };
 }
 

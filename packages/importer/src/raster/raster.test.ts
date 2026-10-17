@@ -103,20 +103,25 @@ describe('recognition accuracy on synthetic charts (target ≥ 99 % of cells)', 
   let cells = 0;
   let errors = 0;
 
-  it.each(styles.map((s, i) => [i, s] as const))('style %i', (i, style) => {
-    const r = rng(100 + i);
-    for (let k = 0; k < 3; k++) {
-      const chart = randomChart(r, reg, DEFAULT_SYMBOLS, 10 + k * 7, 8 + k * 3);
-      const img = degrade(drawChart(chart, reg, style), r, 8);
-      const [grid] = detectGrids(img);
-      expect(grid?.cols).toBe(chart.width);
-      expect(grid?.rows).toBe(chart.height);
-      if (!grid) return;
-      const rec = recognizeGrid(img, grid, templates);
-      cells += chart.width * chart.height;
-      errors += cellErrors(rec, chart);
-    }
-  });
+  it.each(styles.map((s, i) => [i, s] as const))(
+    'style %i',
+    (i, style) => {
+      const r = rng(100 + i);
+      for (let k = 0; k < 3; k++) {
+        const chart = randomChart(r, reg, DEFAULT_SYMBOLS, 10 + k * 7, 8 + k * 3);
+        const img = degrade(drawChart(chart, reg, style), r, 8);
+        const [grid] = detectGrids(img);
+        expect(grid?.cols).toBe(chart.width);
+        expect(grid?.rows).toBe(chart.height);
+        if (!grid) return;
+        const rec = recognizeGrid(img, grid, templates);
+        cells += chart.width * chart.height;
+        errors += cellErrors(rec, chart);
+      }
+      // CPU-heavy (recognition of 3 charts); slow CI runners with coverage need more than 5 s.
+    },
+    30_000,
+  );
 
   it('reaches the target over all styles', () => {
     expect(cells).toBeGreaterThan(1000);
@@ -185,7 +190,7 @@ describe('photos: crop & straighten', () => {
     if (!grid) return;
     const rec = recognizeGrid(upright, grid, templates);
     expect(cellErrors(rec, chart) / (chart.width * chart.height)).toBeLessThanOrEqual(0.01);
-  });
+  }, 30_000);
 });
 
 describe('rasterizer', () => {
