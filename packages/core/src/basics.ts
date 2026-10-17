@@ -3,8 +3,12 @@
  * per-size values and diagnostics.
  */
 
-/** Version of the persisted/exported data schema. Bumped together with a migration (ADR-3). */
-export const SCHEMA_VERSION = 1 as const;
+/**
+ * Version of the persisted/exported data schema. Bumped together with a migration (ADR-3).
+ * v2 (M5): gauge, stage tracking mode and target length, chart phase continuation, finished rows
+ * and the knitter's own gauge on projects.
+ */
+export const SCHEMA_VERSION = 2 as const;
 
 /** Format identifiers written into exported files (ADR-3). */
 export const FILE_FORMATS = {

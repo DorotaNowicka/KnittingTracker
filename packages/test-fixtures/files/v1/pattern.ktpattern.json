@@ -1,0 +1,110 @@
+{
+  "format": "knitting-tracker/pattern",
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-15T20:00:00.000Z",
+  "pattern": {
+    "id": "frozen-v1",
+    "revision": 3,
+    "title": "Frozen v1 cardigan",
+    "designer": "Test fixture",
+    "sizes": ["S", "M"],
+    "symbols": [],
+    "legend": [
+      {
+        "symbolId": "cable:2-2-lc",
+        "number": "C4",
+        "text": "Own wording for a cross"
+      }
+    ],
+    "charts": [
+      {
+        "id": "seed",
+        "name": "S",
+        "width": 2,
+        "height": 2,
+        "palette": {
+          "k": "std:k",
+          "p": "std:p"
+        },
+        "rows": ["kp", "pk"]
+      },
+      {
+        "id": "rope",
+        "name": "R",
+        "width": 6,
+        "height": 6,
+        "palette": {
+          "k": "std:k",
+          "p": "std:p",
+          "C": "cable:2-2-lc"
+        },
+        "rows": ["pC...p", "pkkkkp", "pkkkkp", "pkkkkp", "pkkkkp", "pkkkkp"]
+      }
+    ],
+    "stages": [
+      {
+        "id": "body",
+        "name": "Body",
+        "construction": "round",
+        "firstRowSide": "RS",
+        "layout": [
+          {
+            "kind": "marker",
+            "id": "start",
+            "sectionName": "Front"
+          },
+          {
+            "kind": "chart",
+            "placementId": "f1",
+            "chartId": "seed",
+            "stitches": [4, 6]
+          },
+          {
+            "kind": "chart",
+            "placementId": "r1",
+            "chartId": "rope"
+          },
+          {
+            "kind": "marker",
+            "id": "side",
+            "sectionName": "Back"
+          },
+          {
+            "kind": "chart",
+            "placementId": "r2",
+            "chartId": "rope",
+            "rowOffset": 3
+          },
+          {
+            "kind": "chart",
+            "placementId": "f2",
+            "chartId": "seed",
+            "stitches": [4, 6]
+          }
+        ],
+        "rows": 12,
+        "expectedStitches": [20, 24]
+      },
+      {
+        "id": "back",
+        "name": "Back",
+        "construction": "flat",
+        "firstRowSide": "WS",
+        "layout": [
+          {
+            "kind": "chart",
+            "placementId": "f",
+            "chartId": "seed",
+            "stitches": 3
+          },
+          {
+            "kind": "chart",
+            "placementId": "r",
+            "chartId": "rope",
+            "startColumn": 6
+          }
+        ]
+      }
+    ]
+  }
+}

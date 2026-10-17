@@ -1,6 +1,6 @@
 import { diagnostic, mod, resolveSize, type Diagnostic } from '../basics';
 import { parseChart, type ChartCell, type ParsedChart } from '../chart/parse';
-import type { Chart, Modification, Pattern, Stage } from '../schema/pattern';
+import type { Chart, ChartSegment, Modification, Pattern, Stage } from '../schema/pattern';
 import { createRegistry, type SymbolRegistry } from '../symbols/registry';
 import type { CustomSymbol } from '../schema/pattern';
 import type { SymbolDef } from '../symbols/types';
@@ -22,6 +22,15 @@ export interface Zone {
   /** Chart column (1-based) worked first. */
   readonly startColumn: number;
   readonly rowOffset: number;
+  /**
+   * Set when the vertical phase continues a placement of an earlier stage (DR-3). `known` is false
+   * while that stage's row count is not known yet (an open-ended stage that is not finished).
+   */
+  readonly continued?: {
+    readonly stageId: string;
+    readonly placementId: string;
+    readonly known: boolean;
+  };
 }
 
 export interface Marker {
@@ -109,6 +118,72 @@ export function effectiveCharts(
 export interface ResolveOptions {
   readonly modifications?: readonly Modification[];
   readonly registry?: SymbolRegistry;
+  /** Rows actually worked in finished stages (project `finishedRows`); overrides planned rows. */
+  readonly finishedRows?: Readonly<Record<string, number>>;
+}
+
+type PhaseResult =
+  | { readonly ok: true; readonly offset: number }
+  | {
+      readonly ok: false;
+      readonly problem: 'missing' | 'cycle' | 'unknown';
+      readonly stage: string;
+    };
+
+/**
+ * Rows worked in a stage: what the knitter recorded when finishing it, else the planned count.
+ * Null for an open-ended stage that is not finished.
+ */
+export function stageRows(
+  pattern: Pattern,
+  stageId: string,
+  sizeIndex: number,
+  finishedRows: Readonly<Record<string, number>> = {},
+): number | null {
+  const finished = finishedRows[stageId];
+  if (finished !== undefined) return finished;
+  const stage = pattern.stages.find((s) => s.id === stageId);
+  if (!stage || stage.rows === undefined) return null;
+  try {
+    return resolveSize(stage.rows, sizeIndex);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Row offset after the last row worked in placement `ref` (DR-3): its own starting offset (which may
+ * continue a placement further back) plus the rows of its stage.
+ */
+function phaseAfter(
+  pattern: Pattern,
+  ref: { readonly stageId: string; readonly placementId: string },
+  sizeIndex: number,
+  finishedRows: Readonly<Record<string, number>>,
+  seen: ReadonlySet<string>,
+): PhaseResult {
+  const key = `${ref.stageId}\u0000${ref.placementId}`;
+  const stage = pattern.stages.find((s) => s.id === ref.stageId);
+  if (seen.has(key)) return { ok: false, problem: 'cycle', stage: stage?.name ?? ref.stageId };
+  const seg = stage?.layout.find(
+    (x): x is ChartSegment => x.kind === 'chart' && x.placementId === ref.placementId,
+  );
+  if (!stage || !seg) return { ok: false, problem: 'missing', stage: stage?.name ?? ref.stageId };
+  let start = seg.rowOffset ?? 0;
+  if (seg.continueFrom) {
+    const before = phaseAfter(
+      pattern,
+      seg.continueFrom,
+      sizeIndex,
+      finishedRows,
+      new Set([...seen, key]),
+    );
+    if (!before.ok) return before;
+    start = before.offset;
+  }
+  const rows = stageRows(pattern, stage.id, sizeIndex, finishedRows);
+  if (rows === null) return { ok: false, problem: 'unknown', stage: stage.name };
+  return { ok: true, offset: start + rows };
 }
 
 /**
@@ -190,6 +265,42 @@ export function resolveStage(
         ),
       );
     }
+    let rowOffset = seg.rowOffset ?? 0;
+    let continued: Zone['continued'];
+    if (seg.continueFrom) {
+      const label = seg.label ?? p.chart.name;
+      const phase = phaseAfter(
+        pattern,
+        seg.continueFrom,
+        sizeIndex,
+        options.finishedRows ?? {},
+        new Set([`${stage.id}\u0000${seg.placementId}`]),
+      );
+      continued = { ...seg.continueFrom, known: phase.ok };
+      if (phase.ok) rowOffset = mod(phase.offset, p.chart.height);
+      else if (phase.problem === 'unknown')
+        diags.push(
+          diagnostic(
+            'continue-unknown',
+            'info',
+            `${label} continues the chart rows of ${phase.stage}; they are fixed when ${phase.stage} is finished.`,
+            where,
+            { stage: stage.name, placement: label, source: phase.stage },
+          ),
+        );
+      else
+        diags.push(
+          diagnostic(
+            phase.problem === 'cycle' ? 'continue-cycle' : 'continue-missing',
+            'error',
+            phase.problem === 'cycle'
+              ? `${label} in ${stage.name} continues itself through other stages.`
+              : `${label} in ${stage.name} continues a placement that does not exist in ${phase.stage}.`,
+            where,
+            { stage: stage.name, placement: label, source: phase.stage },
+          ),
+        );
+    }
     zones.push({
       placementId: seg.placementId,
       chartId: seg.chartId,
@@ -198,13 +309,14 @@ export function resolveStage(
       lastStitch: count + width,
       chart: p,
       startColumn: Math.min(startColumn, p.chart.width),
-      rowOffset: seg.rowOffset ?? 0,
+      rowOffset,
+      ...(continued ? { continued } : {}),
     });
     count += width;
   }
 
   const stitchCount = count;
-  if (stitchCount === 0) {
+  if (stitchCount === 0 && stage.tracking !== 'rows') {
     diags.push(
       diagnostic('empty-layout', 'error', `${stage.name} has no stitches yet.`, where, {
         stage: stage.name,

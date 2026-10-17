@@ -88,6 +88,7 @@ export function checkReferences(pattern: Pattern, registry: SymbolRegistry): Dia
     out.push(
       ...checkSizeValue(stage.expectedStitches, n, `${stage.name}: expected stitches`, stage.id),
     );
+    out.push(...checkSizeValue(stage.targetCm, n, `${stage.name}: target length`, stage.id));
     for (const seg of stage.layout) {
       if (seg.kind !== 'chart') continue;
       if (!chartIds.has(seg.chartId)) {

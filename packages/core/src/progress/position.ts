@@ -29,6 +29,8 @@ export interface StitchLocation {
  */
 export interface RowModel {
   readonly stage: ResolvedStage;
+  /** What one unit of progress is: a stitch, or a whole row in row-counter stages (DR-9). */
+  readonly unit: 'stitch' | 'row';
   /** Worked cells in work order for `row`, as stitch numbers (RS numbering). */
   workOrder(row: number): readonly number[];
   rowLength(row: number): number;
@@ -72,8 +74,31 @@ export function createRowModel(stage: ResolvedStage): RowModel {
   const total = () =>
     stage.plannedRows === null ? null : rowStart(stage.plannedRows) + rowLength(stage.plannedRows);
 
-  return { stage, workOrder, rowLength, rowStart, total };
+  return { stage, unit: 'stitch', workOrder, rowLength, rowStart, total };
 }
+
+/**
+ * Row-counter model (DR-9): every row is one unit of progress, so `done` is the number of finished
+ * rows. The same reducer (complete row, set, undo/redo) works unchanged.
+ */
+export function createCounterModel(stage: ResolvedStage): RowModel {
+  const one: readonly number[] = [1];
+  return {
+    stage,
+    unit: 'row',
+    workOrder: () => one,
+    rowLength: () => 1,
+    rowStart: (row) => {
+      if (row < 1) throw new RangeError(`Invalid row ${row}`);
+      return row - 1;
+    },
+    total: () => stage.plannedRows,
+  };
+}
+
+/** The progress model a stage asks for: per stitch (default) or a row counter. */
+export const createProgressModel = (stage: ResolvedStage): RowModel =>
+  stage.stage.tracking === 'rows' ? createCounterModel(stage) : createRowModel(stage);
 
 function location(model: RowModel, row: number, work: number): StitchLocation {
   const stitch = model.workOrder(row)[work - 1];
@@ -82,7 +107,7 @@ function location(model: RowModel, row: number, work: number): StitchLocation {
     row,
     work,
     stitch,
-    col: model.stage.stitchCount - stitch + 1,
+    col: Math.max(1, model.stage.stitchCount - stitch + 1),
     side: model.stage.side(row),
     index: model.rowStart(row) + work,
   };

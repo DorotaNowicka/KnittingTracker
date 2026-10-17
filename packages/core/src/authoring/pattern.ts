@@ -241,9 +241,67 @@ export function addStage(pattern: Pattern, name: string): { pattern: Pattern; st
   return { pattern: { ...pattern, stages: [...pattern.stages, stage] }, stageId };
 }
 
+/**
+ * Remove a stage. Placements that continued its chart rows keep their place but lose the link
+ * (they start at their own start row again).
+ */
 export function removeStage(pattern: Pattern, stageId: string): Pattern {
   if (pattern.stages.length <= 1) return pattern;
-  return { ...pattern, stages: pattern.stages.filter((s) => s.id !== stageId) };
+  return {
+    ...pattern,
+    stages: pattern.stages
+      .filter((s) => s.id !== stageId)
+      .map((s) => ({
+        ...s,
+        layout: s.layout.map((seg) => {
+          if (seg.kind !== 'chart' || seg.continueFrom?.stageId !== stageId) return seg;
+          const { continueFrom: _dropped, ...rest } = seg;
+          return rest;
+        }),
+      })),
+  };
+}
+
+/** Move a stage to another position in the stage list (the order the knitter works them). */
+export function moveStage(pattern: Pattern, from: number, to: number): Pattern {
+  return { ...pattern, stages: moveItem(pattern.stages, from, to) };
+}
+
+/**
+ * Change of layout from a given row (FR-14), or the next part of the garment: a new stage right
+ * after `stageId` with the same layout, whose chart placements continue the chart rows where
+ * that stage ends (DR-3). The knitter then edits widths, removes charts (e.g. the back after a
+ * split) or switches to flat knitting. The new stage is open-ended until rows are set.
+ */
+export function continueStage(
+  pattern: Pattern,
+  stageId: string,
+  name: string,
+): { pattern: Pattern; stageId: string } {
+  const index = pattern.stages.findIndex((s) => s.id === stageId);
+  const source = pattern.stages[index];
+  if (!source) throw new Error(`Unknown stage: ${stageId}`);
+  const id = uniqueId(
+    name,
+    pattern.stages.map((s) => s.id),
+    'stage',
+  );
+  const layout: Segment[] = source.layout.map((seg) => {
+    if (seg.kind === 'marker') return seg;
+    const { rowOffset: _offset, continueFrom: _from, ...rest } = seg;
+    return { ...rest, continueFrom: { stageId: source.id, placementId: seg.placementId } };
+  });
+  const stage: Stage = {
+    id,
+    name,
+    construction: source.construction,
+    firstRowSide: source.firstRowSide,
+    layout,
+    ...(source.tracking ? { tracking: source.tracking } : {}),
+  };
+  const stages = [...pattern.stages];
+  stages.splice(index + 1, 0, stage);
+  return { pattern: { ...pattern, stages }, stageId: id };
 }
 
 const segmentId = (seg: Segment) => (seg.kind === 'chart' ? seg.placementId : seg.id);
