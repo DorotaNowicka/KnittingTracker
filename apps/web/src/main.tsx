@@ -1,3 +1,5 @@
+// Must run first: installs the Trusted Types policy before anything can reach a DOM sink.
+import './lib/trustedTypes';
 import '@fontsource-variable/atkinson-hyperlegible-next';
 import './styles/tokens.css';
 import './styles/app.css';
