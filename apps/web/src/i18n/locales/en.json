@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "KnittingTracker",
+    "buildInfo": "Development build · environment: {{env}}"
+  },
+  "projects": {
+    "title": "Your projects",
+    "empty": {
+      "title": "You have no projects yet",
+      "body": "Patterns you knit will appear here. Import and the chart editor are on their way."
+    }
+  }
+}

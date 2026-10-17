@@ -316,8 +316,8 @@ docker/                   nginx config, compose files
 
 ## 7. Architecture Decision Records
 
-ADRs are written in Nygard format. When this phase is approved they move to `docs/adr/NNNN-*.md`
-(status *Accepted*), and this section keeps a summary.
+ADRs are written in Nygard format. This section is the **Phase 0 snapshot**. Since M0 the canonical,
+maintained versions live in [`docs/adr/`](adr/README.md), and later changes are made there.
 
 ### ADR-1 Stack and platform
 

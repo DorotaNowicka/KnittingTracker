@@ -1,0 +1,13 @@
+{
+  "app": {
+    "name": "KnittingTracker",
+    "buildInfo": "Wersja deweloperska · środowisko: {{env}}"
+  },
+  "projects": {
+    "title": "Twoje projekty",
+    "empty": {
+      "title": "Nie masz jeszcze żadnych projektów",
+      "body": "Tu pojawią się dziergane przez Ciebie wzory. Import i edytor schematów są w przygotowaniu."
+    }
+  }
+}

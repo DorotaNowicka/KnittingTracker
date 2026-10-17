@@ -1,0 +1,47 @@
+# KnittingTracker — local environments (Q4: local only for now).
+#   docker compose --profile prod up --build   → production image on http://localhost:8080
+#   docker compose --profile dev up            → Vite dev server with HTTPS on https://<lan-ip>:5173
+name: knitting-tracker
+
+services:
+  web:
+    profiles: [prod]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: knitting-tracker-web:local
+    ports:
+      - '8080:8080'
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/healthz']
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  dev:
+    profiles: [dev]
+    image: node:24-alpine
+    working_dir: /app
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @kt/web dev:https"
+    environment:
+      CI: '1'
+      HUSKY: '0'
+    ports:
+      - '5173:5173'
+    volumes:
+      - .:/app
+      # Container-only node_modules so Linux binaries never mix with the host's.
+      - dev_node_modules:/app/node_modules
+      - dev_web_node_modules:/app/apps/web/node_modules
+
+volumes:
+  dev_node_modules:
+  dev_web_node_modules:

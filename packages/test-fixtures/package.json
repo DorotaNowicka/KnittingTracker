@@ -1,0 +1,13 @@
+{
+  "name": "@kt/test-fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Synthetic, self-authored patterns used by tests. Never third-party material.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
