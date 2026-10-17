@@ -296,7 +296,11 @@ const cables: SymbolDef[] = [
     heldAt: 'back',
     fromCableNeedle: ['p', 'p'],
     worked: ['k', 'k'],
-    glyph: g(line([0.1, 0.8], [3.9, 0.35]), line([2.4, 0.5], [2.8, 0.5])),
+    glyph: g(
+      line([0.1, 0.8], [3.9, 0.35]),
+      line([0.45, 0.3], [0.95, 0.3]),
+      line([3.05, 0.78], [3.55, 0.78]),
+    ),
     label: { pl: 'krzyż 2/2 w prawo z lewymi', en: '2/2 RPC' },
   }),
   cable({
@@ -304,7 +308,11 @@ const cables: SymbolDef[] = [
     heldAt: 'front',
     fromCableNeedle: ['k', 'k'],
     worked: ['p', 'p'],
-    glyph: g(line([0.1, 0.35], [3.9, 0.8]), line([1.2, 0.5], [1.6, 0.5])),
+    glyph: g(
+      line([0.1, 0.35], [3.9, 0.8]),
+      line([0.45, 0.78], [0.95, 0.78]),
+      line([3.05, 0.3], [3.55, 0.3]),
+    ),
     label: { pl: 'krzyż 2/2 w lewo z lewymi', en: '2/2 LPC' },
   }),
 ];

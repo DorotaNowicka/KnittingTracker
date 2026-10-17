@@ -1,6 +1,6 @@
 import { canRedo, canUndo, summarize } from '@kt/core';
 import { visibleRowCount } from '@kt/grid-renderer';
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getWakeLockPref } from '../lib/preferences';
 import { Link } from '../lib/Link';
@@ -9,6 +9,14 @@ import { useWakeLock } from '../lib/wakeLock';
 import { useSession } from '../state/session';
 import { GridCanvas, type ViewRequest } from '../tracker/GridCanvas';
 import { Legend, RowText, ViewControls, type ViewSettings } from '../tracker/PanelParts';
+import { nextStageOf } from '../tracker/stages';
+import {
+  FinishDialog,
+  PositionDialog,
+  ProjectDialog,
+  RowCounter,
+  StagePanel,
+} from '../tracker/StageParts';
 import { Icon } from '../ui/Icon';
 
 const VIEW_KEY = (id: string) => `kt.view.${id}`;
@@ -45,7 +53,14 @@ export function TrackerPage({ projectId }: { projectId: string }) {
   const [view, setView] = useState<ViewSettings>(() => loadView(projectId));
   const [panelOpen, setPanelOpen] = useState(() => matchMedia('(min-width: 1100px)').matches);
   const [request, setRequest] = useState<ViewRequest | null>(null);
+  const positionRef = useRef<HTMLDialogElement>(null);
+  const finishRef = useRef<HTMLDialogElement>(null);
+  const projectRef = useRef<HTMLDialogElement>(null);
   useWakeLock(getWakeLockPref());
+  // On phones and tablets the panel covers the grid: close it when the stage changes from there.
+  const closeOverlay = () => {
+    if (!matchMedia('(min-width: 1100px)').matches) setPanelOpen(false);
+  };
 
   useEffect(() => {
     void useSession.getState().open(projectId);
@@ -120,6 +135,9 @@ export function TrackerPage({ projectId }: { projectId: string }) {
         st.setEraser(!st.eraser);
       } else if (e.key.toLowerCase() === 'c') {
         setRequest({ kind: 'reveal', nonce: Date.now() });
+      } else if (e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        positionRef.current?.showModal();
       } else if (e.key === '+' || e.key === '=') {
         setView((v) => ({ ...v, cell: Math.min(64, v.cell + 2) }));
       } else if (e.key === '-') {
@@ -147,10 +165,14 @@ export function TrackerPage({ projectId }: { projectId: string }) {
   const stage = s.stage;
   const next = summary.next;
   const last = summary.lastDone;
-  const complete = next === null;
+  const counter = s.model.unit === 'row';
+  const finished = s.project.finishedRows?.[stage.stage.id];
+  const complete = next === null || finished !== undefined;
+  const nextStage = nextStageOf(s.pattern, stage.stage.id);
+  const showGrid = stage.stitchCount > 0;
 
   return (
-    <div className={`tracker${panelOpen ? ' tracker--panel' : ''}`}>
+    <main id="main" className={`tracker${panelOpen ? ' tracker--panel' : ''}`}>
       <header className="tracker__bar">
         <Link to={paths.projects()} className="icon-btn" aria-label={t('nav.projects')}>
           <Icon name="back" />
@@ -192,13 +214,25 @@ export function TrackerPage({ projectId }: { projectId: string }) {
             <span className="status__label">{rowWord}</span>
             <span className="status__value num">{summary.currentRow}</span>
           </span>
-          <span className="status__item">
-            <span className="status__label">{t('status.stitch')}</span>
-            <span className="status__value num">
-              {complete ? '—' : next.work}
-              <span className="status__of"> / {s.model.rowLength(summary.currentRow)}</span>
+          {counter ? (
+            <span className="status__item">
+              <span className="status__label">{t('status.rowsDone')}</span>
+              <span className="status__value num">
+                {summary.done}
+                {stage.plannedRows !== null && (
+                  <span className="status__of"> / {stage.plannedRows}</span>
+                )}
+              </span>
             </span>
-          </span>
+          ) : (
+            <span className="status__item">
+              <span className="status__label">{t('status.stitch')}</span>
+              <span className="status__value num">
+                {next === null ? '—' : next.work}
+                <span className="status__of"> / {s.model.rowLength(summary.currentRow)}</span>
+              </span>
+            </span>
+          )}
           {summary.percent !== null && (
             <span className="status__item status__item--secondary">
               <span className="status__label">{t('status.stage')}</span>
@@ -209,23 +243,49 @@ export function TrackerPage({ projectId }: { projectId: string }) {
           )}
         </p>
         <p className="status__detail" data-testid="status-detail">
-          {complete
-            ? t('status.complete')
-            : last
-              ? t('status.lastDone', {
-                  rowWord: round ? t('status.roundInline') : t('status.rowInline'),
-                  row: last.row,
-                  stitch: last.stitch,
-                  section: sectionOf(last.stitch) ? ` (${sectionOf(last.stitch) ?? ''})` : '',
-                  done: summary.done,
-                })
-              : t('status.nothingYet')}
-          {!round && next && (
+          {finished !== undefined
+            ? t(round ? 'status.finishedRounds' : 'status.finishedRows', { count: finished })
+            : next === null
+              ? t('status.complete')
+              : counter
+                ? t(round ? 'status.counterRounds' : 'status.counterRows', {
+                    count: summary.done,
+                    button: t(round ? 'actions.roundDone' : 'actions.rowDone'),
+                  })
+                : last
+                  ? t('status.lastDone', {
+                      rowWord: round ? t('status.roundInline') : t('status.rowInline'),
+                      row: last.row,
+                      stitch: last.stitch,
+                      section: sectionOf(last.stitch) ? ` (${sectionOf(last.stitch) ?? ''})` : '',
+                      done: summary.done,
+                    })
+                  : t('status.nothingYet')}
+          {!round && next && !complete && (
             <span className="status__side">
               {next.side === 'RS' ? t('rowText.rs') : t('rowText.ws')}
             </span>
           )}
+          <button
+            type="button"
+            className="link-btn status__edit"
+            onClick={() => positionRef.current?.showModal()}
+            title={t('position.hint')}
+          >
+            {t('position.short')}
+          </button>
         </p>
+        {complete && nextStage && (
+          <p className="status__next">
+            <button
+              type="button"
+              className="btn btn--primary btn--small"
+              onClick={() => void s.setStage(nextStage.id)}
+            >
+              {t('stagePanel.next', { name: nextStage.name })}
+            </button>
+          </p>
+        )}
         {s.saveFailed && (
           <p className="status__warning" role="alert">
             {t('tracker.saveFailed')}
@@ -234,19 +294,29 @@ export function TrackerPage({ projectId }: { projectId: string }) {
       </section>
 
       <div className="tracker__body">
-        <div className="tracker__grid">
-          <GridCanvas
-            stage={stage}
-            model={s.model}
-            done={s.progress.done}
-            mode={mode}
-            rows={rows}
-            cell={view.cell}
-            veil={view.veil}
-            request={request}
-            onCellChange={(cell) => setView((v) => (v.cell === cell ? v : { ...v, cell }))}
-            onTap={onTap}
-          />
+        <div className={`tracker__grid${showGrid ? '' : ' tracker__grid--counter'}`}>
+          {!showGrid ? (
+            <RowCounter
+              summary={summary}
+              planned={stage.plannedRows}
+              round={round}
+              onAdd={() => dispatch({ type: 'completeRow' })}
+              onRemove={() => dispatch({ type: 'set', done: summary.done - 1 })}
+            />
+          ) : (
+            <GridCanvas
+              stage={stage}
+              model={s.model}
+              done={s.progress.done}
+              mode={mode}
+              rows={rows}
+              cell={view.cell}
+              veil={view.veil}
+              request={request}
+              onCellChange={(cell) => setView((v) => (v.cell === cell ? v : { ...v, cell }))}
+              onTap={onTap}
+            />
+          )}
           <p id="grid-help" className="visually-hidden">
             {t('grid.help')}
           </p>
@@ -267,8 +337,22 @@ export function TrackerPage({ projectId }: { projectId: string }) {
               <Icon name="close" />
             </button>
           </div>
-          <RowText stage={stage} row={summary.currentRow} next={next} />
-          <Legend stage={stage} pattern={s.pattern} />
+          <StagePanel
+            pattern={s.pattern}
+            project={s.project}
+            stage={stage}
+            summary={summary}
+            onPosition={() => positionRef.current?.showModal()}
+            onFinish={() => finishRef.current?.showModal()}
+            onReopen={() => void s.reopenStage(stage.stage.id)}
+            onNext={(id) => {
+              closeOverlay();
+              void s.setStage(id);
+            }}
+            onProject={() => projectRef.current?.showModal()}
+          />
+          {showGrid && <RowText stage={stage} row={summary.currentRow} next={next} />}
+          {showGrid && <Legend stage={stage} pattern={s.pattern} />}
           <ViewControls
             view={view}
             sections={sections}
@@ -305,33 +389,38 @@ export function TrackerPage({ projectId }: { projectId: string }) {
           <Icon name="redo" />
           <span className="action__label">{t('actions.redo')}</span>
         </button>
-        <button
-          type="button"
-          className={`action action--toggle${s.eraser ? ' is-on' : ''}`}
-          aria-pressed={s.eraser}
-          onClick={() => s.setEraser(!s.eraser)}
-          title={t('actions.eraserHint')}
-        >
-          <Icon name="eraser" />
-          <span className="action__label">
-            {s.eraser ? t('actions.eraserOn') : t('actions.eraser')}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="action"
-          onClick={() => setRequest({ kind: 'reveal', nonce: Date.now() })}
-          title={t('actions.centerHint')}
-        >
-          <Icon name="target" />
-          <span className="action__label">{t('actions.center')}</span>
-        </button>
+        {!counter && (
+          <button
+            type="button"
+            className={`action action--toggle${s.eraser ? ' is-on' : ''}`}
+            aria-pressed={s.eraser}
+            onClick={() => s.setEraser(!s.eraser)}
+            title={t('actions.eraserHint')}
+          >
+            <Icon name="eraser" />
+            <span className="action__label">
+              {s.eraser ? t('actions.eraserOn') : t('actions.eraser')}
+            </span>
+          </button>
+        )}
+        {showGrid && (
+          <button
+            type="button"
+            className="action"
+            onClick={() => setRequest({ kind: 'reveal', nonce: Date.now() })}
+            title={t('actions.centerHint')}
+          >
+            <Icon name="target" />
+            <span className="action__label">{t('actions.center')}</span>
+          </button>
+        )}
         <button
           type="button"
           className="action action--primary"
           onClick={() => dispatch({ type: 'completeRow' })}
           disabled={complete}
           title={t('actions.rowDoneHint')}
+          data-testid="complete-row"
         >
           <Icon name="rowDone" />
           <span className="action__label">
@@ -342,6 +431,30 @@ export function TrackerPage({ projectId }: { projectId: string }) {
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
-    </div>
+      <PositionDialog
+        dialogRef={positionRef}
+        model={s.model}
+        summary={summary}
+        onSet={(done) => dispatch({ type: 'set', done })}
+      />
+      <FinishDialog
+        key={stage.stage.id}
+        dialogRef={finishRef}
+        stage={stage}
+        summary={summary}
+        next={nextStage}
+        onFinish={(rows, nextId) => {
+          if (nextId) closeOverlay();
+          void s.finishStage(rows, nextId);
+        }}
+      />
+      <ProjectDialog
+        key={s.project.id}
+        dialogRef={projectRef}
+        project={s.project}
+        pattern={s.pattern}
+        onSave={(change) => void s.updateProject(change)}
+      />
+    </main>
   );
 }

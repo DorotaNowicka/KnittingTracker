@@ -13,8 +13,17 @@ import { patternSchema, type Pattern } from '../schema/pattern';
 /** A migration takes a document of version N and returns version N+1. */
 export type Migration = (doc: Record<string, unknown>) => Record<string, unknown>;
 
-/** Registered migrations, keyed by the version they upgrade FROM. None yet: v1 is the first. */
-export const MIGRATIONS: Readonly<Record<number, Migration>> = {};
+/**
+ * Registered migrations, keyed by the version they upgrade FROM. They work on whole file documents
+ * (pattern files and backups alike) and must stay pure and total: never drop user data.
+ *
+ * - 1 → 2 (M5): only optional fields were added (gauge, tracking, targetCm, continueFrom,
+ *   finishedRows, project gauge), so v1 content is valid v2 content unchanged. The version still
+ *   goes up so an older app refuses v2 files instead of silently dropping the new fields.
+ */
+export const MIGRATIONS: Readonly<Record<number, Migration>> = {
+  1: (doc) => doc,
+};
 
 export type ReadResult<T> =
   | { readonly ok: true; readonly value: T }

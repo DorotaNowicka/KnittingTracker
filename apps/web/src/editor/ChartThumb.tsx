@@ -24,15 +24,18 @@ export function ChartThumb({
   maxWidth?: number;
   maxHeight?: number;
 }) {
-  const ref = useRef<HTMLCanvasElement>(null);
+  const ref = useRef<HTMLImageElement>(null);
   const cell = clampCellPx(Math.min(16, maxWidth / chart.width, maxHeight / chart.height));
   const w = Math.ceil(chart.width * cell);
   const h = Math.ceil(chart.height * cell);
 
+  // Drawn on a detached canvas and shown as an image sized by attributes: the app sets no inline
+  // styles, because Safari reports them under the strict CSP.
   useEffect(() => {
-    const canvas = ref.current;
-    const ctx = canvas?.getContext('2d', { alpha: false });
-    if (!canvas || !ctx) return;
+    const img = ref.current;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!img || !ctx) return;
     let registry;
     try {
       registry = patternRegistry(pattern);
@@ -49,13 +52,12 @@ export function ChartThumb({
     paint(
       ctx,
       buildScene(source, geo, cam, editorOverlay({}), 'static'),
-      readPalette(canvas),
+      readPalette(img),
       dpr,
       FONT,
     );
+    img.src = canvas.toDataURL('image/png');
   }, [pattern, chart, cell, w, h]);
 
-  return (
-    <canvas ref={ref} className="chart-thumb" style={{ width: w, height: h }} aria-hidden="true" />
-  );
+  return <img ref={ref} className="chart-thumb" width={w} height={h} alt="" />;
 }

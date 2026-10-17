@@ -5,9 +5,10 @@ on charts. All charts of a round or row are shown side by side in one grid, and 
 position in the continuous sequence of stitches: tap a stitch, and it and everything before it are
 done. The UI is in Polish by default, with English available.
 
-> **Status:** M2. Usable for knitting: pattern files (`*.ktpattern.json`) or the built-in sample,
-> chart grid with progress tracking, offline PWA, local storage, backup export. The chart editor
-> (M3) and PDF/photo import (M4) follow. See [`docs/00-analysis.md`](docs/00-analysis.md) §8.
+> **Status:** 1.0.0. Pattern import from PDFs and photos with a verification screen, a chart
+> editor and layout wizard, stages (round and flat, continuing charts, open-ended stages, row
+> counters), progress tracking that works offline, backups. What was and was not verified:
+> [`docs/release-1.0.md`](docs/release-1.0.md).
 
 Your data stays on your device. There is no account, no server-side storage and no telemetry. Pattern
 files you import are copyrighted by their authors, so they are never uploaded anywhere.
@@ -30,6 +31,7 @@ pnpm dev                # http://localhost:5173
 | `pnpm lint` · `pnpm typecheck` · `pnpm format` | ESLint, TypeScript (strict), Prettier                                                       |
 | `pnpm build` · `pnpm preview`                  | Production build (with service worker) and a local preview on :4173                         |
 | `pnpm e2e`                                     | Playwright on 4 viewports (iPhone/WebKit, Android, tablet, desktop). Run `pnpm build` first |
+| `pnpm check:bundle`                            | Startup JavaScript budget (after `pnpm build`)                                              |
 | `pnpm ci:local`                                | Everything CI runs, in order                                                                |
 
 First-time Playwright setup: `pnpm --filter @kt/web exec playwright install chromium webkit`.
@@ -79,6 +81,43 @@ layout wizard: put the charts in the order of the pattern text, set partial repe
 stitches") per size, add markers for front and back, and compare the stitch count with the
 pattern. **Zacznij dziergać** creates a project; **Zapisz do pliku** exports the pattern.
 
+## Stages, finishing and backups
+
+A pattern can have several **stages** (e.g. body in the round, then front and back flat). In the
+stage editor a chart can **continue as in an earlier stage**: after the split, the front's A.2 starts
+with the row after the last one knitted in the body. **Zmiana układu** on the pattern page creates
+such a continuing stage, for decreases or increases from a given row. A stage can be **open-ended**
+("until 34 cm"): with the gauge (in the pattern, or your own in the project settings) the app
+estimates the rows left, and you end it with **Zakończ etap**, which shows the chart rows of the
+last row so you can check them against the pattern. Ribbing and plain sections can use a **row
+counter** instead of tapping stitches.
+
+If you knitted without the app, **Ustaw** next to the position (or the G key) sets the row and the
+stitches done in it. This can be undone.
+
+**Ustawienia → Zapisz kopię zapasową** saves everything to one file; **Przywróć z kopii** reads it
+back on any device. Before writing, it shows what is new, what is newer in the backup and what is
+newer on this device; newer work on the device is never overwritten.
+
+## Importing a pattern from a PDF or a photo
+
+**Wzory → Rozpoznaj z PDF lub zdjęcia** reads a pattern PDF, a screenshot, a scan or a photo of a chart. Everything
+happens on the device, in a background worker; the file is never uploaded. For a photo you first
+drag the four corners onto the chart. Then you check what was found:
+
+- **Legend**: each symbol from the file is matched with a symbol of the app. Fix a wrong match and
+  press **Rozpoznaj ponownie z tymi symbolami**.
+- **Charts**: the original is shown next to the recognised grid. Doubtful cells are outlined; **Następna
+  niepewna kratka** jumps to the next one, and you confirm it or pick another symbol (also with the
+  arrow keys, Enter and 1–9). Give each chart its name from the pattern (e.g. A.1).
+- **Description**: sizes, the order of the charts, stitch counts and the marker are read from the
+  pattern text (from the same PDF, or add the description PDF separately). Correct anything that
+  is wrong.
+
+**Utwórz wzór** creates a normal pattern that you can still edit and lay out before you start
+knitting. Limits: 25 MB per file, 30 PDF pages, 40 megapixels per image. Recognition works best on
+PDFs and sharp, evenly lit photos; always compare the result with the original.
+
 ## Architecture
 
 ```mermaid
@@ -94,15 +133,15 @@ flowchart LR
   fixtures -. tests .-> core
 ```
 
-| Path                                    | Purpose                                                                     |
-| --------------------------------------- | --------------------------------------------------------------------------- |
-| `apps/web`                              | The PWA: screens, state, storage adapters, service worker, e2e tests        |
-| `packages/core`                         | Pure TypeScript domain logic. ESLint and tsconfig forbid DOM and UI imports |
-| `packages/grid-renderer`                | Grid rendering (tiled Canvas2D), testable without a browser                 |
-| `packages/importer`                     | Local pattern import (pdf.js, raster recognition). Never uploads files      |
-| `packages/test-fixtures`                | Self-authored synthetic charts. Never third-party material                  |
-| `docs/`                                 | [Phase 0 analysis](docs/00-analysis.md), [ADRs](docs/adr/README.md)         |
-| `docker/`, `Dockerfile`, `compose.yaml` | Static hosting image and local environments                                 |
+| Path                                    | Purpose                                                                                                                                                                                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`                              | The PWA: screens, state, storage adapters, service worker, e2e tests                                                                                                                                                                                                       |
+| `packages/core`                         | Pure TypeScript domain logic. ESLint and tsconfig forbid DOM and UI imports                                                                                                                                                                                                |
+| `packages/grid-renderer`                | Grid rendering (tiled Canvas2D), testable without a browser                                                                                                                                                                                                                |
+| `packages/importer`                     | Local pattern import (pdf.js, raster recognition). Never uploads files                                                                                                                                                                                                     |
+| `packages/test-fixtures`                | Self-authored synthetic charts. Never third-party material                                                                                                                                                                                                                 |
+| `docs/`                                 | [Analysis](docs/00-analysis.md), [ADRs](docs/adr/README.md), [file format](docs/pattern-format.md), [design](docs/design.md), [security](docs/security.md), [accessibility](docs/accessibility.md), [performance](docs/performance.md), [release 1.0](docs/release-1.0.md) |
+| `docker/`, `Dockerfile`, `compose.yaml` | Static hosting image and local environments                                                                                                                                                                                                                                |
 
 Decisions and their reasons are recorded in [`docs/adr/`](docs/adr/README.md).
 
@@ -114,7 +153,7 @@ locally. There are no secrets in v1.
 | Variable             | Default | Meaning                                                             |
 | -------------------- | ------- | ------------------------------------------------------------------- |
 | `VITE_APP_ENV`       | `dev`   | `dev` · `test` · `prod`. Non-prod builds show an environment footer |
-| `VITE_ENABLE_VISION` | `false` | Opt-in vision-model recognizer (planned for M4, off by default)     |
+| `VITE_ENABLE_VISION` | `false` | Reserved for an opt-in vision-model recognizer (not built yet)      |
 
 ## Copyright and privacy
 

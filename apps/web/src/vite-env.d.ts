@@ -8,3 +8,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Release version from the root package.json (vite `define`). */
+declare const __APP_VERSION__: string;

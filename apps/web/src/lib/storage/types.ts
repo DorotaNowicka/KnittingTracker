@@ -1,27 +1,17 @@
-import type { Pattern, Project } from '@kt/core';
+import type { StoredPatternRecord, StoredProgressRecord, StoredProjectRecord } from '@kt/core';
 
-/** A pattern as stored on the device. */
-export interface StoredPattern {
-  readonly id: string;
-  readonly pattern: Pattern;
-  /** Where it came from: an imported file, the built-in sample, or built in the editor. */
-  readonly source: 'file' | 'sample' | 'user';
-  readonly importedAt: string;
-  /** Last edit in the pattern editor. */
-  readonly updatedAt?: string;
-}
-
-/** Project metadata. Progress lives in its own small records (hot writes, ADR-3). */
-export type StoredProject = Omit<Project, 'progress'>;
-
-export interface StoredProgress {
-  readonly projectId: string;
-  readonly stageId: string;
-  readonly done: number;
-  readonly undo: readonly number[];
-  readonly redo: readonly number[];
-  readonly updatedAt: string;
-}
+/**
+ * Records as stored on the device. The shapes are defined (and validated) in @kt/core, so a backup
+ * file and the database hold exactly the same records (ADR-3).
+ *
+ * - StoredPattern: a pattern with where it came from (an imported file, the built-in sample, or
+ *   built in the editor) and when it was imported / last edited.
+ * - StoredProject: project metadata. Progress lives in its own small records (hot writes).
+ * - StoredProgress: progress of one project in one stage.
+ */
+export type StoredPattern = StoredPatternRecord;
+export type StoredProject = StoredProjectRecord;
+export type StoredProgress = StoredProgressRecord;
 
 /**
  * Persistence boundary of the app (ADR-3). Implementations: IndexedDB (Dexie) and an in-memory

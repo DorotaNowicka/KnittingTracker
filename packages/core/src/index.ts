@@ -76,6 +76,7 @@ export {
   findStage,
   patternRegistry,
   resolveStage,
+  stageRows,
   type Marker,
   type ResolveOptions,
   type ResolvedStage,
@@ -86,6 +87,8 @@ export {
 } from './layout/resolve';
 
 export {
+  createCounterModel,
+  createProgressModel,
   createRowModel,
   indexOfCol,
   indexOfStitch,
@@ -108,6 +111,14 @@ export {
   type TapMode,
 } from './progress/actions';
 
+export {
+  cmForRows,
+  effectiveGauge,
+  lengthEstimate,
+  rowsForCm,
+  type LengthEstimate,
+} from './progress/estimate';
+
 export { rowInstructions, type InstructionToken, type RowInstructions } from './instructions/row';
 
 export {
@@ -128,3 +139,30 @@ export {
   type Migration,
   type ReadResult,
 } from './io/file';
+
+export {
+  planRestore,
+  readBackupFile,
+  serializeBackup,
+  storedPatternSchema,
+  storedProgressSchema,
+  storedProjectSchema,
+  type BackupContent,
+  type ReadBackup,
+  type RestoreAction,
+  type RestorePlan,
+  type RestorePlanItem,
+  type StoredPatternRecord,
+  type StoredProgressRecord,
+  type StoredProjectRecord,
+} from './io/backup';
+
+export {
+  localOnlySync,
+  syncDocId,
+  type PushOutcome,
+  type SyncAdapter,
+  type SyncCursor,
+  type SyncDoc,
+  type SyncStatus,
+} from './sync/adapter';

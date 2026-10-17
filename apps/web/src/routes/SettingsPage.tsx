@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { saveFile } from '../lib/files';
+import { readTextFile, saveFile } from '../lib/files';
+import { sync } from '../lib/sync';
 import {
   getLanguagePref,
   getThemePref,
@@ -14,7 +15,7 @@ import {
 import { Link } from '../lib/Link';
 import { paths } from '../lib/router';
 import { persistenceState, type PersistState } from '../lib/storage';
-import { useLibrary } from '../state/library';
+import { useLibrary, type RestorePreview } from '../state/library';
 import { Icon } from '../ui/Icon';
 import { AppHeader } from './AppHeader';
 
@@ -26,6 +27,8 @@ export function SettingsPage() {
   const [wake, setWake] = useState(getWakeLockPref);
   const [persist, setPersist] = useState<PersistState | null>(null);
   const [exported, setExported] = useState<string | null>(null);
+  const [restore, setRestore] = useState<RestorePreview | null>(null);
+  const [restored, setRestored] = useState<string | null>(null);
   const storageKind = useLibrary((s) => s.storageKind);
 
   useEffect(() => {
@@ -37,6 +40,25 @@ export function SettingsPage() {
     const date = new Date().toISOString().slice(0, 10);
     const how = await saveFile(`knitting-tracker-kopia-${date}.ktbackup.json`, text);
     setExported(how === 'shared' ? t('settings.backupShared') : t('settings.backupSaved'));
+  };
+
+  const pickBackup = async (file: File | undefined) => {
+    setRestored(null);
+    if (!file) return;
+    try {
+      const text = await readTextFile(file);
+      setRestore(await useLibrary.getState().previewRestore(text));
+    } catch {
+      setRestore({ ok: false, errors: [t('settings.restoreTooLarge')] });
+    }
+  };
+
+  const applyRestore = async () => {
+    if (!restore?.ok) return;
+    await useLibrary.getState().applyRestore(restore.plan);
+    const added = restore.plan.projects.filter((p) => p.action !== 'keep' && p.action !== 'same');
+    setRestored(t('settings.restoreDone', { count: added.length }));
+    setRestore(null);
   };
 
   return (
@@ -121,6 +143,9 @@ export function SettingsPage() {
                 : t('settings.storageBestEffort')}
           </p>
           <p className="hint">{t('settings.privacy')}</p>
+          <p className="hint" data-testid="sync-status">
+            {t(`settings.sync.${sync.status().state}`)}
+          </p>
           <button type="button" className="btn" onClick={() => void exportBackup()}>
             <Icon name="download" />
             {t('settings.backup')}
@@ -128,8 +153,125 @@ export function SettingsPage() {
           <p className="hint" role="status">
             {exported}
           </p>
+
+          <h3 className="subsection-title">{t('settings.restore')}</h3>
+          <p className="hint">{t('settings.restoreHint')}</p>
+          <label className="btn btn--file">
+            <Icon name="upload" />
+            {t('settings.restorePick')}
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="visually-hidden"
+              data-testid="restore-input"
+              onChange={(e) => {
+                void pickBackup(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {restore && !restore.ok && (
+            <div className="notice notice--danger" role="alert">
+              <p>{t('settings.restoreInvalid')}</p>
+              <ul>
+                {restore.errors.slice(0, 5).map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {restore?.ok && (
+            <RestoreSummary
+              preview={restore}
+              onApply={() => void applyRestore()}
+              onCancel={() => setRestore(null)}
+            />
+          )}
+          <p className="hint" role="status">
+            {restored}
+          </p>
         </section>
+        <p className="hint app-version">{t('settings.version', { version: __APP_VERSION__ })}</p>
       </main>
     </>
+  );
+}
+
+function RestoreSummary({
+  preview,
+  onApply,
+  onCancel,
+}: {
+  preview: Extract<RestorePreview, { ok: true }>;
+  onApply(): void;
+  onCancel(): void;
+}) {
+  const { t, i18n } = useTranslation();
+  const { plan, backup } = preview;
+  const count = (list: readonly { action: string }[], action: string) =>
+    list.filter((x) => x.action === action).length;
+  const changes =
+    count(plan.patterns, 'add') +
+    count(plan.patterns, 'update') +
+    count(plan.projects, 'add') +
+    count(plan.projects, 'update');
+  return (
+    <div className="notice notice--info restore-summary" data-testid="restore-summary">
+      {backup.exportedAt && (
+        <p>
+          {t('settings.restoreFrom', {
+            date: new Date(backup.exportedAt).toLocaleString(i18n.language, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            }),
+          })}
+        </p>
+      )}
+      <div className="table-scroll">
+        <table className="size-table">
+          <thead>
+            <tr>
+              <th scope="col" />
+              <th scope="col">{t('settings.restoreAdd')}</th>
+              <th scope="col">{t('settings.restoreUpdate')}</th>
+              <th scope="col">{t('settings.restoreKeep')}</th>
+              <th scope="col">{t('settings.restoreSame')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(['patterns', 'projects'] as const).map((kind) => (
+              <tr key={kind}>
+                <th scope="row">{t(`settings.restore_${kind}`)}</th>
+                {(['add', 'update', 'keep', 'same'] as const).map((a) => (
+                  <td key={a} className="num">
+                    {count(plan[kind], a)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="hint">{t('settings.restoreRule')}</p>
+      {plan.orphans.length > 0 && (
+        <p className="hint">{t('settings.restoreOrphans', { count: plan.orphans.length })}</p>
+      )}
+      {backup.skipped.length > 0 && (
+        <p className="hint">{t('settings.restoreSkipped', { count: backup.skipped.length })}</p>
+      )}
+      <div className="form-actions">
+        <button type="button" className="btn" onClick={onCancel}>
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={changes === 0}
+          onClick={onApply}
+        >
+          {changes === 0 ? t('settings.restoreNothing') : t('settings.restoreApply')}
+        </button>
+      </div>
+    </div>
   );
 }

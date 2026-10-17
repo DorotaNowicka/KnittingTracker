@@ -2,14 +2,7 @@
  * @kt/importer — local, in-browser pattern import (ADR-5). Everything here runs in Web Workers and
  * never sends files anywhere.
  *
- * M0 ships the upload limits (NFR-5) because the web app validates files before they reach a worker.
  */
-
-export const UPLOAD_LIMITS = {
-  maxBytes: 25 * 1024 * 1024,
-  maxPdfPages: 30,
-  maxImagePixels: 40_000_000,
-} as const;
 
 export type SniffedType = 'pdf' | 'png' | 'jpeg' | 'webp' | 'unknown';
 
@@ -30,3 +23,29 @@ export function sniffType(head: Uint8Array): SniffedType {
   }
   return 'unknown';
 }
+
+export {
+  buildTemplates,
+  cropRgba,
+  DEFAULT_SYMBOLS,
+  extractPdfText,
+  importImage,
+  importPdf,
+  rerecognize,
+  UPLOAD_LIMITS,
+  type FoundChart,
+  type ImportOptions,
+  type ImportProgress,
+  type ImportResult,
+  type SourceImage,
+} from './pipeline';
+export type { RecognizedCell, RecognizedChart, Scored } from './raster/classify';
+export { UNCERTAIN_BELOW } from './raster/classify';
+export type { DetectedGrid } from './raster/grid';
+export type { LegendItem } from './legend/pair';
+export type { ParsedDescription, SequenceItem } from './describe/parse';
+export { parseDescription } from './describe/parse';
+export type { PdfJsLike } from './pdf/analyze';
+export { loadPdfJs } from './pdf/load';
+export { buildPattern, placeMarker, type DraftChart, type DraftInput } from './draft';
+export type { Point } from './raster/warp';

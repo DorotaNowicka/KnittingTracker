@@ -19,6 +19,19 @@ opening a PR, run the full pipeline:
 pnpm ci:local
 ```
 
+End-to-end tests run against the production build (`pnpm build`, then `pnpm e2e`), served by
+`vite preview` with the production security headers. To test the real nginx configuration without
+Docker (headers, caching, SPA fallback), serve the build with it and point the suite at it:
+
+```bash
+pnpm build && scripts/serve-nginx.sh
+E2E_BASE_URL=http://localhost:8080 pnpm e2e
+scripts/serve-nginx.sh stop
+```
+
+Without WebKit installed, `PW_NO_WEBKIT=1` runs the iPhone project in Chromium (reported as
+unverified on WebKit). Screenshot tours for milestone reports: `KT_SCREENS=<dir> pnpm e2e`.
+
 ## Rules of the codebase
 
 - **TypeScript strict** everywhere. `@kt/core` must not use the DOM, browser APIs, React or storage

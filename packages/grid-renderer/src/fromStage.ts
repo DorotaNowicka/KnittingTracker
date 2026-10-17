@@ -132,7 +132,8 @@ export function progressOverlay(
     },
     currentRow,
     direction: next && next.side === 'WS' ? 'left-to-right' : 'right-to-left',
-    marker: last ? { row: last.row, col: last.col } : null,
+    // A row counter has no "last stitch" to point at.
+    marker: last && model.unit === 'stitch' ? { row: last.row, col: last.col } : null,
     cursor: options.cursor ?? null,
     veilAbove: options.veilAbove ?? true,
     staticKey: String(done),

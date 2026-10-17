@@ -65,7 +65,9 @@ describe('pattern editor screens', () => {
     await user.type(within(dialog).getByLabelText('Szerokość (oczka)'), '2');
     await user.click(within(dialog).getByRole('button', { name: 'Utwórz i rysuj' }));
     await waitFor(() => expect(location.pathname).toMatch(/\/schemat\/ryz$/));
-    expect(await screen.findByLabelText('Nazwa schematu')).toHaveValue('Ryż');
+    // The chart editor loads on demand.
+    await screen.findByRole('heading', { level: 1, name: 'Edytor schematu Ryż' });
+    expect(screen.getByLabelText('Nazwa schematu')).toHaveValue('Ryż');
     expect(screen.getByText('2 × 8')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^lewe/ })).toBeInTheDocument();
     // The canvas can't draw in jsdom; the editor says so instead of crashing.

@@ -3,7 +3,9 @@ import {
   addSize,
   addStage,
   chartUsage,
+  continueStage,
   duplicateChart,
+  moveStage,
   patternRegistry,
   removeChart,
   removeSize,
@@ -44,7 +46,9 @@ function PatternEditor({ id, pattern }: { id: string; pattern: Pattern }) {
   const { t } = useTranslation();
   const ids = useId();
   const report = useMemo(() => validatePattern(pattern), [pattern]);
-  const projects = useLibrary((s) => s.projects.filter((p) => p.patternId === id).length);
+  const allProjects = useLibrary((s) => s.projects);
+  const own = useMemo(() => allProjects.filter((p) => p.patternId === id), [allProjects, id]);
+  const projects = own.length;
 
   const action = (d: Diagnostic) => {
     if (d.stageId)
@@ -79,7 +83,16 @@ function PatternEditor({ id, pattern }: { id: string; pattern: Pattern }) {
         </p>
         <h1 className="page__title">{pattern.title}</h1>
         {projects > 0 && (
-          <p className="notice notice--info">{t('editor.usedByProjects', { count: projects })}</p>
+          <div className="notice notice--info">
+            <p>{t('editor.usedByProjects', { count: projects })}</p>
+            <ul className="inline-links" aria-label={t('editor.projectsOfPattern')}>
+              {own.map((p) => (
+                <li key={p.id}>
+                  <Link to={paths.project(p.id)}>{p.name}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <section className="editor-section" aria-labelledby={`${ids}-about`}>
@@ -111,6 +124,7 @@ function PatternEditor({ id, pattern }: { id: string; pattern: Pattern }) {
             hint={t('editor.notesHint')}
             onCommit={(v) => update(({ notes: _n, ...p }) => (v.trim() ? { ...p, notes: v } : p))}
           />
+          <GaugeFields pattern={pattern} />
         </section>
 
         <Sizes pattern={pattern} />
@@ -326,6 +340,49 @@ function NewChartDialog({
   );
 }
 
+/** Pattern gauge (10 × 10 cm), used to estimate rows for "knit until X cm" stages (DR-5). */
+function GaugeFields({ pattern }: { pattern: Pattern }) {
+  const { t } = useTranslation();
+  const on = pattern.gauge !== undefined;
+  const gauge = pattern.gauge ?? { stitches: 22, rows: 30 };
+  return (
+    <fieldset className="field">
+      <legend>{t('editor.gauge')}</legend>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) =>
+            update(({ gauge: _g, ...p }) => (e.target.checked ? { ...p, gauge } : p))
+          }
+        />
+        {t('editor.hasGauge')}
+      </label>
+      {on && (
+        <div className="form-grid form-grid--2">
+          <NumberField
+            label={t('gauge.stitches')}
+            value={gauge.stitches}
+            min={1}
+            max={100}
+            decimals
+            onCommit={(stitches) => update((p) => ({ ...p, gauge: { ...gauge, stitches } }))}
+          />
+          <NumberField
+            label={t('gauge.rows')}
+            value={gauge.rows}
+            min={1}
+            max={200}
+            decimals
+            onCommit={(rows) => update((p) => ({ ...p, gauge: { ...gauge, rows } }))}
+          />
+        </div>
+      )}
+      <p className="hint">{t('editor.gaugeHint')}</p>
+    </fieldset>
+  );
+}
+
 function Stages({ id, pattern }: { id: string; pattern: Pattern }) {
   const { t } = useTranslation();
   const ids = useId();
@@ -357,21 +414,70 @@ function Stages({ id, pattern }: { id: string; pattern: Pattern }) {
       </h2>
       <p className="hint">{t('editor.stagesHint')}</p>
       <ul className="card-list card-list--rows">
-        {pattern.stages.map((s) => (
+        {pattern.stages.map((s, i) => (
           <li key={s.id} className="card card--row">
             <Link className="card__main" to={paths.stage(id, s.id)}>
-              <span className="card__title">{s.name}</span>
+              <span className="card__title">
+                <span className="num card__index">{i + 1}.</span> {s.name}
+              </span>
               <span className="card__meta">
                 <span>{t(s.construction === 'round' ? 'editor.round' : 'editor.flat')}</span>
                 <span className="num">
                   {t('editor.stitchesPerSize', { list: (counts.get(s.id) ?? []).join('-') || '0' })}
                 </span>
+                <span>
+                  {s.rows === undefined
+                    ? t('editor.stageOpen')
+                    : t('editor.stageRows', { list: rowsList(s.rows) })}
+                </span>
+                {s.tracking === 'rows' && <span>{t('editor.stageCounter')}</span>}
+                {s.layout.some((seg) => seg.kind === 'chart' && seg.continueFrom) && (
+                  <span>{t('editor.stageContinues')}</span>
+                )}
               </span>
             </Link>
             <div className="card__actions">
               <Link className="btn btn--small" to={paths.stage(id, s.id)}>
                 {t('editor.editLayout')}
               </Link>
+              <button
+                type="button"
+                className="btn btn--small"
+                title={t('editor.continueStageHint')}
+                onClick={() => {
+                  let created = '';
+                  update((p) => {
+                    const r = continueStage(
+                      p,
+                      s.id,
+                      t('editor.continueName', { name: s.name }).slice(0, 60),
+                    );
+                    created = r.stageId;
+                    return r.pattern;
+                  });
+                  if (created) navigate(paths.stage(id, created));
+                }}
+              >
+                {t('editor.continueStage')}
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={t('editor.moveStageUp', { name: s.name })}
+                disabled={i === 0}
+                onClick={() => update((p) => moveStage(p, i, i - 1))}
+              >
+                <Icon name="up" />
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={t('editor.moveStageDown', { name: s.name })}
+                disabled={i === pattern.stages.length - 1}
+                onClick={() => update((p) => moveStage(p, i, i + 1))}
+              >
+                <Icon name="down" />
+              </button>
               {pattern.stages.length > 1 && (
                 <button
                   type="button"
@@ -405,3 +511,6 @@ function Stages({ id, pattern }: { id: string; pattern: Pattern }) {
     </section>
   );
 }
+
+const rowsList = (rows: number | readonly number[]) =>
+  typeof rows === 'number' ? String(rows) : rows.join('-');

@@ -1,10 +1,11 @@
 import {
-  createRowModel,
+  createProgressModel,
   initialProgress,
   reduceProgress,
   resolveStage,
   type Pattern,
   type ProgressAction,
+  type Gauge,
   type ProgressState,
   type ResolvedStage,
   type RowModel,
@@ -31,6 +32,15 @@ interface SessionState {
   dispatch(action: ProgressAction): void;
   setEraser(on: boolean): void;
   setStage(stageId: string): Promise<void>;
+  /**
+   * Finish the active stage after `rows` rows (DR-5): recorded on the project so later stages
+   * that continue its charts know where they start (DR-3). Moves on to `next` when given.
+   */
+  finishStage(rows: number, next?: string): Promise<void>;
+  /** Undo a finish: the stage is open again and its row count unknown. */
+  reopenStage(stageId: string): Promise<void>;
+  /** Rename the project or set the knitter's own gauge (null removes it). */
+  updateProject(change: { name?: string; gauge?: Gauge | null }): Promise<void>;
 }
 
 /** Progress writes are queued so they reach storage in order, even when taps come fast. */
@@ -47,8 +57,23 @@ async function loadProgress(projectId: string, stageId: string): Promise<Progres
 function build(pattern: Pattern, project: StoredProject, stageId: string) {
   const stage = resolveStage(pattern, stageId, project.sizeIndex, {
     modifications: project.modifications,
+    ...(project.finishedRows ? { finishedRows: project.finishedRows } : {}),
   });
-  return { stage, model: createRowModel(stage) };
+  return { stage, model: createProgressModel(stage) };
+}
+
+/** Write project metadata in the same queue as progress, so writes stay in order. */
+function saveProject(project: StoredProject, onError: () => void): void {
+  writeQueue = writeQueue
+    .then(async () => {
+      const storage = await getStorage();
+      await storage.putProject(project);
+    })
+    .catch((error: unknown) => {
+      console.error('[session] saving the project failed', error);
+      onError();
+    });
+  useLibrary.getState().touchProject(project);
 }
 
 export const useSession = create<SessionState>((set, get) => ({
@@ -113,8 +138,8 @@ export const useSession = create<SessionState>((set, get) => ({
       projectId: project.id,
       stageId: stage.stage.id,
       done: next.done,
-      undo: next.undo,
-      redo: next.redo,
+      undo: [...next.undo],
+      redo: [...next.redo],
       updatedAt: now,
     };
     const updatedProject = { ...project, updatedAt: now };
@@ -145,9 +170,54 @@ export const useSession = create<SessionState>((set, get) => ({
     const progress = await loadProgress(project.id, stageId);
     const updated = { ...project, activeStageId: stageId, updatedAt: new Date().toISOString() };
     set({ stage, model, progress, project: updated, eraser: false });
-    const storage = await getStorage();
-    await storage.putProject(updated).catch(() => set({ saveFailed: true }));
-    useLibrary.getState().touchProject(updated);
+    saveProject(updated, () => set({ saveFailed: true }));
+    const record = await getStorage().then((st) =>
+      st.getProgress(project.id, stageId).catch(() => undefined),
+    );
+    useLibrary.setState((st) => ({ progress: { ...st.progress, [project.id]: record } }));
+  },
+
+  async finishStage(rows, next) {
+    const { project, stage, pattern } = get();
+    if (!project || !stage || !pattern) return;
+    const updated: StoredProject = {
+      ...project,
+      finishedRows: { ...project.finishedRows, [stage.stage.id]: Math.max(0, Math.floor(rows)) },
+      updatedAt: new Date().toISOString(),
+    };
+    set({ project: updated, ...build(pattern, updated, stage.stage.id) });
+    saveProject(updated, () => set({ saveFailed: true }));
+    if (next) await get().setStage(next);
+  },
+
+  async reopenStage(stageId) {
+    const { project, stage, pattern } = get();
+    if (!project || !stage || !pattern || project.finishedRows?.[stageId] === undefined) return;
+    const { [stageId]: _open, ...rest } = project.finishedRows;
+    const { finishedRows: _all, ...base } = project;
+    const updated: StoredProject = {
+      ...base,
+      ...(Object.keys(rest).length > 0 ? { finishedRows: rest } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    set({ project: updated, ...build(pattern, updated, stage.stage.id) });
+    saveProject(updated, () => set({ saveFailed: true }));
+  },
+
+  async updateProject(change) {
+    const { project, stage, pattern } = get();
+    if (!project || !stage || !pattern) return;
+    const { gauge: _old, ...base } = project;
+    const gauge = change.gauge === undefined ? project.gauge : change.gauge;
+    const updated: StoredProject = {
+      ...base,
+      ...(gauge ? { gauge } : {}),
+      name: change.name?.trim() ? change.name.trim().slice(0, 120) : project.name,
+      updatedAt: new Date().toISOString(),
+    };
+    set({ project: updated });
+    saveProject(updated, () => set({ saveFailed: true }));
+    await Promise.resolve();
   },
 }));
 

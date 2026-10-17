@@ -160,6 +160,25 @@ function StageEditor({
               ))}
             </fieldset>
           )}
+          <fieldset className="field">
+            <legend>{t('stage.tracking')}</legend>
+            {(['stitches', 'rows'] as const).map((mode) => (
+              <label key={mode} className="check">
+                <input
+                  type="radio"
+                  name={`${ids}-track`}
+                  checked={(stage.tracking ?? 'stitches') === mode}
+                  onChange={() =>
+                    setStage(
+                      mode === 'rows' ? { ...stage, tracking: 'rows' } : without(stage, 'tracking'),
+                    )
+                  }
+                />
+                {t(mode === 'rows' ? 'stage.trackRows' : 'stage.trackStitches')}
+              </label>
+            ))}
+            <p className="hint">{t('stage.trackingHint')}</p>
+          </fieldset>
           <div className="form-grid">
             <div>
               <label className="check">
@@ -186,7 +205,35 @@ function StageEditor({
                   onCommit={(rows) => setStage({ ...stage, rows })}
                 />
               ) : (
-                <p className="hint">{t('stage.openEnded')}</p>
+                <>
+                  <p className="hint">{t('stage.openEnded')}</p>
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={stage.targetCm !== undefined}
+                      onChange={(e) =>
+                        setStage(
+                          e.target.checked
+                            ? { ...stage, targetCm: 30 }
+                            : without(stage, 'targetCm'),
+                        )
+                      }
+                    />
+                    {t('stage.hasTarget')}
+                  </label>
+                  {stage.targetCm !== undefined && (
+                    <SizeValueField
+                      label={t('stage.target')}
+                      value={stage.targetCm}
+                      sizes={sizes}
+                      min={1}
+                      max={500}
+                      decimals
+                      hint={t('stage.targetHint')}
+                      onCommit={(targetCm) => setStage({ ...stage, targetCm })}
+                    />
+                  )}
+                </>
               )}
             </div>
             <div>
@@ -269,6 +316,7 @@ function StageEditor({
                 {seg.kind === 'chart' ? (
                   <ChartSegmentEditor
                     pattern={pattern}
+                    stageId={stage.id}
                     seg={seg}
                     onChange={(next) => replaceSegment(i, next)}
                   />
@@ -420,10 +468,12 @@ function rangeLabel(stage: ResolvedStage | null, seg: Segment, t: TFunction) {
 
 function ChartSegmentEditor({
   pattern,
+  stageId,
   seg,
   onChange,
 }: {
   pattern: Pattern;
+  stageId: string;
   seg: ChartSegment;
   onChange(seg: ChartSegment): void;
 }) {
@@ -442,7 +492,10 @@ function ChartSegmentEditor({
           value={seg.chartId}
           onChange={(e) =>
             onChange(
-              without(without({ ...seg, chartId: e.target.value }, 'startColumn'), 'rowOffset'),
+              without(
+                without(without({ ...seg, chartId: e.target.value }, 'startColumn'), 'rowOffset'),
+                'continueFrom',
+              ),
             )
           }
         >
@@ -485,9 +538,10 @@ function ChartSegmentEditor({
           />
         )}
       </fieldset>
+      <RowStart pattern={pattern} stageId={stageId} seg={seg} height={height} onChange={onChange} />
       <details className="segment__more">
         <summary>{t('stage.more')}</summary>
-        <div className="form-grid form-grid--3">
+        <div className="form-grid form-grid--2">
           <NumberField
             label={t('stage.startColumn')}
             value={seg.startColumn ?? width}
@@ -496,16 +550,6 @@ function ChartSegmentEditor({
             hint={t('stage.startColumnHint', { w: width })}
             onCommit={(v) =>
               onChange(v === width ? without(seg, 'startColumn') : { ...seg, startColumn: v })
-            }
-          />
-          <NumberField
-            label={t('stage.startRow')}
-            value={(seg.rowOffset ?? 0) + 1}
-            min={1}
-            max={height}
-            hint={t('stage.startRowHint')}
-            onCommit={(v) =>
-              onChange(v === 1 ? without(seg, 'rowOffset') : { ...seg, rowOffset: v - 1 })
             }
           />
           <TextField
@@ -518,6 +562,111 @@ function ChartSegmentEditor({
         </div>
       </details>
     </div>
+  );
+}
+
+/**
+ * Where the chart's rows start: a fixed chart row, or "continue as before" from a placement in an
+ * earlier stage (DR-3), e.g. the front after the split continues the body's A.2.
+ */
+function RowStart({
+  pattern,
+  stageId,
+  seg,
+  height,
+  onChange,
+}: {
+  pattern: Pattern;
+  stageId: string;
+  seg: ChartSegment;
+  height: number;
+  onChange(seg: ChartSegment): void;
+}) {
+  const { t } = useTranslation();
+  const ids = useId();
+  const sources = pattern.stages.flatMap((st) =>
+    st.id === stageId
+      ? []
+      : st.layout.flatMap((x) =>
+          x.kind === 'chart'
+            ? [
+                {
+                  key: `${st.id}\u0000${x.placementId}`,
+                  ref: { stageId: st.id, placementId: x.placementId },
+                  label: `${st.name} — ${x.label ?? pattern.charts.find((c) => c.id === x.chartId)?.name ?? x.chartId}`,
+                  same: x.chartId === seg.chartId,
+                },
+              ]
+            : [],
+        ),
+  );
+  // Same chart first: that is almost always the one to continue.
+  sources.sort((a, b) => Number(b.same) - Number(a.same));
+  const continuing = seg.continueFrom !== undefined;
+  const current = seg.continueFrom
+    ? `${seg.continueFrom.stageId}\u0000${seg.continueFrom.placementId}`
+    : '';
+  return (
+    <fieldset className="field field--compact">
+      <legend>{t('stage.rowStart')}</legend>
+      <label className="check">
+        <input
+          type="radio"
+          name={`${ids}-rs`}
+          checked={!continuing}
+          onChange={() => onChange(without(seg, 'continueFrom'))}
+        />
+        {t('stage.fixedRow')}
+      </label>
+      {!continuing && (
+        <NumberField
+          label={t('stage.startRow')}
+          value={(seg.rowOffset ?? 0) + 1}
+          min={1}
+          max={height}
+          compact
+          hint={t('stage.startRowHint')}
+          onCommit={(v) =>
+            onChange(v === 1 ? without(seg, 'rowOffset') : { ...seg, rowOffset: v - 1 })
+          }
+        />
+      )}
+      {sources.length > 0 && (
+        <label className="check">
+          <input
+            type="radio"
+            name={`${ids}-rs`}
+            checked={continuing}
+            onChange={() => {
+              const first = sources[0];
+              if (first) onChange({ ...without(seg, 'rowOffset'), continueFrom: first.ref });
+            }}
+          />
+          {t('stage.continueRows')}
+        </label>
+      )}
+      {continuing && (
+        <div className="field field--compact">
+          <label htmlFor={`${ids}-src`}>{t('stage.continueFrom')}</label>
+          <select
+            id={`${ids}-src`}
+            value={current}
+            onChange={(e) => {
+              const src = sources.find((x) => x.key === e.target.value);
+              if (src) onChange({ ...seg, continueFrom: src.ref });
+            }}
+          >
+            {!sources.some((x) => x.key === current) && <option value={current}>—</option>}
+            {sources.map((x) => (
+              <option key={x.key} value={x.key}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+          <p className="hint">{t('stage.continueHint')}</p>
+        </div>
+      )}
+    </fieldset>
   );
 }
 

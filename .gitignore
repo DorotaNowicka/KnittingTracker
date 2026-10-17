@@ -33,3 +33,5 @@ blob-report/
 
 # Screenshot tours (scripts/screens.mjs)
 apps/web/screens/
+packages/importer/src/__scratch__/
+.nginx-local/

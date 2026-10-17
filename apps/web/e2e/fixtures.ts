@@ -20,10 +20,14 @@ const charts = [
   },
 ];
 
-export function patternFile(pattern: object): { name: string; mimeType: string; buffer: Buffer } {
+/** A pattern file. The older patterns stay at schema v1 on purpose: they are migrated on import. */
+export function patternFile(
+  pattern: object,
+  schemaVersion = 1,
+): { name: string; mimeType: string; buffer: Buffer } {
   const text = JSON.stringify({
     format: 'knitting-tracker/pattern',
-    schemaVersion: 1,
+    schemaVersion,
     exportedAt: new Date().toISOString(),
     pattern,
   });
@@ -95,10 +99,75 @@ export const bigPattern = {
   ],
 };
 
+/**
+ * Round body (4 rounds) → flat front that continues the body's rope (open-ended, "until 10 cm")
+ * → ribbing tracked with a row counter. Schema v2 features of M5.
+ */
+export const stagesPattern = {
+  id: 'e2e-stages',
+  revision: 1,
+  title: 'Kamizelka etapowa',
+  sizes: ['one'],
+  gauge: { stitches: 22, rows: 30 },
+  symbols: [],
+  legend: [],
+  charts,
+  stages: [
+    {
+      id: 'body',
+      name: 'Korpus',
+      construction: 'round',
+      firstRowSide: 'RS',
+      rows: 4,
+      layout: [
+        { kind: 'marker', id: 'a', sectionName: 'Przód' },
+        { kind: 'chart', placementId: 'r1', chartId: 'rope' },
+        { kind: 'chart', placementId: 's1', chartId: 'seed', stitches: 4 },
+        { kind: 'marker', id: 'b', sectionName: 'Tył' },
+        { kind: 'chart', placementId: 'r2', chartId: 'rope' },
+        { kind: 'chart', placementId: 's2', chartId: 'seed', stitches: 4 },
+      ],
+    },
+    {
+      id: 'front',
+      name: 'Przód',
+      construction: 'flat',
+      // RS first: the rope's cable row (chart row 1) then falls on front row 3, a right-side row.
+      firstRowSide: 'RS',
+      targetCm: 10,
+      layout: [
+        {
+          kind: 'chart',
+          placementId: 'fr',
+          chartId: 'rope',
+          continueFrom: { stageId: 'body', placementId: 'r1' },
+        },
+        { kind: 'chart', placementId: 'fs', chartId: 'seed', stitches: 4 },
+      ],
+    },
+    {
+      id: 'rib',
+      name: 'Ściągacz',
+      construction: 'round',
+      firstRowSide: 'RS',
+      tracking: 'rows',
+      rows: 6,
+      layout: [{ kind: 'marker', id: 'start' }],
+    },
+  ],
+};
+
 /** Import a pattern file through the UI and create a project from it. */
-export async function createProjectFromFile(page: Page, pattern: object, name = 'Projekt testowy') {
-  await page.goto('/nowy');
-  await page.locator('input[type="file"]').setInputFiles(patternFile(pattern));
+export async function createProjectFromFile(
+  page: Page,
+  pattern: object,
+  name = 'Projekt testowy',
+  schemaVersion = 1,
+  /** Origin of another server than the configured base URL (e.g. the update test's own). */
+  base = '',
+) {
+  await page.goto(`${base}/nowy`);
+  await page.locator('input[type="file"]').setInputFiles(patternFile(pattern, schemaVersion));
   await page.getByLabel('Nazwa projektu').fill(name);
   await page.getByRole('button', { name: 'Utwórz projekt' }).click();
   await expect(page).toHaveURL(/\/projekt\//);
@@ -128,14 +197,35 @@ export async function tapCell(page: Page, row: number, col: number) {
   await page.mouse.click(point.x, point.y);
 }
 
-/** Collect Content-Security-Policy violations (preview and nginx send the production CSP). */
+/**
+ * Collect Content-Security-Policy violations (preview and nginx send the production CSP).
+ *
+ * Each entry names the directive, what was blocked, where (script source and line) and the
+ * element it was reported on, so a failure in CI says what to fix.
+ *
+ * One known engine quirk is left out: WebKit reports `style-src-attr` for the internal inline
+ * styles of its own `<select>` controls (user-agent shadow DOM). Those styles are not ours, are
+ * not blocked in a way that affects the app, and Chromium does not report them. Everything else,
+ * including style-src-attr on any other element, still fails the test.
+ */
 export async function watchCsp(page: Page): Promise<() => Promise<string[]>> {
   await page.addInitScript(() => {
     const w = window as unknown as { __cspViolations?: string[] };
     w.__cspViolations = [];
-    document.addEventListener('securitypolicyviolation', (e) => {
-      w.__cspViolations?.push(`${e.violatedDirective} ${e.blockedURI}`);
-    });
+    document.addEventListener(
+      'securitypolicyviolation',
+      (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        const tag = target?.tagName.toLowerCase() ?? (e.target === document ? 'document' : '?');
+        if (e.violatedDirective === 'style-src-attr' && target?.closest('select')) return;
+        const where = e.sourceFile ? ` at ${e.sourceFile}:${e.lineNumber}:${e.columnNumber}` : '';
+        const cls = target && typeof target.className === 'string' ? `.${target.className}` : '';
+        w.__cspViolations?.push(
+          `${e.violatedDirective} ${e.blockedURI}${where} on <${tag}${cls}>${e.sample ? ` "${e.sample}"` : ''}`,
+        );
+      },
+      true,
+    );
   });
   return () =>
     page.evaluate(

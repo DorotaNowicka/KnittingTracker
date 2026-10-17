@@ -24,6 +24,16 @@ export const localizedTextSchema = z.object({ pl: z.string(), en: z.string() });
 /** One value for all sizes, or one per size. */
 export const sizeValueSchema = z.union([nonNegInt, z.array(nonNegInt).min(1)]);
 
+/** A measurement in cm (decimals allowed), one for all sizes or one per size. */
+const cm = z.number().finite().nonnegative().max(1000);
+export const sizeMeasureSchema = z.union([cm, z.array(cm).min(1)]);
+
+/** Gauge: stitches and rows in 10 cm (the swatch the pattern states, or the knitter's own). */
+export const gaugeSchema = z.object({
+  stitches: z.number().finite().positive().max(100),
+  rows: z.number().finite().positive().max(200),
+});
+
 const point = z.tuple([z.number().finite(), z.number().finite()]);
 export const glyphSchema = z.object({
   primitives: z
@@ -107,6 +117,11 @@ export const segmentSchema = z.discriminatedUnion('kind', [
     startColumn: posInt.optional(),
     /** Vertical phase: chart row for stage row r is ((r - 1 + rowOffset) mod height) + 1. */
     rowOffset: nonNegInt.optional(),
+    /**
+     * Continue the vertical phase of a placement in an earlier stage (DR-3): this placement starts
+     * with the chart row after the last one worked there. Overrides `rowOffset`.
+     */
+    continueFrom: z.object({ stageId: id, placementId: id }).optional(),
     /** Display label of the zone; defaults to the chart name. */
     label: z.string().max(40).optional(),
   }),
@@ -128,6 +143,13 @@ export const stageSchema = z.object({
   rows: sizeValueSchema.optional(),
   /** Stitch count stated by the pattern text, cross-checked against the layout. */
   expectedStitches: sizeValueSchema.optional(),
+  /**
+   * How progress is tracked (DR-9): every stitch (default) or whole rows only, for simple
+   * textures such as ribbing where a row counter is enough.
+   */
+  tracking: z.enum(['stitches', 'rows']).optional(),
+  /** Length to knit in an open-ended stage ("until the piece measures 34 cm", DR-5). */
+  targetCm: sizeMeasureSchema.optional(),
 });
 
 export const patternSchema = z.object({
@@ -137,6 +159,8 @@ export const patternSchema = z.object({
   designer: z.string().max(120).optional(),
   notes: z.string().max(5000).optional(),
   sizes: z.array(z.string().min(1).max(20)).min(1),
+  /** Gauge stated by the pattern (10 × 10 cm). */
+  gauge: gaugeSchema.optional(),
   symbols: z.array(customSymbolSchema),
   legend: z.array(legendEntrySchema),
   charts: z.array(chartSchema),
@@ -170,6 +194,13 @@ export const projectSchema = z.object({
   modifications: z.array(modificationSchema),
   /** Progress per stage id. */
   progress: z.record(id, progressSchema),
+  /**
+   * Rows actually worked in stages the knitter finished (stage id → rows). Open-ended stages end
+   * here; later stages that continue a chart's phase count from this (DR-3, DR-5).
+   */
+  finishedRows: z.record(id, nonNegInt).optional(),
+  /** The knitter's own gauge, used instead of the pattern's for length estimates. */
+  gauge: gaugeSchema.optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 });
@@ -185,3 +216,4 @@ export type CustomSymbol = z.infer<typeof customSymbolSchema>;
 export type Modification = z.infer<typeof modificationSchema>;
 export type ProgressRecord = z.infer<typeof progressSchema>;
 export type Project = z.infer<typeof projectSchema>;
+export type Gauge = z.infer<typeof gaugeSchema>;

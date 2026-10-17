@@ -106,6 +106,7 @@ describe('sizes', () => {
       ...stage,
       rows: [10, 20],
       expectedStitches: [2, 4],
+      targetCm: [30, 32.5],
       layout: [{ kind: 'chart', placementId: 'x', chartId: 'a', stitches: [2, 4] }],
     });
   };
@@ -125,11 +126,13 @@ describe('sizes', () => {
     expect(p.sizes).toEqual(['S', 'M', 'L']);
     expect(p.stages[0]?.rows).toEqual([10, 20, 20]);
     expect(p.stages[0]?.expectedStitches).toEqual([2, 4, 4]);
+    expect(p.stages[0]?.targetCm).toEqual([30, 32.5, 32.5]);
     const seg = p.stages[0]?.layout[0];
     expect(seg?.kind === 'chart' && seg.stitches).toEqual([2, 4, 4]);
     const q = removeSize(p, 0);
     expect(q.sizes).toEqual(['M', 'L']);
     expect(q.stages[0]?.rows).toEqual([20, 20]);
+    expect(q.stages[0]?.targetCm).toEqual([32.5, 32.5]);
     expect(
       removeSize(blankPattern({ id: 'x', title: 'x', sizes: ['1'], stageName: 's' }), 0).sizes,
     ).toEqual(['1']);

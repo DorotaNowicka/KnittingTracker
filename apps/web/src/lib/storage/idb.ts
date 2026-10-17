@@ -1,4 +1,4 @@
-import { patternSchema, projectSchema } from '@kt/core';
+import { storedPatternSchema, storedProjectSchema } from '@kt/core';
 import Dexie, { type Table } from 'dexie';
 import type { StorageAdapter, StoredPattern, StoredProgress, StoredProject } from './types';
 
@@ -26,8 +26,6 @@ class KnittingDb extends Dexie {
   }
 }
 
-const storedProjectSchema = projectSchema.omit({ progress: true });
-
 /** Drop records that no longer validate instead of crashing the app (and report them). */
 function valid<T>(rows: T[], check: (row: T) => boolean, label: string): T[] {
   return rows.filter((row) => {
@@ -37,7 +35,7 @@ function valid<T>(rows: T[], check: (row: T) => boolean, label: string): T[] {
   });
 }
 
-const okPattern = (p: StoredPattern) => patternSchema.safeParse(p.pattern).success;
+const okPattern = (p: StoredPattern) => storedPatternSchema.safeParse(p).success;
 const okProject = (p: StoredProject) => storedProjectSchema.safeParse(p).success;
 
 /** Open IndexedDB. Throws when IndexedDB is unavailable or blocked. */

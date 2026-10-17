@@ -24,7 +24,15 @@ function productionHeaders(): Record<string, string> {
   return headers;
 }
 
+const appVersion = (
+  JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+    version: string;
+  }
+).version;
+
 export default defineConfig({
+  // Shown in the settings, so the knitter can tell which version a device runs after an update.
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [
     react(),
     https && basicSsl(),
@@ -37,8 +45,8 @@ export default defineConfig({
       injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,webmanifest}'],
-        // Fonts: latin + latin-ext of one variable family (normal and italic) stay well under this.
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        // The import worker bundles pdf.js (a few MB) so import also works offline.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
       manifest: {
         name: 'KnittingTracker',

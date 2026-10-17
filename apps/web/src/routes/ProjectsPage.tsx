@@ -1,4 +1,4 @@
-import { createRowModel, resolveStage, summarize } from '@kt/core';
+import { createProgressModel, resolveStage, summarize } from '@kt/core';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '../lib/Link';
@@ -90,11 +90,12 @@ function ProjectRow({ project }: { project: StoredProject }) {
     try {
       const stage = resolveStage(pattern.pattern, project.activeStageId, project.sizeIndex, {
         modifications: project.modifications,
+        ...(project.finishedRows ? { finishedRows: project.finishedRows } : {}),
       });
       return {
         stageName: stage.stage.name,
         round: stage.stage.construction === 'round',
-        s: summarize(createRowModel(stage), done),
+        s: summarize(createProgressModel(stage), done),
       };
     } catch {
       return null;

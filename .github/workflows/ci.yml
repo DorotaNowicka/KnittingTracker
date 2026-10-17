@@ -44,6 +44,8 @@ jobs:
           path: coverage/
           retention-days: 7
       - run: pnpm build
+      - name: Startup bundle budget
+        run: pnpm check:bundle
         env:
           VITE_APP_ENV: prod
       - uses: actions/upload-artifact@v4

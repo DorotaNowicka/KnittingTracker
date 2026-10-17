@@ -54,8 +54,11 @@ export function PatternsPage() {
             <Icon name="plus" />
             {t('patterns.create')}
           </button>
-          <Link className="btn" to={paths.new()}>
+          <Link className="btn" to={paths.import()}>
             <Icon name="upload" />
+            {t('patterns.recognise')}
+          </Link>
+          <Link className="btn" to={paths.new()}>
             {t('patterns.import')}
           </Link>
           {!patterns.some((p) => p.pattern.id === samplePattern.id) && (
