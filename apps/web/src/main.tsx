@@ -1,11 +1,17 @@
+import '@fontsource-variable/atkinson-hyperlegible-next';
+import './styles/tokens.css';
+import './styles/app.css';
+import './styles/editor.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
-import { initI18n } from './i18n';
 import { App } from './App';
-import './styles/base.css';
+import { initI18n } from './i18n';
+import { applyTheme, getLanguagePref, getThemePref } from './lib/preferences';
+import { announceUpdate } from './state/update';
 
-initI18n();
+applyTheme(getThemePref());
+initI18n(getLanguagePref());
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element #root is missing');
@@ -16,8 +22,13 @@ createRoot(container).render(
   </StrictMode>,
 );
 
-// Service worker: registered in production builds only. An update never reloads the page on its
-// own (ADR-3); the "new version available" prompt arrives with the tracker UI in M2.
+// Service worker (production builds). A new version never reloads the page by itself: the app
+// shows a banner and the knitter decides when (ADR-3).
 if (import.meta.env.PROD) {
-  registerSW({ immediate: true });
+  const updateSW = registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      announceUpdate(() => void updateSW(true));
+    },
+  });
 }

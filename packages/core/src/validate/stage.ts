@@ -29,6 +29,12 @@ export function checkZoneEdges(stage: ResolvedStage): Diagnostic[] {
               'error',
               `${zone.label}: the repeat over ${zone.lastStitch - zone.firstStitch + 1} stitches cuts a ${cell.width}-cell symbol (chart row ${chartRow}).`,
               { stageId: stage.stage.id, chartId: zone.chartId, row: chartRow, col: cell.chartCol },
+              {
+                zone: zone.label,
+                stitches: zone.lastStitch - zone.firstStitch + 1,
+                width: cell.width,
+                row: chartRow,
+              },
             ),
           );
           break;
@@ -83,6 +89,7 @@ export function checkWrongSideSymbols(stage: ResolvedStage, maxRows = 2000): Dia
             row: cell.chartRow,
             col: cell.chartCol,
           },
+          { zone: cell.zone.label, symbol: def.id, row: cell.chartRow },
         ),
       );
     }

@@ -26,6 +26,7 @@ function checkSizeValue(
       'error',
       `${label} lists ${value.length} values but the pattern has ${sizes} sizes.`,
       { stageId },
+      { label, actual: value.length, expected: sizes },
     ),
   ];
 }
@@ -35,12 +36,24 @@ export function checkReferences(pattern: Pattern, registry: SymbolRegistry): Dia
   const out: Diagnostic[] = [];
   for (const id of duplicates(pattern.charts.map((c) => c.id))) {
     out.push(
-      diagnostic('duplicate-chart', 'error', `Chart id "${id}" is used twice.`, { chartId: id }),
+      diagnostic(
+        'duplicate-chart',
+        'error',
+        `Chart id "${id}" is used twice.`,
+        { chartId: id },
+        { id },
+      ),
     );
   }
   for (const id of duplicates(pattern.stages.map((s) => s.id))) {
     out.push(
-      diagnostic('duplicate-stage', 'error', `Stage id "${id}" is used twice.`, { stageId: id }),
+      diagnostic(
+        'duplicate-stage',
+        'error',
+        `Stage id "${id}" is used twice.`,
+        { stageId: id },
+        { id },
+      ),
     );
   }
   for (const entry of pattern.legend) {
@@ -50,6 +63,8 @@ export function checkReferences(pattern: Pattern, registry: SymbolRegistry): Dia
           'legend-unknown-symbol',
           'error',
           `Legend refers to unknown symbol ${entry.symbolId}.`,
+          {},
+          { symbol: entry.symbolId },
         ),
       );
     }
@@ -60,9 +75,13 @@ export function checkReferences(pattern: Pattern, registry: SymbolRegistry): Dia
     const ids = stage.layout.map((s) => (s.kind === 'chart' ? s.placementId : s.id));
     for (const id of duplicates(ids)) {
       out.push(
-        diagnostic('duplicate-placement', 'error', `Id "${id}" appears twice in ${stage.name}.`, {
-          stageId: stage.id,
-        }),
+        diagnostic(
+          'duplicate-placement',
+          'error',
+          `Id "${id}" appears twice in ${stage.name}.`,
+          { stageId: stage.id },
+          { id, stage: stage.name },
+        ),
       );
     }
     out.push(...checkSizeValue(stage.rows, n, `${stage.name}: rows`, stage.id));
@@ -73,9 +92,13 @@ export function checkReferences(pattern: Pattern, registry: SymbolRegistry): Dia
       if (seg.kind !== 'chart') continue;
       if (!chartIds.has(seg.chartId)) {
         out.push(
-          diagnostic('unknown-chart', 'error', `${stage.name} uses unknown chart ${seg.chartId}.`, {
-            stageId: stage.id,
-          }),
+          diagnostic(
+            'unknown-chart',
+            'error',
+            `${stage.name} uses unknown chart ${seg.chartId}.`,
+            { stageId: stage.id },
+            { stage: stage.name, chart: seg.chartId },
+          ),
         );
       }
       out.push(
@@ -118,13 +141,35 @@ export function validatePattern(
   const structural = out.some((d) => d.severity === 'error');
   if (!structural) {
     for (const stage of pattern.stages) {
-      for (let size = 0; size < pattern.sizes.length; size++) {
-        const resolved = resolveStage(pattern, stage.id, size, { modifications, registry });
-        // Chart diagnostics were already reported above; keep only stage-specific ones.
-        const stageDiags = validateStage(resolved).filter((d) => d.stageId !== undefined);
+      // The same finding in every size is reported once, without a size label.
+      const bySize = pattern.sizes.map((_, size) =>
+        validateStage(resolveStage(pattern, stage.id, size, { modifications, registry }))
+          // Chart diagnostics were already reported above; keep only stage-specific ones.
+          .filter((d) => d.stageId !== undefined),
+      );
+      const keyOf = (d: Diagnostic) => JSON.stringify([d.code, d.message, d.row, d.col, d.chartId]);
+      const inAll = new Set(
+        (bySize[0] ?? [])
+          .map(keyOf)
+          .filter((k) => bySize.every((list) => list.some((d) => keyOf(d) === k))),
+      );
+      const reported = new Set<string>();
+      bySize.forEach((list, size) => {
         const label = pattern.sizes[size] ?? String(size);
-        out.push(...stageDiags.map((d) => ({ ...d, message: `[${label}] ${d.message}` })));
-      }
+        for (const d of list) {
+          const k = keyOf(d);
+          if (inAll.has(k) && pattern.sizes.length > 1) {
+            if (!reported.has(k)) out.push(d);
+            reported.add(k);
+            continue;
+          }
+          out.push(
+            pattern.sizes.length > 1
+              ? { ...d, message: `[${label}] ${d.message}`, params: { ...d.params, size: label } }
+              : d,
+          );
+        }
+      });
     }
   }
   return { ok: !out.some((d) => d.severity === 'error'), diagnostics: out };

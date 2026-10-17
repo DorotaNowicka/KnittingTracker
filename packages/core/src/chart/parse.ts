@@ -38,6 +38,7 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
         'error',
         `Chart ${chart.name} declares ${chart.height} rows but has ${chart.rows.length}.`,
         where,
+        { chart: chart.name, expected: chart.height, actual: chart.rows.length },
       ),
     );
   }
@@ -49,6 +50,7 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
           'error',
           `"${CONTINUATION}" is reserved for continuation cells.`,
           where,
+          { chart: chart.name },
         ),
       );
     } else if (!registry.has(symbolId)) {
@@ -58,6 +60,7 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
           'error',
           `Unknown symbol "${symbolId}" for "${key}".`,
           where,
+          { chart: chart.name, symbol: symbolId },
         ),
       );
     }
@@ -74,6 +77,7 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
           'error',
           `Row ${r} of ${chart.name} has ${source.length} cells, expected ${chart.width}.`,
           at,
+          { chart: chart.name, row: r, actual: source.length, expected: chart.width },
         ),
       );
     }
@@ -88,6 +92,7 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
             'error',
             `Symbol ${open.def.id} at column ${open.anchorCol} needs ${open.def.width} cells but has ${open.next}.`,
             { ...at, col },
+            { chart: chart.name, row: r, col: open.anchorCol, width: open.def.width },
           ),
         );
       }
@@ -113,6 +118,7 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
             'error',
             `Continuation cell without a symbol to extend.`,
             { ...at, col: c },
+            { chart: chart.name, row: r, col: c },
           ),
         );
         row.push({ symbolId: fallback.id, anchorCol: c, part: 0, width: 1 });
@@ -124,10 +130,13 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
       if (!def) {
         if (ch !== undefined) {
           diags.push(
-            diagnostic('unknown-cell', 'error', `Character "${ch}" is not in the palette.`, {
-              ...at,
-              col: c,
-            }),
+            diagnostic(
+              'unknown-cell',
+              'error',
+              `Character "${ch}" is not in the palette.`,
+              { ...at, col: c },
+              { chart: chart.name, row: r, col: c, char: ch },
+            ),
           );
         }
         row.push({ symbolId: fallback.id, anchorCol: c, part: 0, width: 1 });
@@ -142,6 +151,7 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
               'error',
               `Symbol ${def.id} at column ${c} extends past the chart edge.`,
               { ...at, col: c },
+              { chart: chart.name, row: r, col: c },
             ),
           );
         }

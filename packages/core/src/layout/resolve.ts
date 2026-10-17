@@ -170,6 +170,7 @@ export function resolveStage(
           'error',
           `Segment ${seg.placementId} uses unknown chart ${seg.chartId}.`,
           where,
+          { stage: stage.name, chart: seg.chartId },
         ),
       );
       continue;
@@ -185,6 +186,7 @@ export function resolveStage(
           'error',
           `Segment ${seg.placementId}: start column ${startColumn} > chart width.`,
           where,
+          { stage: stage.name, chart: p.chart.name, column: startColumn, width: p.chart.width },
         ),
       );
     }
@@ -202,6 +204,13 @@ export function resolveStage(
   }
 
   const stitchCount = count;
+  if (stitchCount === 0) {
+    diags.push(
+      diagnostic('empty-layout', 'error', `${stage.name} has no stitches yet.`, where, {
+        stage: stage.name,
+      }),
+    );
+  }
   const toCol = (stitch: number) => stitchCount - stitch + 1;
   const fullZones: Zone[] = zones.map((z) => ({
     ...z,
@@ -218,6 +227,7 @@ export function resolveStage(
           'error',
           `Layout of ${stage.name} has ${stitchCount} stitches; the pattern says ${expected}.`,
           where,
+          { stage: stage.name, actual: stitchCount, expected },
         ),
       );
     }

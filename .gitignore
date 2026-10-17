@@ -30,3 +30,6 @@ blob-report/
 .env
 .env.*
 !.env.example
+
+# Screenshot tours (scripts/screens.mjs)
+apps/web/screens/

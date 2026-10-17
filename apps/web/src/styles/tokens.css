@@ -1,0 +1,101 @@
+/*
+ * Design tokens (docs/design.md). Light and dark themes are designed separately.
+ * Theme selection: data-theme="light|dark" on <html> wins; otherwise the system setting applies.
+ */
+:root {
+  --font: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Type scale 1.25 */
+  --fs-1: 0.8125rem; /* 13 */
+  --fs-2: 0.9375rem; /* 15 */
+  --fs-3: 1.0625rem; /* 17 body */
+  --fs-4: 1.3125rem; /* 21 */
+  --fs-5: 1.625rem; /* 26 */
+  --fs-6: 2.0625rem; /* 33 */
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  --r-control: 6px;
+  --r-sheet: 12px;
+  --target: 48px;
+  --target-big: 56px;
+
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 160ms;
+
+  /* Light theme: linen paper, graphite ink, indigo yarn, saffron marker */
+  --paper: #edefea;
+  --sheet: #fbfbf8;
+  --ink: #1e2227;
+  --ink-muted: #585f68;
+  --rule: #aeb2a8;
+  --rule-strong: #5e646c;
+  --zone: #e2e6dc;
+  --indigo: #2d4a7e;
+  --indigo-hover: #233c68;
+  --on-indigo: #ffffff;
+  --done: #cfdaee;
+  --done-hatch: #4f69a0;
+  --marker: #d8961a;
+  --no-stitch: #c9ccc4;
+  --danger: #a3322a;
+  --on-danger: #ffffff;
+  --shadow: 0 6px 24px rgb(30 34 39 / 14%), 0 1px 3px rgb(30 34 39 / 10%);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #1a1d21;
+    --sheet: #22262b;
+    --ink: #e7e9e4;
+    --ink-muted: #a6acb4;
+    --rule: #4a515a;
+    --rule-strong: #9aa1aa;
+    --zone: #272c33;
+    --indigo: #93abdb;
+    --indigo-hover: #aabde3;
+    --on-indigo: #14181d;
+    --done: #2e3c58;
+    --done-hatch: #7f98c8;
+    --marker: #f0b840;
+    --no-stitch: #343a42;
+    --danger: #f08a80;
+    --on-danger: #14181d;
+    --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --paper: #1a1d21;
+  --sheet: #22262b;
+  --ink: #e7e9e4;
+  --ink-muted: #a6acb4;
+  --rule: #4a515a;
+  --rule-strong: #9aa1aa;
+  --zone: #272c33;
+  --indigo: #93abdb;
+  --indigo-hover: #aabde3;
+  --on-indigo: #14181d;
+  --done: #2e3c58;
+  --done-hatch: #7f98c8;
+  --marker: #f0b840;
+  --no-stitch: #343a42;
+  --danger: #f08a80;
+  --on-danger: #14181d;
+  --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur: 0ms;
+  }
+}

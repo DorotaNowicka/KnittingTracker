@@ -50,6 +50,8 @@ export interface Diagnostic {
   readonly stageId?: string;
   readonly row?: number;
   readonly col?: number;
+  /** Values for a localized message (`diag.<code>` in the UI); `message` is the English fallback. */
+  readonly params?: Readonly<Record<string, string | number>>;
 }
 
 type Where = Pick<Diagnostic, 'chartId' | 'stageId' | 'row' | 'col'>;
@@ -59,13 +61,14 @@ export function diagnostic(
   severity: Severity,
   message: string,
   where: { chartId?: string; stageId?: string; row?: number; col?: number } = {},
+  params?: Readonly<Record<string, string | number>>,
 ): Diagnostic {
   const loc: { -readonly [K in keyof Where]?: Where[K] } = {};
   if (where.chartId !== undefined) loc.chartId = where.chartId;
   if (where.stageId !== undefined) loc.stageId = where.stageId;
   if (where.row !== undefined) loc.row = where.row;
   if (where.col !== undefined) loc.col = where.col;
-  return { code, severity, message, ...loc };
+  return params ? { code, severity, message, ...loc, params } : { code, severity, message, ...loc };
 }
 
 export const hasErrors = (diagnostics: readonly Diagnostic[]): boolean =>
