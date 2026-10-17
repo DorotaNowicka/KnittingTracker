@@ -171,19 +171,27 @@ export function ChartReview({
             </figure>
             <div className="review__pane review__pane--grid">
               <p className="hint">{t('importer.recognised')}</p>
-              <div className="review__grid" style={{ aspectRatio: `${width + 3} / ${height + 4}` }}>
-                <EditorCanvas
-                  source={source}
-                  overlay={overlay}
-                  tool="select"
-                  label={t('importer.gridLabel', { name: draft.name })}
-                  help={t('importer.gridHelp')}
-                  fitKey={`${index}-${width}x${height}`}
-                  reveal={cursor}
-                  onStrokeStart={(c) => setCursor(c)}
-                  onKeyDown={onKeyDown}
-                  testId={`review-grid-${index}`}
+              <div className="review__grid">
+                <svg
+                  className="review__spacer"
+                  viewBox={`0 0 ${width + 3} ${height + 4}`}
+                  aria-hidden="true"
+                  focusable="false"
                 />
+                <div className="review__grid-canvas">
+                  <EditorCanvas
+                    source={source}
+                    overlay={overlay}
+                    tool="select"
+                    label={t('importer.gridLabel', { name: draft.name })}
+                    help={t('importer.gridHelp')}
+                    fitKey={`${index}-${width}x${height}`}
+                    reveal={cursor}
+                    onStrokeStart={(c) => setCursor(c)}
+                    onKeyDown={onKeyDown}
+                    testId={`review-grid-${index}`}
+                  />
+                </div>
               </div>
             </div>
           </div>

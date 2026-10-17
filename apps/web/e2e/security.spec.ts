@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { createProjectFromFile, testPattern, watchCsp } from './fixtures';
-import { syntheticPdf } from './synthetic';
+import { createProjectFromFile, stagesPattern, testPattern, watchCsp } from './fixtures';
+import { syntheticPdf, syntheticPng } from './synthetic';
 
 // Security hardening (M6): the production CSP with Trusted Types is enforced on every page, and
 // the app's own flows (service worker, import worker, canvas, storage) cause no violation.
@@ -77,4 +77,60 @@ test.describe('security headers and policies', () => {
     expect((await request.get('/projekt/abc')).status()).toBe(200);
     expect((await request.get('/healthz')).status()).toBe(200);
   });
+});
+
+/**
+ * Safari reports even script-set inline styles under `style-src 'self'` (seen in CI on WebKit).
+ * The app therefore sets no inline styles at all; Chromium shows any that sneak in as a `style`
+ * attribute, which this test looks for on every screen that draws something dynamic.
+ */
+test('no inline styles anywhere (strict style-src works in Safari too)', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'one viewport');
+  const styled = async (where: string) =>
+    (
+      await page.evaluate(() =>
+        [...document.querySelectorAll('[style]')].map(
+          (el) => `${el.tagName.toLowerCase()}.${el.className}`,
+        ),
+      )
+    ).map((x) => `${where}: ${x}`);
+  const found: string[] = [];
+
+  await page.goto('/import');
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'wzor.pdf',
+    mimeType: 'application/pdf',
+    buffer: syntheticPdf().buffer,
+  });
+  await expect(page.getByText(/Znaleziono/)).toBeVisible({ timeout: 30_000 });
+  found.push(...(await styled('import review')));
+  await page.getByRole('button', { name: 'Inny plik' }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'zdjecie.png',
+    mimeType: 'image/png',
+    buffer: syntheticPng().buffer,
+  });
+  await expect(page.getByRole('heading', { name: 'Wyprostuj zdjęcie' })).toBeVisible();
+  found.push(...(await styled('straighten')));
+
+  await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
+  found.push(...(await styled('tracker')));
+  for (const path of [
+    '/',
+    '/wzory',
+    '/wzor/e2e-stages',
+    '/wzor/e2e-stages/etap/front',
+    '/ustawienia',
+  ]) {
+    await page.goto(path);
+    await expect(page.locator('main')).toBeVisible();
+    await page.waitForTimeout(200);
+    found.push(...(await styled(path)));
+  }
+  await page.goto('/wzor/e2e-stages/schemat/rope');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  found.push(...(await styled('chart editor')));
+  expect(found).toEqual([]);
 });

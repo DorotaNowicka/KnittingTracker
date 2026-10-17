@@ -285,12 +285,14 @@ function SymbolsReview() {
   );
 }
 
+/** The legend icon as found in the file, enlarged; an image sized by attributes (no inline styles). */
 function IconImage({ item }: { item: LegendItem }) {
-  const ref = useRef<HTMLCanvasElement>(null);
+  const ref = useRef<HTMLImageElement>(null);
   useEffect(() => {
-    const c = ref.current;
-    const ctx = c?.getContext('2d');
-    if (!c || !ctx) return;
+    const img = ref.current;
+    const c = document.createElement('canvas');
+    const ctx = c.getContext('2d');
+    if (!img || !ctx) return;
     c.width = item.icon.width;
     c.height = item.icon.height;
     ctx.putImageData(
@@ -298,14 +300,10 @@ function IconImage({ item }: { item: LegendItem }) {
       0,
       0,
     );
+    img.src = c.toDataURL('image/png');
   }, [item]);
   return (
-    <canvas
-      ref={ref}
-      className="legend-review__icon"
-      style={{ height: 28, width: 28 * item.cells }}
-      aria-hidden="true"
-    />
+    <img ref={ref} className="legend-review__icon" width={28 * item.cells} height={28} alt="" />
   );
 }
 

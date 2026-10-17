@@ -581,7 +581,8 @@
     "stillUncertain_other": "{{count}} uncertain cells are left. You can fix them later in the chart editor.",
     "createButton": "Create the pattern",
     "front": "Front",
-    "back": "Back"
+    "back": "Back",
+    "cornersLabel": "Chart corners in the photo"
   },
   "position": {
     "open": "Set position",

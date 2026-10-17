@@ -30,6 +30,15 @@ backups (`*.ktbackup.json`), PDFs and images. Nothing is fetched from other orig
 | Copyrighted pattern material in the repo, image or logs | `inspirations/` and `local/` are git- and docker-ignored; `pnpm check:forbidden` (pre-commit and CI) blocks those paths, PDFs outside the test fixtures and copied pattern wording; logs contain no file content (only error objects, and only in the user's own browser console) | `scripts/check-forbidden.mjs` |
 | Lost data | Local-first with `navigator.storage.persist()`, an in-memory fallback with a visible warning, full backups and a restore that never overwrites newer work | `e2e/stages.spec.ts` (backup → delete → restore) |
 
+## Found by CI on WebKit (2026-10-17)
+
+The first run in GitHub Actions (real WebKit) reported `style-src-attr` violations: Safari counts
+inline styles set from script (React `style` props) against `style-src 'self'`, which Chromium does
+not. Instead of loosening the policy, the app now sets **no inline styles**: chart thumbnails and
+legend icons are images sized by attributes, the photo corner handles are SVG positioned by
+attributes, and proportional boxes use an SVG spacer. `e2e/security.spec.ts` fails if any element
+on the main screens gets a `style` attribute.
+
 ## Accepted risks
 
 - **IndexedDB is not encrypted** by the app. It is protected by the device and browser profile.

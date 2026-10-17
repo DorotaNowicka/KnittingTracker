@@ -615,7 +615,8 @@
     "stillUncertain_other": "Zostało {{count}} niepewnej kratki. Możesz je poprawić później w edytorze schematu.",
     "createButton": "Utwórz wzór",
     "front": "Przód",
-    "back": "Tył"
+    "back": "Tył",
+    "cornersLabel": "Narożniki schematu na zdjęciu"
   },
   "position": {
     "open": "Ustaw pozycję",

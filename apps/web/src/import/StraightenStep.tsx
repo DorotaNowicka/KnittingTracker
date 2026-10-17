@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type Corner = [number, number];
@@ -33,14 +33,41 @@ export function StraightenStep({
     const c = canvas.current;
     const ctx = c?.getContext('2d');
     if (!c || !ctx) return;
-    c.width = image.width;
-    c.height = image.height;
-    ctx.putImageData(
-      new ImageData(new Uint8ClampedArray(image.rgba), image.width, image.height),
-      0,
-      0,
-    );
+    // Small pictures get a larger bitmap so they are shown big enough to place corners precisely.
+    // The page sets no inline styles (strict CSP): the size comes from the bitmap and the CSS
+    // limits, which keep the aspect ratio.
+    const k = Math.max(1, Math.ceil(560 / Math.max(image.width, image.height)));
+    const src = document.createElement('canvas');
+    src.width = image.width;
+    src.height = image.height;
+    src
+      .getContext('2d')
+      ?.putImageData(
+        new ImageData(new Uint8ClampedArray(image.rgba), image.width, image.height),
+        0,
+        0,
+      );
+    c.width = image.width * k;
+    c.height = image.height * k;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, 0, 0, c.width, c.height);
   }, [image]);
+
+  // Image pixels per CSS pixel, so the corner handles keep their on-screen size.
+  const [scale, setScale] = useState(1);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w > 0) setScale(image.width / w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [image.width]);
+  const radius = 22 * scale;
 
   const toImage = (e: PointerEvent): Corner | null => {
     const rect = box.current?.getBoundingClientRect();
@@ -56,10 +83,6 @@ export function StraightenStep({
     t('importer.corners.br'),
     t('importer.corners.bl'),
   ];
-  const pct = (c: Corner) => ({
-    left: `${(c[0] / image.width) * 100}%`,
-    top: `${(c[1] / image.height) * 100}%`,
-  });
   const nudge = (i: number, dx: number, dy: number) =>
     setCorners((cs) =>
       cs.map((c, k) =>
@@ -82,11 +105,6 @@ export function StraightenStep({
       <div
         ref={box}
         className="straighten__box"
-        // Small pictures are shown larger so the corners can be placed precisely; tall ones are
-        // limited by the screen height (the aspect ratio is kept so the corners stay aligned).
-        style={{
-          width: `min(100% - var(--target), ${Math.max(image.width, 560)}px, ${((70 * image.width) / image.height).toFixed(2)}dvh)`,
-        }}
         onPointerMove={(e) => {
           if (drag.current === null) return;
           const p = toImage(e);
@@ -95,7 +113,7 @@ export function StraightenStep({
         onPointerDown={(e) => {
           // Single-pointer alternative to dragging (WCAG 2.5.7): a tap on the picture moves the
           // nearest corner there. Taps on a handle start a drag instead (handled by the handle).
-          if (e.target !== e.currentTarget && !(e.target instanceof HTMLCanvasElement)) return;
+          if ((e.target as Element).closest('.straighten__handle')) return;
           const p = toImage(e);
           if (!p) return;
           let nearest = 0;
@@ -113,37 +131,42 @@ export function StraightenStep({
         <svg
           className="straighten__quad"
           viewBox={`0 0 ${image.width} ${image.height}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
+          role="group"
+          aria-label={t('importer.cornersLabel')}
         >
-          <polygon points={corners.map((c) => c.join(',')).join(' ')} />
+          <polygon points={corners.map((c) => c.join(',')).join(' ')} aria-hidden="true" />
+          {corners.map((c, i) => (
+            // Handles are SVG, positioned by attributes: no inline styles under the strict CSP.
+            <g
+              key={i}
+              className="straighten__handle"
+              role="button"
+              tabIndex={0}
+              aria-label={t('importer.cornerLabel', { name: names[i] })}
+              transform={`translate(${c[0]} ${c[1]})`}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                drag.current = i;
+              }}
+              onKeyDown={(e) => {
+                const d: Record<string, [number, number]> = {
+                  ArrowLeft: [-step, 0],
+                  ArrowRight: [step, 0],
+                  ArrowUp: [0, -step],
+                  ArrowDown: [0, step],
+                };
+                const m = d[e.key];
+                if (m) {
+                  e.preventDefault();
+                  nudge(i, m[0], m[1]);
+                }
+              }}
+            >
+              <circle className="straighten__ring" r={radius} />
+              <circle className="straighten__dot" r={radius * 0.18} />
+            </g>
+          ))}
         </svg>
-        {corners.map((c, i) => (
-          <button
-            key={i}
-            type="button"
-            className="straighten__handle"
-            style={pct(c)}
-            aria-label={t('importer.cornerLabel', { name: names[i] })}
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
-              drag.current = i;
-            }}
-            onKeyDown={(e) => {
-              const d: Record<string, [number, number]> = {
-                ArrowLeft: [-step, 0],
-                ArrowRight: [step, 0],
-                ArrowUp: [0, -step],
-                ArrowDown: [0, step],
-              };
-              const m = d[e.key];
-              if (m) {
-                e.preventDefault();
-                nudge(i, m[0], m[1]);
-              }
-            }}
-          />
-        ))}
       </div>
       <div className="form-actions">
         <button type="button" className="btn" onClick={onCancel}>
