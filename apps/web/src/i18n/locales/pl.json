@@ -109,7 +109,8 @@
       "syncing": "Synchronizuję…",
       "offline": "Synchronizacja wstrzymana: brak sieci.",
       "error": "Synchronizacja nie działa."
-    }
+    },
+    "version": "KnittingTracker {{version}}"
   },
   "storage": {
     "memory": {
@@ -665,7 +666,11 @@
     "lastChartRows": "Ostatni zrobiony rząd schematów — sprawdź z opisem wzoru, np. „zakończ po parzystym rzędzie A.2”:",
     "continueHint": "Następne etapy, które kontynuują schematy, zaczną od kolejnego rzędu. Zakończenie można cofnąć („Wznów etap”).",
     "goNext": "Przejdź do etapu „{{name}}”",
-    "confirm": "Zakończ etap"
+    "confirm": "Zakończ etap",
+    "partialRound_one": "Okrążenie {{row}} jest zaczęte ({{count}} oczko) i nie zostanie wliczone. Jeśli jest gotowe, najpierw dotknij „{{button}}”.",
+    "partialRound_few": "Okrążenie {{row}} jest zaczęte ({{count}} oczka) i nie zostanie wliczone. Jeśli jest gotowe, najpierw dotknij „{{button}}”.",
+    "partialRound_many": "Okrążenie {{row}} jest zaczęte ({{count}} oczek) i nie zostanie wliczone. Jeśli jest gotowe, najpierw dotknij „{{button}}”.",
+    "partialRound_other": "Okrążenie {{row}} jest zaczęte ({{count}} oczek) i nie zostanie wliczone. Jeśli jest gotowe, najpierw dotknij „{{button}}”."
   },
   "stagePanel": {
     "title": "Etap: {{name}}",

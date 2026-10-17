@@ -24,7 +24,15 @@ function productionHeaders(): Record<string, string> {
   return headers;
 }
 
+const appVersion = (
+  JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+    version: string;
+  }
+).version;
+
 export default defineConfig({
+  // Shown in the settings, so the knitter can tell which version a device runs after an update.
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [
     react(),
     https && basicSsl(),

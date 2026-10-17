@@ -191,6 +191,7 @@ export function SettingsPage() {
             {restored}
           </p>
         </section>
+        <p className="hint app-version">{t('settings.version', { version: __APP_VERSION__ })}</p>
       </main>
     </>
   );

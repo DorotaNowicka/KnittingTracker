@@ -5,9 +5,10 @@ on charts. All charts of a round or row are shown side by side in one grid, and 
 position in the continuous sequence of stitches: tap a stitch, and it and everything before it are
 done. The UI is in Polish by default, with English available.
 
-> **Status:** M2. Usable for knitting: pattern files (`*.ktpattern.json`) or the built-in sample,
-> chart grid with progress tracking, offline PWA, local storage, backup export. The chart editor
-> (M3) and PDF/photo import (M4) follow. See [`docs/00-analysis.md`](docs/00-analysis.md) §8.
+> **Status:** 1.0.0. Pattern import from PDFs and photos with a verification screen, a chart
+> editor and layout wizard, stages (round and flat, continuing charts, open-ended stages, row
+> counters), progress tracking that works offline, backups. What was and was not verified:
+> [`docs/release-1.0.md`](docs/release-1.0.md).
 
 Your data stays on your device. There is no account, no server-side storage and no telemetry. Pattern
 files you import are copyrighted by their authors, so they are never uploaded anywhere.
@@ -30,6 +31,7 @@ pnpm dev                # http://localhost:5173
 | `pnpm lint` · `pnpm typecheck` · `pnpm format` | ESLint, TypeScript (strict), Prettier                                                       |
 | `pnpm build` · `pnpm preview`                  | Production build (with service worker) and a local preview on :4173                         |
 | `pnpm e2e`                                     | Playwright on 4 viewports (iPhone/WebKit, Android, tablet, desktop). Run `pnpm build` first |
+| `pnpm check:bundle`                            | Startup JavaScript budget (after `pnpm build`)                                              |
 | `pnpm ci:local`                                | Everything CI runs, in order                                                                |
 
 First-time Playwright setup: `pnpm --filter @kt/web exec playwright install chromium webkit`.
@@ -131,15 +133,15 @@ flowchart LR
   fixtures -. tests .-> core
 ```
 
-| Path                                    | Purpose                                                                     |
-| --------------------------------------- | --------------------------------------------------------------------------- |
-| `apps/web`                              | The PWA: screens, state, storage adapters, service worker, e2e tests        |
-| `packages/core`                         | Pure TypeScript domain logic. ESLint and tsconfig forbid DOM and UI imports |
-| `packages/grid-renderer`                | Grid rendering (tiled Canvas2D), testable without a browser                 |
-| `packages/importer`                     | Local pattern import (pdf.js, raster recognition). Never uploads files      |
-| `packages/test-fixtures`                | Self-authored synthetic charts. Never third-party material                  |
-| `docs/`                                 | [Phase 0 analysis](docs/00-analysis.md), [ADRs](docs/adr/README.md)         |
-| `docker/`, `Dockerfile`, `compose.yaml` | Static hosting image and local environments                                 |
+| Path                                    | Purpose                                                                                                                                                                                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`                              | The PWA: screens, state, storage adapters, service worker, e2e tests                                                                                                                                                                                                       |
+| `packages/core`                         | Pure TypeScript domain logic. ESLint and tsconfig forbid DOM and UI imports                                                                                                                                                                                                |
+| `packages/grid-renderer`                | Grid rendering (tiled Canvas2D), testable without a browser                                                                                                                                                                                                                |
+| `packages/importer`                     | Local pattern import (pdf.js, raster recognition). Never uploads files                                                                                                                                                                                                     |
+| `packages/test-fixtures`                | Self-authored synthetic charts. Never third-party material                                                                                                                                                                                                                 |
+| `docs/`                                 | [Analysis](docs/00-analysis.md), [ADRs](docs/adr/README.md), [file format](docs/pattern-format.md), [design](docs/design.md), [security](docs/security.md), [accessibility](docs/accessibility.md), [performance](docs/performance.md), [release 1.0](docs/release-1.0.md) |
+| `docker/`, `Dockerfile`, `compose.yaml` | Static hosting image and local environments                                                                                                                                                                                                                                |
 
 Decisions and their reasons are recorded in [`docs/adr/`](docs/adr/README.md).
 

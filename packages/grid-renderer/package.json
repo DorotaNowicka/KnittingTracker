@@ -1,6 +1,6 @@
 {
   "name": "@kt/grid-renderer",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Grid renderer: camera math, scene builder (pure) and Canvas2D backend.",
   "type": "module",

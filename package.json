@@ -1,6 +1,6 @@
 {
   "name": "knitting-tracker",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "KnittingTracker — local-first PWA for tracking knitting chart progress",
   "license": "UNLICENSED",

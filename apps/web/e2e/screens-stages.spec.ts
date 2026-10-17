@@ -92,5 +92,13 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.getByTestId('restore-summary').scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
     await page.screenshot({ path: name('6-restore') });
+    await page.getByText(/^KnittingTracker \d/).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: name('7-settings-version') });
+
+    await page.goto('/wzor/e2e-stages');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await page.getByRole('heading', { name: 'Etapy i układ okrążenia' }).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: name('8-pattern-stages') });
   });
 }

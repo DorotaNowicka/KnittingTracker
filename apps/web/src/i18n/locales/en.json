@@ -103,7 +103,8 @@
       "syncing": "Syncing…",
       "offline": "Sync paused: offline.",
       "error": "Sync is not working."
-    }
+    },
+    "version": "KnittingTracker {{version}}"
   },
   "storage": {
     "memory": {
@@ -619,7 +620,9 @@
     "lastChartRows": "Last chart rows worked — check them against the pattern, e.g. “end after an even row of A.2”:",
     "continueHint": "Later stages that continue these charts start with the next row. You can undo this (“Reopen stage”).",
     "goNext": "Go on to “{{name}}”",
-    "confirm": "Finish stage"
+    "confirm": "Finish stage",
+    "partialRound_one": "Round {{row}} is started ({{count}} stitch) and will not count. If it is done, tap “{{button}}” first.",
+    "partialRound_other": "Round {{row}} is started ({{count}} stitches) and will not count. If it is done, tap “{{button}}” first."
   },
   "stagePanel": {
     "title": "Stage: {{name}}",
