@@ -1122,3 +1122,17 @@ input[type='range'] {
   color: var(--ink-muted);
   font-weight: 500;
 }
+
+/* Wide tables scroll inside their box instead of widening the page on phones. */
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.dialog .form-grid {
+  align-items: start;
+}
+
+.restore-summary > * {
+  min-width: 0;
+}

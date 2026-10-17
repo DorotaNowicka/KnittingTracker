@@ -93,7 +93,7 @@ test.describe('stages (M5)', () => {
     await page.getByRole('button', { name: 'Ustaw', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Gdzie jesteś?' });
     await dialog.getByLabel('Okrążenie').fill('3');
-    await dialog.getByLabel('Przerobione oczka w tym rzędzie').fill('5');
+    await dialog.getByLabel('Zrobione oczka').fill('5');
     await expect(dialog).toContainText('okrążenie 3, oczko 5 (razem 45)');
     await axeClean(page);
     await dialog.getByRole('button', { name: 'Ustaw' }).click();

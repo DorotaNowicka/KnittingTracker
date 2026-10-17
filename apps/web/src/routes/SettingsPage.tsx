@@ -222,29 +222,31 @@ function RestoreSummary({
           })}
         </p>
       )}
-      <table className="size-table">
-        <thead>
-          <tr>
-            <th scope="col" />
-            <th scope="col">{t('settings.restoreAdd')}</th>
-            <th scope="col">{t('settings.restoreUpdate')}</th>
-            <th scope="col">{t('settings.restoreKeep')}</th>
-            <th scope="col">{t('settings.restoreSame')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(['patterns', 'projects'] as const).map((kind) => (
-            <tr key={kind}>
-              <th scope="row">{t(`settings.restore_${kind}`)}</th>
-              {(['add', 'update', 'keep', 'same'] as const).map((a) => (
-                <td key={a} className="num">
-                  {count(plan[kind], a)}
-                </td>
-              ))}
+      <div className="table-scroll">
+        <table className="size-table">
+          <thead>
+            <tr>
+              <th scope="col" />
+              <th scope="col">{t('settings.restoreAdd')}</th>
+              <th scope="col">{t('settings.restoreUpdate')}</th>
+              <th scope="col">{t('settings.restoreKeep')}</th>
+              <th scope="col">{t('settings.restoreSame')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(['patterns', 'projects'] as const).map((kind) => (
+              <tr key={kind}>
+                <th scope="row">{t(`settings.restore_${kind}`)}</th>
+                {(['add', 'update', 'keep', 'same'] as const).map((a) => (
+                  <td key={a} className="num">
+                    {count(plan[kind], a)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className="hint">{t('settings.restoreRule')}</p>
       {plan.orphans.length > 0 && (
         <p className="hint">{t('settings.restoreOrphans', { count: plan.orphans.length })}</p>

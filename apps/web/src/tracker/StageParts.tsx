@@ -286,7 +286,11 @@ export function FinishDialog({
         <p>{t(round ? 'finish.bodyRounds' : 'finish.bodyRows', { count: rows })}</p>
         {partial && (
           <p className="field__error">
-            {t('finish.partial', { row: summary.currentRow, count: summary.doneInCurrentRow })}
+            {t('finish.partial', {
+              row: summary.currentRow,
+              count: summary.doneInCurrentRow,
+              button: t(round ? 'actions.roundDone' : 'actions.rowDone'),
+            })}
           </p>
         )}
         {rows > 0 && stage.zones.length > 0 && (

@@ -248,7 +248,10 @@ export function TrackerPage({ projectId }: { projectId: string }) {
             : next === null
               ? t('status.complete')
               : counter
-                ? t(round ? 'status.counterRounds' : 'status.counterRows', { count: summary.done })
+                ? t(round ? 'status.counterRounds' : 'status.counterRows', {
+                    count: summary.done,
+                    button: t(round ? 'actions.roundDone' : 'actions.rowDone'),
+                  })
                 : last
                   ? t('status.lastDone', {
                       rowWord: round ? t('status.roundInline') : t('status.rowInline'),
