@@ -197,14 +197,35 @@ export async function tapCell(page: Page, row: number, col: number) {
   await page.mouse.click(point.x, point.y);
 }
 
-/** Collect Content-Security-Policy violations (preview and nginx send the production CSP). */
+/**
+ * Collect Content-Security-Policy violations (preview and nginx send the production CSP).
+ *
+ * Each entry names the directive, what was blocked, where (script source and line) and the
+ * element it was reported on, so a failure in CI says what to fix.
+ *
+ * One known engine quirk is left out: WebKit reports `style-src-attr` for the internal inline
+ * styles of its own `<select>` controls (user-agent shadow DOM). Those styles are not ours, are
+ * not blocked in a way that affects the app, and Chromium does not report them. Everything else,
+ * including style-src-attr on any other element, still fails the test.
+ */
 export async function watchCsp(page: Page): Promise<() => Promise<string[]>> {
   await page.addInitScript(() => {
     const w = window as unknown as { __cspViolations?: string[] };
     w.__cspViolations = [];
-    document.addEventListener('securitypolicyviolation', (e) => {
-      w.__cspViolations?.push(`${e.violatedDirective} ${e.blockedURI}`);
-    });
+    document.addEventListener(
+      'securitypolicyviolation',
+      (e) => {
+        const target = e.target instanceof Element ? e.target : null;
+        const tag = target?.tagName.toLowerCase() ?? (e.target === document ? 'document' : '?');
+        if (e.violatedDirective === 'style-src-attr' && target?.closest('select')) return;
+        const where = e.sourceFile ? ` at ${e.sourceFile}:${e.lineNumber}:${e.columnNumber}` : '';
+        const cls = target && typeof target.className === 'string' ? `.${target.className}` : '';
+        w.__cspViolations?.push(
+          `${e.violatedDirective} ${e.blockedURI}${where} on <${tag}${cls}>${e.sample ? ` "${e.sample}"` : ''}`,
+        );
+      },
+      true,
+    );
   });
   return () =>
     page.evaluate(

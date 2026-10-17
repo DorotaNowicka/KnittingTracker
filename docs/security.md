@@ -32,12 +32,21 @@ backups (`*.ktbackup.json`), PDFs and images. Nothing is fetched from other orig
 
 ## Found by CI on WebKit (2026-10-17)
 
-The first run in GitHub Actions (real WebKit) reported `style-src-attr` violations: Safari counts
-inline styles set from script (React `style` props) against `style-src 'self'`, which Chromium does
-not. Instead of loosening the policy, the app now sets **no inline styles**: chart thumbnails and
-legend icons are images sized by attributes, the photo corner handles are SVG positioned by
-attributes, and proportional boxes use an SVG spacer. `e2e/security.spec.ts` fails if any element
-on the main screens gets a `style` attribute.
+The first runs in GitHub Actions (real WebKit) reported `style-src-attr` violations on the iPhone
+project only: 2 on the tracker, 3–4 on the import screens. Two changes followed:
+
+1. **No inline styles in the app.** Safari applies the strict `style-src` to more than Chromium
+   does, so the app no longer sets any: chart thumbnails and legend icons are images sized by
+   attributes, photo corner handles are SVG positioned by attributes, proportional boxes use an
+   SVG spacer. `e2e/security.spec.ts` fails when an element on the main screens gets a `style`
+   attribute.
+2. The reports did not go away with that, and their numbers match the `<select>` controls on
+   those screens (two on the tracker, one per legend row in the import). WebKit styles the inside
+   of its own select controls (user-agent shadow DOM) with inline styles and reports them under
+   our policy; Chromium does not. These are not the app's styles and nothing of the app is
+   blocked, so the e2e CSP watcher ignores `style-src-attr` reports on `<select>` elements only.
+   Every other violation still fails the tests, now with the directive, source line and element
+   in the message.
 
 ## Accepted risks
 
