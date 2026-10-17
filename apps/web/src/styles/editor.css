@@ -847,3 +847,23 @@ textarea {
   border-radius: var(--r-sheet);
   overflow: hidden;
 }
+
+/* Row cards with several actions (stages) wrap instead of overflowing on narrow screens. */
+.card--row {
+  flex-wrap: wrap;
+}
+
+.card--row .card__main {
+  min-width: min(100%, 14rem);
+}
+
+.card__actions {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .card--row .card__actions {
+    width: 100%;
+    padding: 0 var(--sp-3) var(--sp-3);
+  }
+}

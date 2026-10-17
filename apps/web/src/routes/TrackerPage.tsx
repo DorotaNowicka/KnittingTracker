@@ -172,7 +172,7 @@ export function TrackerPage({ projectId }: { projectId: string }) {
   const showGrid = stage.stitchCount > 0;
 
   return (
-    <div className={`tracker${panelOpen ? ' tracker--panel' : ''}`}>
+    <main id="main" className={`tracker${panelOpen ? ' tracker--panel' : ''}`}>
       <header className="tracker__bar">
         <Link to={paths.projects()} className="icon-btn" aria-label={t('nav.projects')}>
           <Icon name="back" />
@@ -455,6 +455,6 @@ export function TrackerPage({ projectId }: { projectId: string }) {
         pattern={s.pattern}
         onSave={(change) => void s.updateProject(change)}
       />
-    </div>
+    </main>
   );
 }

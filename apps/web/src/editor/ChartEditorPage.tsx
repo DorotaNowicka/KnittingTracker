@@ -381,8 +381,9 @@ function ChartEditor({
     : t('chartEditor.whereNone');
 
   return (
-    <div className="editor">
+    <main className="editor" id="main">
       <header className="editor__bar">
+        <h1 className="visually-hidden">{t('chartEditor.heading', { name: meta.name })}</h1>
         <Link to={paths.pattern(patternId)} className="icon-btn" aria-label={t('chartEditor.back')}>
           <Icon name="back" />
         </Link>
@@ -645,7 +646,7 @@ function ChartEditor({
           setFitKey(`${chart.id}-${w}x${h}-${Date.now()}`);
         }}
       />
-    </div>
+    </main>
   );
 }
 

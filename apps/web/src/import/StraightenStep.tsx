@@ -92,6 +92,20 @@ export function StraightenStep({
           const p = toImage(e);
           if (p) setCorners((cs) => cs.map((c, k) => (k === drag.current ? p : c)));
         }}
+        onPointerDown={(e) => {
+          // Single-pointer alternative to dragging (WCAG 2.5.7): a tap on the picture moves the
+          // nearest corner there. Taps on a handle start a drag instead (handled by the handle).
+          if (e.target !== e.currentTarget && !(e.target instanceof HTMLCanvasElement)) return;
+          const p = toImage(e);
+          if (!p) return;
+          let nearest = 0;
+          corners.forEach((c, i) => {
+            const best = corners[nearest] ?? c;
+            if (Math.hypot(c[0] - p[0], c[1] - p[1]) < Math.hypot(best[0] - p[0], best[1] - p[1]))
+              nearest = i;
+          });
+          setCorners((cs) => cs.map((c, k) => (k === nearest ? p : c)));
+        }}
         onPointerUp={() => (drag.current = null)}
         onPointerCancel={() => (drag.current = null)}
       >

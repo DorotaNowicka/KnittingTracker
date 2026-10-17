@@ -331,7 +331,8 @@
       "top": "at the top",
       "bottom": "at the bottom"
     },
-    "applySize": "Resize"
+    "applySize": "Resize",
+    "heading": "Chart editor: {{name}}"
   },
   "library": {
     "title": "Symbol library",
@@ -510,7 +511,7 @@
       "no-result": "Load a file first."
     },
     "straightenTitle": "Straighten the photo",
-    "straightenHint": "Drag the four corners onto the corners of the chart. For screenshots and scans choose “Don't straighten”.",
+    "straightenHint": "Drag the four corners onto the corners of the chart, or tap a corner of the chart in the photo and the nearest handle moves there. For screenshots and scans choose “Don't straighten”.",
     "corners": {
       "tl": "top left",
       "tr": "top right",

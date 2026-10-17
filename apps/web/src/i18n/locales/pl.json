@@ -353,7 +353,8 @@
       "top": "u góry",
       "bottom": "na dole"
     },
-    "applySize": "Zmień wymiary"
+    "applySize": "Zmień wymiary",
+    "heading": "Edytor schematu {{name}}"
   },
   "library": {
     "title": "Biblioteka symboli",
@@ -538,7 +539,7 @@
       "no-result": "Najpierw wczytaj plik."
     },
     "straightenTitle": "Wyprostuj zdjęcie",
-    "straightenHint": "Przeciągnij cztery narożniki na rogi schematu. Dla zrzutów ekranu i skanów wybierz „Bez prostowania”.",
+    "straightenHint": "Przeciągnij cztery narożniki na rogi schematu albo dotknij róg schematu na zdjęciu, a przesunie się tam najbliższy narożnik. Dla zrzutów ekranu i skanów wybierz „Bez prostowania”.",
     "corners": {
       "tl": "lewy górny",
       "tr": "prawy górny",
