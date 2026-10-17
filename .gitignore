@@ -1,0 +1,32 @@
+# --- Protected third-party materials (copyrighted pattern PDFs, transcriptions, prototype) ---
+# Never commit these. See docs/00-analysis.md, section "Copyright & privacy".
+inspirations/
+# Local-only golden data and private patterns (e.g. Ocean Ropes transcription for golden tests)
+local/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# --- Node / build ---
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+.vite/
+
+# --- Test artefacts ---
+playwright-report/
+test-results/
+blob-report/
+
+# --- Env ---
+.env
+.env.*
+!.env.example
