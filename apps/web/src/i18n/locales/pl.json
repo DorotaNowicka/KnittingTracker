@@ -102,7 +102,14 @@
     "restoreSkipped_many": "{{count}} uszkodzonych wpisów w pliku pominiętych.",
     "restoreSkipped_other": "{{count}} uszkodzonych wpisów w pliku pominiętych.",
     "restoreNothing": "Nic do przywrócenia",
-    "restoreApply": "Przywróć"
+    "restoreApply": "Przywróć",
+    "sync": {
+      "local-only": "Synchronizacja: tylko to urządzenie. Aby przenieść projekty na inne urządzenie, zapisz kopię zapasową i przywróć ją tam.",
+      "idle": "Synchronizacja włączona.",
+      "syncing": "Synchronizuję…",
+      "offline": "Synchronizacja wstrzymana: brak sieci.",
+      "error": "Synchronizacja nie działa."
+    }
   },
   "storage": {
     "memory": {

@@ -96,7 +96,14 @@
     "restoreSkipped_one": "{{count}} damaged entry in the file skipped.",
     "restoreSkipped_other": "{{count}} damaged entries in the file skipped.",
     "restoreNothing": "Nothing to restore",
-    "restoreApply": "Restore"
+    "restoreApply": "Restore",
+    "sync": {
+      "local-only": "Sync: this device only. To move projects to another device, save a backup and restore it there.",
+      "idle": "Sync is on.",
+      "syncing": "Syncing…",
+      "offline": "Sync paused: offline.",
+      "error": "Sync is not working."
+    }
   },
   "storage": {
     "memory": {

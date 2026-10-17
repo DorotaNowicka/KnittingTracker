@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readTextFile, saveFile } from '../lib/files';
+import { sync } from '../lib/sync';
 import {
   getLanguagePref,
   getThemePref,
@@ -142,6 +143,9 @@ export function SettingsPage() {
                 : t('settings.storageBestEffort')}
           </p>
           <p className="hint">{t('settings.privacy')}</p>
+          <p className="hint" data-testid="sync-status">
+            {t(`settings.sync.${sync.status().state}`)}
+          </p>
           <button type="button" className="btn" onClick={() => void exportBackup()}>
             <Icon name="download" />
             {t('settings.backup')}

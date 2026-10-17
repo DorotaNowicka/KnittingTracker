@@ -163,8 +163,10 @@ export async function createProjectFromFile(
   pattern: object,
   name = 'Projekt testowy',
   schemaVersion = 1,
+  /** Origin of another server than the configured base URL (e.g. the update test's own). */
+  base = '',
 ) {
-  await page.goto('/nowy');
+  await page.goto(`${base}/nowy`);
   await page.locator('input[type="file"]').setInputFiles(patternFile(pattern, schemaVersion));
   await page.getByLabel('Nazwa projektu').fill(name);
   await page.getByRole('button', { name: 'Utwórz projekt' }).click();

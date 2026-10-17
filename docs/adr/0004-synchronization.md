@@ -41,3 +41,14 @@ Recommendation for M6: **(B) with E2E encryption**. If you don't want to run a s
 
 Q4 answer: the app stays **local for now**. No sync server in v1. The choice between options (B)
 and (C) is made when the app moves to the internet.
+
+## Implementation notes (M6, 2026-10-17)
+
+- `SyncAdapter` lives in `@kt/core` (`sync/adapter.ts`). Documents are the same records the
+  database and backups hold (`pattern`, `project`, `progress`), with stable ids
+  (`progress:<project>:<stage>`). The app uses `localOnlySync` (`apps/web/src/lib/sync.ts`), and
+  the settings page shows its status. Moving data between devices is done with backups and the
+  restore planner (never overwrites newer work), which is the "file transfer" adapter of v1.
+- **Deferred on purpose**: the `rev = { hlc, deviceId, parentHlc }` fields. Adding them now would
+  store data no code reads yet. They come with the chosen sync option as schema v3, with a
+  migration that seeds them from `updatedAt`, so the conflict model above still applies.

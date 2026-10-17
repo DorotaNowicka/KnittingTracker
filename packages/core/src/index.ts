@@ -156,3 +156,13 @@ export {
   type StoredProgressRecord,
   type StoredProjectRecord,
 } from './io/backup';
+
+export {
+  localOnlySync,
+  syncDocId,
+  type PushOutcome,
+  type SyncAdapter,
+  type SyncCursor,
+  type SyncDoc,
+  type SyncStatus,
+} from './sync/adapter';
