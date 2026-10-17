@@ -49,3 +49,56 @@ test('500 × 300 grid pans within the frame budget', async ({ page, browserName 
   expect(frames.length).toBeGreaterThan(20);
   expect(p95).toBeLessThan(16);
 });
+
+/**
+ * M6: start-up of a large project and the delay from a stitch tap to the updated status, with the
+ * CPU throttled 4× (a mid-range tablet). Budgets: open < 3 s, tap → status p95 < 100 ms.
+ */
+test('large project opens quickly and taps answer within 100 ms', async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'desktop' && testInfo.project.name !== 'tablet',
+    'measured on tablet and desktop',
+  );
+  test.setTimeout(120_000);
+  await createProjectFromFile(page, bigPattern, 'Duży projekt');
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+
+  const t0 = Date.now();
+  await page.reload();
+  await expect(page.getByTestId('status-detail')).toBeVisible();
+  await page.waitForFunction(() =>
+    Boolean(
+      (window as unknown as { __ktGrid?: { renderer: { stats: { recent: number[] } } } }).__ktGrid
+        ?.renderer.stats.recent.length,
+    ),
+  );
+  const open = Date.now() - t0;
+
+  const taps: number[] = [];
+  for (let i = 0; i < 25; i++) {
+    taps.push(
+      await page.evaluate(async () => {
+        const el = document.querySelector('[data-testid="status-detail"]');
+        const before = el?.textContent;
+        const start = performance.now();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }));
+        await new Promise<void>((resolve) => {
+          const check = () => {
+            if (el?.textContent !== before) resolve();
+            else requestAnimationFrame(check);
+          };
+          check();
+        });
+        return performance.now() - start;
+      }),
+    );
+  }
+  const sorted = [...taps].sort((a, b) => a - b);
+  const p95 = sorted[Math.floor(sorted.length * 0.95)] ?? 0;
+  const summary = `open=${open}ms tap p50=${(sorted[12] ?? 0).toFixed(0)}ms p95=${p95.toFixed(0)}ms`;
+  testInfo.annotations.push({ type: 'perf', description: summary });
+  console.log(`[perf] ${testInfo.project.name}: ${summary}`);
+  expect(open).toBeLessThan(3000);
+  expect(p95).toBeLessThan(100);
+});

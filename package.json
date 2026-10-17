@@ -23,7 +23,8 @@
     "test:coverage": "vitest run --coverage",
     "e2e": "pnpm --filter @kt/web e2e",
     "check:forbidden": "node scripts/check-forbidden.mjs",
-    "ci:local": "pnpm check:forbidden && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build && pnpm e2e",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "ci:local": "pnpm check:forbidden && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test:coverage && pnpm build && pnpm check:bundle && pnpm e2e",
     "prepare": "husky"
   },
   "lint-staged": {
