@@ -4,7 +4,7 @@ import { resolveStage } from '../layout/resolve';
 import type { Stage } from '../schema/pattern';
 import { initialProgress, reduceProgress } from './actions';
 import { lengthEstimate, effectiveGauge, rowsForCm, cmForRows } from './estimate';
-import { createProgressModel, summarize } from './position';
+import { createProgressModel, indexOfCol, summarize } from './position';
 
 const rib: Stage = {
   id: 'rib',
@@ -37,6 +37,9 @@ describe('row-counter stages (DR-9)', () => {
     expect(summarize(model, s.done).next).toBeNull();
     s = reduceProgress(s, { type: 'undo' }, model);
     expect(s.done).toBe(2);
+    // Tapping any cell of a row counts up to that row.
+    expect(indexOfCol(model, 7, 1)).toBe(7);
+    expect(indexOfCol(model, 11, 1)).toBeNull();
   });
 
   it('stitch-tracked stages keep the stitch model', () => {

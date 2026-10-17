@@ -11,7 +11,8 @@
   },
   "common": {
     "cancel": "Cancel",
-    "close": "Close"
+    "close": "Close",
+    "save": "Save"
   },
   "projects": {
     "title": "Your projects",
@@ -74,7 +75,28 @@
     "privacy": "Patterns and progress never leave the device. There is no account and no analytics.",
     "backup": "Save a backup",
     "backupShared": "Backup shared.",
-    "backupSaved": "Backup saved to your downloads."
+    "backupSaved": "Backup saved to your downloads.",
+    "restore": "Restore from a backup",
+    "restoreHint": "Adds patterns and projects from a backup. Nothing newer on this device is overwritten.",
+    "restorePick": "Choose a backup file",
+    "restoreTooLarge": "The file is too large.",
+    "restoreInvalid": "This file cannot be restored:",
+    "restoreDone_one": "Restored. {{count}} project changed.",
+    "restoreDone_other": "Restored. {{count}} projects changed.",
+    "restoreFrom": "Backup from {{date}}.",
+    "restoreAdd": "New",
+    "restoreUpdate": "Newer in backup",
+    "restoreKeep": "Newer here",
+    "restoreSame": "Unchanged",
+    "restore_patterns": "Patterns",
+    "restore_projects": "Projects",
+    "restoreRule": "New ones and newer ones in the backup are written with their progress. Newer ones on this device stay as they are.",
+    "restoreOrphans_one": "{{count}} project skipped: its pattern is missing.",
+    "restoreOrphans_other": "{{count}} projects skipped: their patterns are missing.",
+    "restoreSkipped_one": "{{count}} damaged entry in the file skipped.",
+    "restoreSkipped_other": "{{count}} damaged entries in the file skipped.",
+    "restoreNothing": "Nothing to restore",
+    "restoreApply": "Restore"
   },
   "storage": {
     "memory": {
@@ -100,7 +122,7 @@
     "stage": "Stage",
     "showPanel": "Show panel",
     "hidePanel": "Hide panel",
-    "panel": "Row, legend and view",
+    "panel": "Stage, row, legend and view",
     "saveFailed": "The last change couldn't be saved. It will be retried with the next one."
   },
   "status": {
@@ -116,7 +138,16 @@
     "announce": "{{rowWord}} {{row}}, stitch {{stitch}}. {{done}} in total.",
     "roundInline": "round",
     "rowInline": "row",
-    "round": "Round {{row}}"
+    "round": "Round {{row}}",
+    "rowsDone": "Done",
+    "finishedRows_one": "Stage finished after {{count}} row.",
+    "finishedRows_other": "Stage finished after {{count}} rows.",
+    "finishedRounds_one": "Stage finished after {{count}} round.",
+    "finishedRounds_other": "Stage finished after {{count}} rounds.",
+    "counterRows_one": "{{count}} row done. Tap “Row done” after each row.",
+    "counterRows_other": "{{count}} rows done. Tap “Row done” after each row.",
+    "counterRounds_one": "{{count}} round done. Tap “Round done” after each round.",
+    "counterRounds_other": "{{count}} rounds done. Tap “Round done” after each round."
   },
   "grid": {
     "roleDescription": "chart grid",
@@ -242,7 +273,20 @@
     "export": "Save to a file",
     "startProject": "Start knitting",
     "fixFirst": "Fix the errors to start a project. You can save to a file any time.",
-    "canvasRole": "chart editor"
+    "canvasRole": "chart editor",
+    "projectsOfPattern": "Projects using this pattern",
+    "gauge": "Gauge",
+    "hasGauge": "The pattern gives a gauge (10 × 10 cm)",
+    "gaugeHint": "Used to estimate rows in “knit until X cm” stages. A project can use its own gauge.",
+    "stageOpen": "to a length",
+    "stageRows": "rows: {{list}}",
+    "stageCounter": "row counter",
+    "stageContinues": "continues charts",
+    "continueStage": "Layout change",
+    "continueStageHint": "A new stage right after this one with the same layout. Charts continue with the next row; you change the layout (decreases, increases, splitting front and back).",
+    "continueName": "{{name}} — continued",
+    "moveStageUp": "Move “{{name}}” up",
+    "moveStageDown": "Move “{{name}}” down"
   },
   "chartEditor": {
     "missing": "Chart not found",
@@ -399,7 +443,19 @@
     "previewLabel": "Stage grid preview",
     "previewHelp": "Drag to pan. Pinch or use Ctrl and the mouse wheel to zoom.",
     "previewRows": "Rows shown: {{shown}} of {{rows}}.",
-    "done": "Done"
+    "done": "Done",
+    "tracking": "Progress tracking",
+    "trackStitches": "Every stitch (tap stitches on the grid)",
+    "trackRows": "Rows only (row counter)",
+    "trackingHint": "A row counter is enough for simple stitches such as ribbing or stockinette.",
+    "hasTarget": "Knit to a length (cm)",
+    "target": "Stage length (cm)",
+    "targetHint": "With a gauge the app estimates the rows. You end the stage yourself with “Finish stage”.",
+    "rowStart": "First chart row",
+    "fixedRow": "Start at a chosen row",
+    "continueRows": "Continue as in an earlier stage",
+    "continueFrom": "Continue",
+    "continueHint": "The chart starts with the row after the last one worked in that stage, e.g. the front after the split continues A.2 of the body."
   },
   "diag": {
     "allGood": "Everything checks out.",
@@ -432,7 +488,10 @@
     "duplicate-chart": "Chart id “{{id}}” is used twice.",
     "duplicate-stage": "Stage id “{{id}}” is used twice.",
     "duplicate-placement": "{{stage}}: id “{{id}}” is used twice.",
-    "legend-unknown-symbol": "The legend refers to unknown symbol {{symbol}}."
+    "legend-unknown-symbol": "The legend refers to unknown symbol {{symbol}}.",
+    "continue-unknown": "{{placement}} in “{{stage}}” continues the chart rows of “{{source}}”, which has no fixed row count. They are set when you finish that stage in a project.",
+    "continue-missing": "{{placement}} in “{{stage}}” continues a chart that is not in “{{source}}”. Choose it again.",
+    "continue-cycle": "{{placement}} in “{{stage}}” continues itself through other stages. Choose another start."
   },
   "importer": {
     "title": "Import a pattern",
@@ -514,5 +573,90 @@
     "createButton": "Create the pattern",
     "front": "Front",
     "back": "Back"
+  },
+  "position": {
+    "open": "Set position",
+    "short": "Set",
+    "hint": "Enter where you are, e.g. after knitting without the app (shortcut: G)",
+    "title": "Where are you?",
+    "intro": "Enter the row you are on and how many of its stitches you have worked (from the start of the row). You can undo this.",
+    "introCounter": "Enter how many rows you have finished. You can undo this.",
+    "rowsDone": "Rows done",
+    "roundsDone": "Rounds done",
+    "row": "Row",
+    "round": "Round",
+    "stitches": "Stitches worked in this row",
+    "stitchesHint_one": "The row has {{count}} stitch to work.",
+    "stitchesHint_other": "The row has {{count}} stitches to work.",
+    "previewRows_one": "{{count}} row will be done.",
+    "previewRows_other": "{{count}} rows will be done.",
+    "previewRounds_one": "{{count}} round will be done.",
+    "previewRounds_other": "{{count}} rounds will be done.",
+    "previewStartRow": "Row {{row}} not started yet.",
+    "previewStartRound": "Round {{row}} not started yet.",
+    "previewRow": "Last done: row {{row}}, stitch {{stitch}} ({{total}} in total).",
+    "previewRound": "Last done: round {{row}}, stitch {{stitch}} ({{total}} in total).",
+    "apply": "Set"
+  },
+  "finish": {
+    "open": "Finish stage",
+    "reopen": "Reopen stage",
+    "title": "Finish “{{name}}”?",
+    "bodyRows_one": "The stage ends after {{count}} row.",
+    "bodyRows_other": "The stage ends after {{count}} rows.",
+    "bodyRounds_one": "The stage ends after {{count}} round.",
+    "bodyRounds_other": "The stage ends after {{count}} rounds.",
+    "partial_one": "Row {{row}} is started ({{count}} stitch) and will not count. If it is done, tap “Row done” first.",
+    "partial_other": "Row {{row}} is started ({{count}} stitches) and will not count. If it is done, tap “Row done” first.",
+    "lastChartRows": "Last chart rows worked — check them against the pattern, e.g. “end after an even row of A.2”:",
+    "continueHint": "Later stages that continue these charts start with the next row. You can undo this (“Reopen stage”).",
+    "goNext": "Go on to “{{name}}”",
+    "confirm": "Finish stage"
+  },
+  "stagePanel": {
+    "title": "Stage: {{name}}",
+    "round": "in the round",
+    "flat": "flat",
+    "openEnded": "no fixed row count",
+    "plannedRows_one": "{{count}} row",
+    "plannedRows_other": "{{count}} rows",
+    "plannedRounds_one": "{{count}} round",
+    "plannedRounds_other": "{{count}} rounds",
+    "counter": "row counter",
+    "chartRowsRow": "Chart rows in row {{row}}",
+    "chartRowsRound": "Chart rows in round {{row}}",
+    "chartRow": "row {{row}} of {{height}}",
+    "phaseUnknown": "Some charts continue an earlier stage without a fixed row count. Their rows are set when you finish that stage.",
+    "estimate_one": "About {{done}} of {{target}} cm, about {{count}} row left.",
+    "estimate_other": "About {{done}} of {{target}} cm, about {{count}} rows left.",
+    "target": "Target: {{target}} cm.",
+    "patternGauge": "(pattern gauge: {{rows}} rows in 10 cm)",
+    "ownGauge": "(your gauge: {{rows}} rows in 10 cm)",
+    "noGauge": "Enter a gauge in the project settings to estimate rows.",
+    "finishedRows_one": "Finished after {{count}} row.",
+    "finishedRows_other": "Finished after {{count}} rows.",
+    "finishedRounds_one": "Finished after {{count}} round.",
+    "finishedRounds_other": "Finished after {{count}} rounds.",
+    "next": "Next: {{name}}"
+  },
+  "projectSettings": {
+    "open": "Project",
+    "title": "Project settings",
+    "name": "Project name",
+    "size": "Size: {{size}}",
+    "gauge": "Gauge (10 × 10 cm)",
+    "patternGauge": "The pattern says {{stitches}} stitches and {{rows}} rows in 10 cm.",
+    "noPatternGauge": "The pattern gives no gauge.",
+    "ownGauge": "My gauge is different"
+  },
+  "gauge": {
+    "stitches": "Stitches in 10 cm",
+    "rows": "Rows in 10 cm"
+  },
+  "counter": {
+    "rowsDone": "Rows done",
+    "roundsDone": "Rounds done",
+    "minus": "Remove a row",
+    "plus": "Add a row"
   }
 }

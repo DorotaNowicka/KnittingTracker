@@ -176,6 +176,7 @@ function mapSizeLists(pattern: Pattern, f: (list: number[]) => number[]): Patter
   const stage = (s: Stage): Stage => {
     const rows = mapSizeValue(s.rows, f);
     const expected = mapSizeValue(s.expectedStitches, f);
+    const target = mapSizeValue(s.targetCm, f);
     const next: Stage = {
       ...s,
       layout: s.layout.map((seg) => {
@@ -184,11 +185,12 @@ function mapSizeLists(pattern: Pattern, f: (list: number[]) => number[]): Patter
         return stitches === undefined ? seg : { ...seg, stitches };
       }),
     };
-    const { rows: _r, expectedStitches: _e, ...rest } = next;
+    const { rows: _r, expectedStitches: _e, targetCm: _t, ...rest } = next;
     return {
       ...rest,
       ...(rows !== undefined ? { rows } : {}),
       ...(expected !== undefined ? { expectedStitches: expected } : {}),
+      ...(target !== undefined ? { targetCm: target } : {}),
     };
   };
   return { ...pattern, stages: pattern.stages.map(stage) };

@@ -91,6 +91,8 @@ interface NumberProps {
   /** Visually compact (inline lists). */
   readonly compact?: boolean;
   readonly id?: string;
+  /** Allow one decimal place (cm, gauge); a comma or a dot is accepted. */
+  readonly decimals?: boolean;
 }
 
 export function NumberField({
@@ -102,35 +104,47 @@ export function NumberField({
   hint,
   compact,
   id: given,
+  decimals = false,
 }: NumberProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const auto = useId();
   const id = given ?? auto;
-  const [text, setText] = useState(value === undefined ? '' : String(value));
+  const comma = decimals && !i18n.language.startsWith('en');
+  const show = (v: number | undefined) =>
+    v === undefined ? '' : comma ? String(v).replace('.', ',') : String(v);
+  const [text, setText] = useState(show(value));
   const [seen, setSeen] = useState(value);
   if (value !== seen) {
     setSeen(value);
-    setText(value === undefined ? '' : String(value));
+    setText(show(value));
   }
-  const parsed = Number(text);
-  const valid = text.trim() !== '' && Number.isInteger(parsed) && parsed >= min && parsed <= max;
-  const error = valid ? null : t('field.range', { min, max });
+  const toNumber = (s: string) => Number(s.replace(',', '.'));
+  const parsed = toNumber(text);
+  const valid =
+    text.trim() !== '' &&
+    Number.isFinite(parsed) &&
+    (decimals ? Math.round(parsed * 10) === parsed * 10 : Number.isInteger(parsed)) &&
+    parsed >= min &&
+    parsed <= max;
+  const error = valid ? null : t('field.range', { min: show(min), max: show(max) });
   return (
     <div className={`field${compact ? ' field--compact' : ''}`}>
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
         type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
+        inputMode={decimals ? 'decimal' : 'numeric'}
+        {...(decimals ? {} : { pattern: '[0-9]*' })}
         value={text}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
         onChange={(e) => {
-          const next = e.target.value.replace(/[^\d]/g, '');
+          const next = decimals
+            ? e.target.value.replace(/[^\d.,]/g, '').replace(/([.,]\d?).*$/, '$1')
+            : e.target.value.replace(/[^\d]/g, '');
           setText(next);
-          const n = Number(next);
-          if (next !== '' && n >= min && n <= max) {
+          const n = toNumber(next);
+          if (next !== '' && !/[.,]$/.test(next) && Number.isFinite(n) && n >= min && n <= max) {
             setSeen(n);
             onCommit(n);
           }
@@ -162,6 +176,8 @@ interface SizeProps {
   readonly hint?: ReactNode;
   /** Value shown when unset. */
   readonly placeholder?: number;
+  /** One decimal place allowed (cm). */
+  readonly decimals?: boolean;
 }
 
 /**
@@ -177,6 +193,7 @@ export function SizeValueField({
   max,
   hint,
   placeholder,
+  decimals = false,
 }: SizeProps) {
   const { t } = useTranslation();
   const id = useId();
@@ -191,6 +208,7 @@ export function SizeValueField({
         min={min}
         max={max}
         hint={hint}
+        decimals={decimals}
         onCommit={(n) => onCommit(n)}
       />
     );
@@ -206,6 +224,7 @@ export function SizeValueField({
           min={min}
           max={max}
           compact
+          decimals={decimals}
           onCommit={(n) => onCommit(n)}
         />
       ) : (
@@ -218,6 +237,7 @@ export function SizeValueField({
               min={min}
               max={max}
               compact
+              decimals={decimals}
               onCommit={(n) => onCommit(setSizeValue(value ?? placeholder, i, n, sizes.length))}
             />
           ))}

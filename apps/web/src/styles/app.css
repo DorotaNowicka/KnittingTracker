@@ -970,3 +970,155 @@ input[type='range'] {
     animation: none !important;
   }
 }
+
+/* ── Stages (M5): position, finishing, chart rows, row counter ───────────────────────────── */
+
+.status__edit {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-left: var(--sp-3);
+  padding: 0 var(--sp-1);
+  border: 0;
+  background: none;
+  color: var(--indigo);
+  font: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.status__next {
+  margin-top: var(--sp-2);
+}
+
+.panel__subtitle {
+  margin: var(--sp-3) 0 var(--sp-1);
+  color: var(--ink-muted);
+  font-size: var(--fs-1);
+  font-weight: 650;
+}
+
+.panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.chart-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+}
+
+.chart-rows__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-control);
+  background: var(--zone);
+  font-size: var(--fs-2);
+}
+
+.chart-rows dt {
+  font-weight: 700;
+}
+
+.chart-rows dd {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.chart-rows__unknown {
+  font-weight: 700;
+}
+
+.stage-estimate,
+.stage-finished {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-2);
+}
+
+.stage-finished {
+  font-weight: 650;
+}
+
+.position-preview {
+  margin: var(--sp-3) 0;
+  font-weight: 650;
+}
+
+.tracker__grid--counter {
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+}
+
+.row-counter {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+}
+
+.row-counter__label {
+  color: var(--ink-muted);
+  font-size: var(--fs-3);
+}
+
+.row-counter__value {
+  font-size: clamp(4rem, 18vw, 8rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.row-counter__of {
+  color: var(--ink-muted);
+  font-size: 0.35em;
+  font-weight: 500;
+}
+
+.row-counter__buttons {
+  display: flex;
+  gap: var(--sp-4);
+}
+
+.row-counter__btn {
+  min-width: 88px;
+  min-height: 72px;
+}
+
+.subsection-title {
+  margin: var(--sp-5) 0 var(--sp-1);
+  font-size: var(--fs-3);
+  font-weight: 700;
+}
+
+.restore-summary {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.inline-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inline-links a {
+  font-weight: 650;
+}
+
+.card__index {
+  color: var(--ink-muted);
+  font-weight: 500;
+}

@@ -151,6 +151,8 @@ export const nextStitch = (model: RowModel, done: number): StitchLocation | null
 export function indexOfStitch(model: RowModel, row: number, stitch: number): number | null {
   if (!Number.isInteger(row) || row < 1) return null;
   if (model.stage.plannedRows !== null && row > model.stage.plannedRows) return null;
+  // Row counter: any cell of a row stands for the whole row.
+  if (model.unit === 'row') return row;
   if (stitch < 1 || stitch > model.stage.stitchCount) return null;
   const work = model.workOrder(row).indexOf(stitch);
   return work < 0 ? null : model.rowStart(row) + work + 1;

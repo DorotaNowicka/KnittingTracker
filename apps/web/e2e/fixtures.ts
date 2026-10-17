@@ -20,10 +20,14 @@ const charts = [
   },
 ];
 
-export function patternFile(pattern: object): { name: string; mimeType: string; buffer: Buffer } {
+/** A pattern file. The older patterns stay at schema v1 on purpose: they are migrated on import. */
+export function patternFile(
+  pattern: object,
+  schemaVersion = 1,
+): { name: string; mimeType: string; buffer: Buffer } {
   const text = JSON.stringify({
     format: 'knitting-tracker/pattern',
-    schemaVersion: 1,
+    schemaVersion,
     exportedAt: new Date().toISOString(),
     pattern,
   });
@@ -95,10 +99,73 @@ export const bigPattern = {
   ],
 };
 
+/**
+ * Round body (4 rounds) → flat front that continues the body's rope (open-ended, "until 10 cm")
+ * → ribbing tracked with a row counter. Schema v2 features of M5.
+ */
+export const stagesPattern = {
+  id: 'e2e-stages',
+  revision: 1,
+  title: 'Kamizelka etapowa',
+  sizes: ['one'],
+  gauge: { stitches: 22, rows: 30 },
+  symbols: [],
+  legend: [],
+  charts,
+  stages: [
+    {
+      id: 'body',
+      name: 'Korpus',
+      construction: 'round',
+      firstRowSide: 'RS',
+      rows: 4,
+      layout: [
+        { kind: 'marker', id: 'a', sectionName: 'Przód' },
+        { kind: 'chart', placementId: 'r1', chartId: 'rope' },
+        { kind: 'chart', placementId: 's1', chartId: 'seed', stitches: 4 },
+        { kind: 'marker', id: 'b', sectionName: 'Tył' },
+        { kind: 'chart', placementId: 'r2', chartId: 'rope' },
+        { kind: 'chart', placementId: 's2', chartId: 'seed', stitches: 4 },
+      ],
+    },
+    {
+      id: 'front',
+      name: 'Przód',
+      construction: 'flat',
+      // RS first: the rope's cable row (chart row 1) then falls on front row 3, a right-side row.
+      firstRowSide: 'RS',
+      targetCm: 10,
+      layout: [
+        {
+          kind: 'chart',
+          placementId: 'fr',
+          chartId: 'rope',
+          continueFrom: { stageId: 'body', placementId: 'r1' },
+        },
+        { kind: 'chart', placementId: 'fs', chartId: 'seed', stitches: 4 },
+      ],
+    },
+    {
+      id: 'rib',
+      name: 'Ściągacz',
+      construction: 'round',
+      firstRowSide: 'RS',
+      tracking: 'rows',
+      rows: 6,
+      layout: [{ kind: 'marker', id: 'start' }],
+    },
+  ],
+};
+
 /** Import a pattern file through the UI and create a project from it. */
-export async function createProjectFromFile(page: Page, pattern: object, name = 'Projekt testowy') {
+export async function createProjectFromFile(
+  page: Page,
+  pattern: object,
+  name = 'Projekt testowy',
+  schemaVersion = 1,
+) {
   await page.goto('/nowy');
-  await page.locator('input[type="file"]').setInputFiles(patternFile(pattern));
+  await page.locator('input[type="file"]').setInputFiles(patternFile(pattern, schemaVersion));
   await page.getByLabel('Nazwa projektu').fill(name);
   await page.getByRole('button', { name: 'Utwórz projekt' }).click();
   await expect(page).toHaveURL(/\/projekt\//);
