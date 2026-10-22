@@ -5,8 +5,9 @@ on charts. All charts of a round or row are shown side by side in one grid, and 
 position in the continuous sequence of stitches: tap a stitch, and it and everything before it are
 done. The UI is in Polish by default, with English available.
 
-> **Status:** 1.0.0. Pattern import from PDFs and photos with a verification screen, a chart
-> editor and layout wizard, stages (round and flat, continuing charts, open-ended stages, row
+> **Status:** 1.0.0, with the project → patterns → charts model on `feat/projects-own-patterns`.
+> Pattern import from PDFs and photos with a verification screen, a chart editor and layout
+> wizard, several patterns per project (round and flat, continuing charts, open-ended patterns, row
 > counters), progress tracking that works offline, backups. What was and was not verified:
 > [`docs/release-1.0.md`](docs/release-1.0.md).
 
@@ -64,33 +65,44 @@ Service workers, the screen Wake Lock and persistent storage need a **secure con
    forwarding instead: Chrome on Android via `chrome://inspect` → _Port forwarding_ → `5173`, then
    open `http://localhost:5173` on the phone.
 
-## Your own pattern files
+## Projects, patterns and charts
 
-The app opens `*.ktpattern.json` files ([format](docs/pattern-format.md)). Files stay on the
-device. To get a file onto a phone, AirDrop/share it and pick it in **Nowy projekt → Wybierz plik
-wzoru**. A private pattern kept in the git-ignored `local/` folder (e.g. a golden copy of a real
-pattern) is loaded the same way and never becomes part of the build.
+A **project** (projekt) is what you knit, e.g. a sweater. It holds **patterns** (wzory) in knitting
+order, e.g. ribbing, body in the round, front, sleeve. A pattern is **one grid**: its **charts**
+(schematy) side by side in one round or row, with its own progress. Patterns belong to their
+project.
 
-## Building a pattern in the app
+## Your own project files
 
-**Wzory → Nowy wzór** starts an empty pattern. On the pattern page you set the name, sizes, charts,
-stages and the legend; a check at the bottom lists problems with a link to the chart or layout
-that has them. **Dodaj schemat** opens the chart editor: pick a symbol and draw (tap or drag),
-select a rectangle to copy, paste, fill or mirror it, and change the size. **Ustaw układ** opens the
-layout wizard: put the charts in the order of the pattern text, set partial repeats ("A.1 over 22
-stitches") per size, add markers for front and back, and compare the stitch count with the
-pattern. **Zacznij dziergać** creates a project; **Zapisz do pliku** exports the pattern.
+The app opens `*.ktproject.json` files ([format](docs/project-format.md)) and older
+`*.ktpattern.json` files (converted to a project). Files stay on the device. To get a file onto a
+phone, AirDrop/share it and pick it in **Nowy projekt → Wczytaj plik projektu**. A private file
+kept in the git-ignored `local/` folder (e.g. a golden copy of a real pattern) is loaded the same
+way and never becomes part of the build.
 
-## Stages, finishing and backups
+## Building a project in the app
 
-A pattern can have several **stages** (e.g. body in the round, then front and back flat). In the
-stage editor a chart can **continue as in an earlier stage**: after the split, the front's A.2 starts
-with the row after the last one knitted in the body. **Zmiana układu** on the pattern page creates
-such a continuing stage, for decreases or increases from a given row. A stage can be **open-ended**
-("until 34 cm"): with the gauge (in the pattern, or your own in the project settings) the app
-estimates the rows left, and you end it with **Zakończ etap**, which shows the chart rows of the
-last row so you can check them against the pattern. Ribbing and plain sections can use a **row
-counter** instead of tapping stitches.
+**Nowy projekt → Zacznij od zera** starts a project with one empty pattern. The **project page**
+lists the patterns with their progress (**Dodaj wzór**, **Wzór z PDF lub zdjęcia**, copy, reorder,
+remove), the sizes and the size you knit, the designer's gauge, and a check of every pattern. The
+**pattern page** holds the pattern's charts, the order of the charts in a round or row and the
+legend: **Dodaj schemat** opens the chart editor (pick a symbol and draw, select a rectangle to
+copy, paste, fill or mirror it, change the size); in the layout you put the charts in the order of
+the pattern text, set partial repeats ("A.1 over 22 stitches") per size, add markers for front and
+back and compare the stitch count with the pattern. **Przerabiam samymi prawymi** on a chart shows
+it as plain knit without changing the chart. **Dziergaj ten wzór** opens the tracker; **Zapisz
+projekt do pliku** on the project page exports the project.
+
+## Several patterns, finishing and backups
+
+A project usually has several patterns (e.g. body in the round, then front and back flat). In the
+pattern page a chart can **continue as in another pattern**: after the split, the front's A.2 starts
+with the row after the last one knitted in the body. **Dalej z tego wzoru** on the project page
+creates such a continuing pattern, for decreases or increases from a given row. A pattern can be
+**open-ended** ("until 34 cm"): with the gauge (the designer's, or your own in the project settings
+of the tracker) the app estimates the rows left, and you end it with **Zakończ wzór**, which shows
+the chart rows of the last row so you can check them against the pattern. Ribbing and plain
+sections can use a **row counter** instead of tapping stitches.
 
 If you knitted without the app, **Ustaw** next to the position (or the G key) sets the row and the
 stitches done in it. This can be undone.
@@ -101,7 +113,7 @@ newer on this device; newer work on the device is never overwritten.
 
 ## Importing a pattern from a PDF or a photo
 
-**Wzory → Rozpoznaj z PDF lub zdjęcia** reads a pattern PDF, a screenshot, a scan or a photo of a chart. Everything
+**Nowy projekt → Rozpoznaj schematy z PDF lub zdjęcia** (or **Wzór z PDF lub zdjęcia** on a project page) reads a pattern PDF, a screenshot, a scan or a photo of a chart. Everything
 happens on the device, in a background worker; the file is never uploaded. For a photo you first
 drag the four corners onto the chart. Then you check what was found:
 
@@ -114,8 +126,8 @@ drag the four corners onto the chart. Then you check what was found:
   pattern text (from the same PDF, or add the description PDF separately). Correct anything that
   is wrong.
 
-**Utwórz wzór** creates a normal pattern that you can still edit and lay out before you start
-knitting. Limits: 25 MB per file, 30 PDF pages, 40 megapixels per image. Recognition works best on
+**Utwórz wzór** creates a normal pattern (in a new project, or in the project you started from)
+that you can still edit and lay out before you start knitting. Limits: 25 MB per file, 30 PDF pages, 40 megapixels per image. Recognition works best on
 PDFs and sharp, evenly lit photos; always compare the result with the original.
 
 ## Architecture
@@ -140,7 +152,7 @@ flowchart LR
 | `packages/grid-renderer`                | Grid rendering (tiled Canvas2D), testable without a browser                                                                                                                                                                                                                |
 | `packages/importer`                     | Local pattern import (pdf.js, raster recognition). Never uploads files                                                                                                                                                                                                     |
 | `packages/test-fixtures`                | Self-authored synthetic charts. Never third-party material                                                                                                                                                                                                                 |
-| `docs/`                                 | [Analysis](docs/00-analysis.md), [ADRs](docs/adr/README.md), [file format](docs/pattern-format.md), [design](docs/design.md), [security](docs/security.md), [accessibility](docs/accessibility.md), [performance](docs/performance.md), [release 1.0](docs/release-1.0.md) |
+| `docs/`                                 | [Analysis](docs/00-analysis.md), [ADRs](docs/adr/README.md), [file format](docs/project-format.md), [design](docs/design.md), [security](docs/security.md), [accessibility](docs/accessibility.md), [performance](docs/performance.md), [release 1.0](docs/release-1.0.md) |
 | `docker/`, `Dockerfile`, `compose.yaml` | Static hosting image and local environments                                                                                                                                                                                                                                |
 
 Decisions and their reasons are recorded in [`docs/adr/`](docs/adr/README.md).

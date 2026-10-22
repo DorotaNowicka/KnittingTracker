@@ -192,3 +192,40 @@ How the stage requirements were built, and where this differs from the plan abov
   stage's layout keeps the recorded rows; changing the rows of a planned stage shifts later
   continuing placements, as it should.
 
+
+## Project → patterns → charts (schema 3, 2026-10-22)
+
+**Context.** The owner set the vocabulary of the app: a **project** (projekt) consists of many
+**patterns** (wzory), and a pattern consists of many **charts** (schematy). Asked to choose, the
+owner picked: a pattern is **one grid** (what a stage was: charts side by side in a round or row,
+with its own progress), and a pattern **belongs to its project** (no shared pattern library; reuse
+by copying).
+
+**Decision.**
+
+- `Project` = { name, designer, notes, `sizes` + `sizeIndex`, designer `gauge`, `knitterGauge`,
+  `patterns[]` in knitting order, `activePatternId`, `finishedRows` per pattern }.
+- `Pattern` = the former `Stage` (construction, first row side, layout, rows, target length,
+  expected stitches, tracking) plus its own `charts`, custom `symbols`, `legend` and the knitter's
+  chart `modifications`. Chart ids are unique within a pattern.
+- `continueFrom` points to `{ patternId, placementId }` in the same project, so "the front
+  continues the body's A.2" works across patterns exactly as it did across stages.
+- `resolvePattern(project, patternId, { sizeIndex? })` replaces `resolveStage`; it reads sizes and
+  `finishedRows` from the project. `validatePattern(project, id)` checks one pattern,
+  `validateProject` all of them plus unique ids and the chosen size.
+- Sizes stay at project level: a garment is knitted in one size, and every pattern of it follows
+  the same size list.
+- Each pattern keeps its own copy of symbols and legend: a pattern is self-contained, so copying
+  it to another project (`patternForProject`, which drops cross-pattern links and collapses
+  per-size values when the size lists differ) needs nothing else.
+
+**Migration (lossless).** Each stage becomes a pattern with the same id and name, carrying the
+charts it places (charts placed nowhere go to the first pattern), the symbols and the legend;
+project-level replacements move to the patterns holding that chart; progress per stage becomes
+progress per pattern; a stored pattern that no project used becomes a project of its own. One pure
+function (`legacy/convert.ts`) converts files, backups and the 1.0 database alike; frozen v1 and v2
+files are opened by the migration tests.
+
+**Consequences.** A chart used by several patterns (e.g. A.2 in the body and in the front) exists
+once per pattern; a correction must be made in each copy. The original reason for project-level
+modifications (keep the designer's chart, knit it differently) is kept per pattern.
