@@ -1,4 +1,4 @@
-import type { StoredPatternRecord, StoredProgressRecord, StoredProjectRecord } from '../io/backup';
+import type { StoredProgressRecord, StoredProjectRecord } from '../io/backup';
 
 /**
  * Synchronization boundary (ADR-4, FR-19). Version 1 is local only: the app talks to a
@@ -9,19 +9,16 @@ import type { StoredPatternRecord, StoredProgressRecord, StoredProjectRecord } f
 
 /** Everything that can travel between devices: the same records the database and backups hold. */
 export type SyncDoc =
-  | { readonly kind: 'pattern'; readonly record: StoredPatternRecord }
   | { readonly kind: 'project'; readonly record: StoredProjectRecord }
   | { readonly kind: 'progress'; readonly record: StoredProgressRecord };
 
 /** Stable identity of a document across devices. */
 export function syncDocId(doc: SyncDoc): string {
   switch (doc.kind) {
-    case 'pattern':
-      return `pattern:${doc.record.id}`;
     case 'project':
       return `project:${doc.record.id}`;
     case 'progress':
-      return `progress:${doc.record.projectId}:${doc.record.stageId}`;
+      return `progress:${doc.record.projectId}:${doc.record.patternId}`;
   }
 }
 

@@ -73,16 +73,16 @@ export * from './authoring/pattern';
 export {
   customToSymbolDef,
   effectiveCharts,
-  findStage,
+  findPattern,
   patternRegistry,
-  resolveStage,
-  stageRows,
+  patternRows,
+  resolvePattern,
+  type GridCell,
   type Marker,
   type ResolveOptions,
-  type ResolvedStage,
+  type ResolvedPattern,
   type Section,
   type Side,
-  type StageCell,
   type Zone,
 } from './layout/resolve';
 
@@ -128,14 +128,20 @@ export {
   producedInRow,
   validateChart,
 } from './validate/chart';
-export { checkWrongSideSymbols, checkZoneEdges, validateStage } from './validate/stage';
-export { checkReferences, validatePattern, type PatternReport } from './validate/pattern';
+export { checkWrongSideSymbols, checkZoneEdges, validateGrid } from './validate/grid';
+export {
+  checkReferences,
+  validatePattern,
+  validateProject,
+  type PatternReport,
+  type ProjectReport,
+} from './validate/pattern';
 
 export {
   MIGRATIONS,
   migrate,
-  readPatternFile,
-  serializePattern,
+  readProjectFile,
+  serializeProject,
   type Migration,
   type ReadResult,
 } from './io/file';
@@ -144,7 +150,6 @@ export {
   planRestore,
   readBackupFile,
   serializeBackup,
-  storedPatternSchema,
   storedProgressSchema,
   storedProjectSchema,
   type BackupContent,
@@ -152,10 +157,23 @@ export {
   type RestoreAction,
   type RestorePlan,
   type RestorePlanItem,
-  type StoredPatternRecord,
   type StoredProgressRecord,
   type StoredProjectRecord,
 } from './io/backup';
+
+export {
+  legacyToProject,
+  migrateBackupDoc,
+  migratePatternFileDoc,
+  stagesToPatterns,
+  type LegacyProjectInfo,
+} from './legacy/convert';
+export {
+  legacyPatternSchema,
+  legacyProjectSchema,
+  type LegacyPattern,
+  type LegacyProject,
+} from './legacy/v2';
 
 export {
   localOnlySync,

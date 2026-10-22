@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { makePattern } from '../__tests__/fixtures';
-import { resolveStage } from '../layout/resolve';
-import type { Stage } from '../schema/pattern';
+import { makeProject, type PatternInput } from '../__tests__/fixtures';
+import { resolvePattern } from '../layout/resolve';
 import { initialProgress, reduceProgress } from './actions';
 import { lengthEstimate, effectiveGauge, rowsForCm, cmForRows } from './estimate';
 import { createProgressModel, indexOfCol, summarize } from './position';
 
-const rib: Stage = {
+const rib: PatternInput = {
   id: 'rib',
   name: 'Rib',
   construction: 'round',
@@ -16,10 +15,10 @@ const rib: Stage = {
   rows: 10,
 };
 
-describe('row-counter stages (DR-9)', () => {
+describe('row-counter patterns (DR-9)', () => {
   it('count whole rows with the same actions as stitch tracking', () => {
-    const p = makePattern({ stages: [rib] });
-    const stage = resolveStage(p, 'rib', 0);
+    const p = makeProject({ patterns: [rib] });
+    const stage = resolvePattern(p, 'rib', { sizeIndex: 0 });
     // No layout is needed for a row counter.
     expect(stage.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     const model = createProgressModel(stage);
@@ -42,21 +41,21 @@ describe('row-counter stages (DR-9)', () => {
     expect(indexOfCol(model, 11, 1)).toBeNull();
   });
 
-  it('stitch-tracked stages keep the stitch model', () => {
-    const stage = resolveStage(makePattern(), 'body', 0);
+  it('stitch-tracked patterns keep the stitch model', () => {
+    const stage = resolvePattern(makeProject(), 'body', { sizeIndex: 0 });
     expect(createProgressModel(stage).unit).toBe('stitch');
   });
 });
 
 describe('length estimates (DR-5)', () => {
-  const open: Stage = { ...rib, tracking: 'rows', targetCm: [30, 34.5] };
+  const open: PatternInput = { ...rib, tracking: 'rows', targetCm: [30, 34.5] };
   const { rows: _planned, ...openEnded } = open;
 
   it('turn the target length into rows with the gauge', () => {
-    const p = makePattern({ stages: [openEnded], gauge: { stitches: 22, rows: 30 } });
-    const stage = resolveStage(p, 'rib', 1);
+    const p = makeProject({ patterns: [openEnded], gauge: { stitches: 22, rows: 30 } });
+    const stage = resolvePattern(p, 'rib', { sizeIndex: 1 });
     expect(stage.plannedRows).toBeNull();
-    const gauge = effectiveGauge(p, null);
+    const gauge = effectiveGauge(p);
     expect(lengthEstimate(stage, 30, gauge)).toEqual({
       targetCm: 34.5,
       targetRows: 104,
@@ -64,12 +63,14 @@ describe('length estimates (DR-5)', () => {
       rowsLeft: 74,
     });
     // The knitter's own gauge wins; without any gauge only the target is known.
-    expect(effectiveGauge(p, { gauge: { stitches: 20, rows: 28 } })).toEqual({
+    expect(effectiveGauge({ ...p, knitterGauge: { stitches: 20, rows: 28 } })).toEqual({
       stitches: 20,
       rows: 28,
     });
-    const noGauge = makePattern({ stages: [openEnded] });
-    expect(lengthEstimate(resolveStage(noGauge, 'rib', 0), 5, effectiveGauge(noGauge))).toEqual({
+    const noGauge = makeProject({ patterns: [openEnded] });
+    expect(
+      lengthEstimate(resolvePattern(noGauge, 'rib', { sizeIndex: 0 }), 5, effectiveGauge(noGauge)),
+    ).toEqual({
       targetCm: 30,
       targetRows: null,
       doneCm: null,

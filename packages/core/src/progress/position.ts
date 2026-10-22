@@ -1,7 +1,7 @@
-import type { ResolvedStage, Side } from '../layout/resolve';
+import type { ResolvedPattern, Side } from '../layout/resolve';
 
 /**
- * Progress model (FR-12, ADR-2): progress in a stage is ONE number, `done` — how many worked cells
+ * Progress model (FR-12, ADR-2): progress in a pattern is ONE number, `done` — how many worked cells
  * have been completed, counted in work order through the rows. Everything else (current row,
  * last stitch, percentages) is derived from it.
  *
@@ -24,36 +24,36 @@ export interface StitchLocation {
 }
 
 /**
- * Row geometry of a resolved stage with lazily computed, memoized prefix sums. Works for
- * open-ended stages: rows are computed only as far as they are needed.
+ * Row geometry of a resolved pattern with lazily computed, memoized prefix sums. Works for
+ * open-ended patterns: rows are computed only as far as they are needed.
  */
 export interface RowModel {
-  readonly stage: ResolvedStage;
-  /** What one unit of progress is: a stitch, or a whole row in row-counter stages (DR-9). */
+  readonly grid: ResolvedPattern;
+  /** What one unit of progress is: a stitch, or a whole row in row-counter patterns (DR-9). */
   readonly unit: 'stitch' | 'row';
   /** Worked cells in work order for `row`, as stitch numbers (RS numbering). */
   workOrder(row: number): readonly number[];
   rowLength(row: number): number;
   /** Number of worked cells in rows 1…row-1. */
   rowStart(row: number): number;
-  /** Total cells of the stage, or null when the stage is open-ended. */
+  /** Total cells of the pattern, or null when the pattern is open-ended. */
   total(): number | null;
 }
 
-export function createRowModel(stage: ResolvedStage): RowModel {
+export function createRowModel(grid: ResolvedPattern): RowModel {
   const orders = new Map<number, readonly number[]>();
   const starts: number[] = [0, 0]; // starts[r] = cells before row r; index 0 unused.
 
   const workOrder = (row: number): readonly number[] => {
     let order = orders.get(row);
     if (!order) {
-      const n = stage.stitchCount;
-      const rs = stage.side(row) === 'RS';
+      const n = grid.stitchCount;
+      const rs = grid.side(row) === 'RS';
       const list: number[] = [];
       for (let i = 1; i <= n; i++) {
         const stitch = rs ? i : n - i + 1;
-        const cell = stage.cellAtStitch(row, stitch);
-        if (stage.symbol(cell).worked) list.push(stitch);
+        const cell = grid.cellAtStitch(row, stitch);
+        if (grid.symbol(cell).worked) list.push(stitch);
       }
       order = list;
       orders.set(row, order);
@@ -72,19 +72,19 @@ export function createRowModel(stage: ResolvedStage): RowModel {
   };
 
   const total = () =>
-    stage.plannedRows === null ? null : rowStart(stage.plannedRows) + rowLength(stage.plannedRows);
+    grid.plannedRows === null ? null : rowStart(grid.plannedRows) + rowLength(grid.plannedRows);
 
-  return { stage, unit: 'stitch', workOrder, rowLength, rowStart, total };
+  return { grid, unit: 'stitch', workOrder, rowLength, rowStart, total };
 }
 
 /**
  * Row-counter model (DR-9): every row is one unit of progress, so `done` is the number of finished
  * rows. The same reducer (complete row, set, undo/redo) works unchanged.
  */
-export function createCounterModel(stage: ResolvedStage): RowModel {
+export function createCounterModel(grid: ResolvedPattern): RowModel {
   const one: readonly number[] = [1];
   return {
-    stage,
+    grid,
     unit: 'row',
     workOrder: () => one,
     rowLength: () => 1,
@@ -92,13 +92,13 @@ export function createCounterModel(stage: ResolvedStage): RowModel {
       if (row < 1) throw new RangeError(`Invalid row ${row}`);
       return row - 1;
     },
-    total: () => stage.plannedRows,
+    total: () => grid.plannedRows,
   };
 }
 
-/** The progress model a stage asks for: per stitch (default) or a row counter. */
-export const createProgressModel = (stage: ResolvedStage): RowModel =>
-  stage.stage.tracking === 'rows' ? createCounterModel(stage) : createRowModel(stage);
+/** The progress model a pattern asks for: per stitch (default) or a row counter. */
+export const createProgressModel = (grid: ResolvedPattern): RowModel =>
+  grid.pattern.tracking === 'rows' ? createCounterModel(grid) : createRowModel(grid);
 
 function location(model: RowModel, row: number, work: number): StitchLocation {
   const stitch = model.workOrder(row)[work - 1];
@@ -107,8 +107,8 @@ function location(model: RowModel, row: number, work: number): StitchLocation {
     row,
     work,
     stitch,
-    col: Math.max(1, model.stage.stitchCount - stitch + 1),
-    side: model.stage.side(row),
+    col: Math.max(1, model.grid.stitchCount - stitch + 1),
+    side: model.grid.side(row),
     index: model.rowStart(row) + work,
   };
 }
@@ -119,7 +119,7 @@ function rowOfIndex(model: RowModel, index: number): number {
   let hi = 1;
   while (model.rowStart(hi + 1) < index) {
     hi *= 2;
-    if (hi > 1_000_000) throw new RangeError(`Index ${index} is unreachable in this stage`);
+    if (hi > 1_000_000) throw new RangeError(`Index ${index} is unreachable in this pattern`);
   }
   let lo = Math.max(1, Math.floor(hi / 2));
   while (lo < hi) {
@@ -130,7 +130,7 @@ function rowOfIndex(model: RowModel, index: number): number {
   return lo;
 }
 
-/** The stitch at global index `index` (1-based), or null if the index is outside the stage. */
+/** The stitch at global index `index` (1-based), or null if the index is outside the pattern. */
 export function stitchAt(model: RowModel, index: number): StitchLocation | null {
   if (!Number.isInteger(index) || index < 1) return null;
   const total = model.total();
@@ -143,35 +143,35 @@ export function stitchAt(model: RowModel, index: number): StitchLocation | null 
 export const lastDone = (model: RowModel, done: number): StitchLocation | null =>
   stitchAt(model, done);
 
-/** Next stitch to work, or null when the (planned) stage is complete. */
+/** Next stitch to work, or null when the (planned) pattern is complete. */
 export const nextStitch = (model: RowModel, done: number): StitchLocation | null =>
   stitchAt(model, done + 1);
 
 /** Global index of the cell at (row, stitch); null for "no stitch" cells or out-of-range input. */
 export function indexOfStitch(model: RowModel, row: number, stitch: number): number | null {
   if (!Number.isInteger(row) || row < 1) return null;
-  if (model.stage.plannedRows !== null && row > model.stage.plannedRows) return null;
+  if (model.grid.plannedRows !== null && row > model.grid.plannedRows) return null;
   // Row counter: any cell of a row stands for the whole row.
   if (model.unit === 'row') return row;
-  if (stitch < 1 || stitch > model.stage.stitchCount) return null;
+  if (stitch < 1 || stitch > model.grid.stitchCount) return null;
   const work = model.workOrder(row).indexOf(stitch);
   return work < 0 ? null : model.rowStart(row) + work + 1;
 }
 
 /** Global index of the cell at display column `col` of `row`. */
 export const indexOfCol = (model: RowModel, row: number, col: number): number | null =>
-  indexOfStitch(model, row, model.stage.stitchCount - col + 1);
+  indexOfStitch(model, row, model.grid.stitchCount - col + 1);
 
 export interface ProgressSummary {
   readonly done: number;
   readonly total: number | null;
-  /** 0–100 for planned stages, null for open-ended ones. */
+  /** 0–100 for planned patterns, null for open-ended ones. */
   readonly percent: number | null;
   readonly lastDone: StitchLocation | null;
   readonly next: StitchLocation | null;
   /** Fully completed rows (or rounds). */
   readonly rowsCompleted: number;
-  /** Row being worked: the row of the next stitch (or the last row when the stage is complete). */
+  /** Row being worked: the row of the next stitch (or the last row when the pattern is complete). */
   readonly currentRow: number;
   /** Stitches done in the current row. */
   readonly doneInCurrentRow: number;

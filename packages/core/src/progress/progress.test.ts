@@ -1,8 +1,14 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { decrease, makePattern, roundStage, seed } from '../__tests__/fixtures';
-import { resolveStage } from '../layout/resolve';
-import type { Pattern, Stage } from '../schema/pattern';
+import {
+  decrease,
+  makeProject,
+  roundPattern,
+  seed,
+  type PatternInput,
+} from '../__tests__/fixtures';
+import { resolvePattern } from '../layout/resolve';
+import type { Project } from '../schema/pattern';
 import {
   HISTORY_LIMIT,
   canRedo,
@@ -21,9 +27,9 @@ import {
   summarize,
 } from './position';
 
-const pattern = makePattern();
-const round = createRowModel(resolveStage(pattern, 'body', 0)); // 26 stitches × 12 rows
-const flat = createRowModel(resolveStage(pattern, 'back', 0)); // 7 stitches, open-ended, starts on WS
+const pattern = makeProject();
+const round = createRowModel(resolvePattern(pattern, 'body', { sizeIndex: 0 })); // 26 stitches × 12 rows
+const flat = createRowModel(resolvePattern(pattern, 'back', { sizeIndex: 0 })); // 7 stitches, open-ended, starts on WS
 
 describe('row model and stitch locations', () => {
   it('counts rows and totals for planned stages', () => {
@@ -66,8 +72,8 @@ describe('row model and stitch locations', () => {
   });
 
   it('skips "no stitch" cells in the work order', () => {
-    const p: Pattern = makePattern({
-      stages: [
+    const p: Project = makeProject({
+      patterns: [
         {
           id: 'dec',
           name: 'Dec',
@@ -78,7 +84,7 @@ describe('row model and stitch locations', () => {
         },
       ],
     });
-    const m = createRowModel(resolveStage(p, 'dec', 0));
+    const m = createRowModel(resolvePattern(p, 'dec', { sizeIndex: 0 }));
     // Row 1: k2tog k k [none]; row 2: [none] k k k.
     expect(m.workOrder(1)).toEqual([2, 3, 4]);
     expect(m.workOrder(2)).toEqual([1, 2, 3]);
@@ -139,7 +145,7 @@ describe('row model and stitch locations', () => {
     });
     fc.assert(
       fc.property(stageArb, ({ widths, construction, firstRowSide, rows }) => {
-        const stage: Stage = {
+        const stage: PatternInput = {
           id: 's',
           name: 'S',
           construction,
@@ -152,7 +158,9 @@ describe('row model and stitch locations', () => {
           })),
           rows,
         };
-        const m = createRowModel(resolveStage(makePattern({ stages: [stage] }), 's', 0));
+        const m = createRowModel(
+          resolvePattern(makeProject({ patterns: [stage] }), 's', { sizeIndex: 0 }),
+        );
         const n = widths.reduce((a, b) => a + b, 0);
         expect(m.total()).toBe(n * rows);
         for (let index = 1; index <= n * rows; index++) {
@@ -227,7 +235,9 @@ describe('progress reducer', () => {
         s,
         { type: 'tap', index: i % 300 === 0 ? 1 : i, mode: 'mark' },
         createRowModel(
-          resolveStage(makePattern({ stages: [{ ...roundStage, rows: 100 }] }), 'body', 0),
+          resolvePattern(makeProject({ patterns: [{ ...roundPattern, rows: 100 }] }), 'body', {
+            sizeIndex: 0,
+          }),
         ),
       );
     expect(s.undo.length).toBeLessThanOrEqual(HISTORY_LIMIT);

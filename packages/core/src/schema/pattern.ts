@@ -5,13 +5,18 @@ import { z } from 'zod';
 z.config({ jitless: true });
 
 /**
- * Persisted data model (ADR-2), defined as zod schemas so every external boundary (files, storage,
- * worker messages) is validated. TypeScript types are inferred from the schemas.
+ * Persisted data model (ADR-2, schema v3), defined as zod schemas so every external boundary
+ * (files, storage, worker messages) is validated. TypeScript types are inferred from the schemas.
+ *
+ * Hierarchy (owner decision 2026-10-22): a **project** (projekt, e.g. a sweater) holds several
+ * **patterns** (wzory, e.g. "Body in the round", "Sleeve"), and a pattern holds several **charts**
+ * (schematy, e.g. A.1–A.4). A pattern is one grid: its charts side by side in one round or row,
+ * tracked with its own progress. Patterns belong to their project; reuse is by copying.
  *
  * Conventions:
  * - Charts are stored as the **RS view**: `rows[0]` is chart row 1 (bottom), characters run
  *   left → right as drawn.
- * - A stage layout lists segments in **work order of an RS row**: stitch 1 is the first stitch
+ * - A pattern layout lists segments in **work order of an RS row**: stitch 1 is the first stitch
  *   worked, which is the rightmost stitch in the RS view.
  */
 
@@ -115,13 +120,14 @@ export const segmentSchema = z.discriminatedUnion('kind', [
     stitches: sizeValueSchema.optional(),
     /** Chart column (1-based, left→right) worked first. Default: the rightmost column. */
     startColumn: posInt.optional(),
-    /** Vertical phase: chart row for stage row r is ((r - 1 + rowOffset) mod height) + 1. */
+    /** Vertical phase: chart row for pattern row r is ((r - 1 + rowOffset) mod height) + 1. */
     rowOffset: nonNegInt.optional(),
     /**
-     * Continue the vertical phase of a placement in an earlier stage (DR-3): this placement starts
-     * with the chart row after the last one worked there. Overrides `rowOffset`.
+     * Continue the vertical phase of a placement in another pattern of the same project (DR-3):
+     * this placement starts with the chart row after the last one worked there. Overrides
+     * `rowOffset`.
      */
-    continueFrom: z.object({ stageId: id, placementId: id }).optional(),
+    continueFrom: z.object({ patternId: id, placementId: id }).optional(),
     /** Display label of the zone; defaults to the chart name. */
     label: z.string().max(40).optional(),
   }),
@@ -133,41 +139,7 @@ export const segmentSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
-export const stageSchema = z.object({
-  id,
-  name: z.string().min(1).max(60),
-  construction: z.enum(['round', 'flat']),
-  firstRowSide: z.enum(['RS', 'WS']),
-  layout: z.array(segmentSchema).min(1),
-  /** Planned row count; omit for open-ended stages ("until X cm"). */
-  rows: sizeValueSchema.optional(),
-  /** Stitch count stated by the pattern text, cross-checked against the layout. */
-  expectedStitches: sizeValueSchema.optional(),
-  /**
-   * How progress is tracked (DR-9): every stitch (default) or whole rows only, for simple
-   * textures such as ribbing where a row counter is enough.
-   */
-  tracking: z.enum(['stitches', 'rows']).optional(),
-  /** Length to knit in an open-ended stage ("until the piece measures 34 cm", DR-5). */
-  targetCm: sizeMeasureSchema.optional(),
-});
-
-export const patternSchema = z.object({
-  id,
-  revision: nonNegInt,
-  title: z.string().min(1).max(120),
-  designer: z.string().max(120).optional(),
-  notes: z.string().max(5000).optional(),
-  sizes: z.array(z.string().min(1).max(20)).min(1),
-  /** Gauge stated by the pattern (10 × 10 cm). */
-  gauge: gaugeSchema.optional(),
-  symbols: z.array(customSymbolSchema),
-  legend: z.array(legendEntrySchema),
-  charts: z.array(chartSchema),
-  stages: z.array(stageSchema).min(1),
-});
-
-/** Per-project changes that leave the pattern itself untouched (DR-1). */
+/** Changes that leave a chart as the designer drew it (DR-1), e.g. "A.1 in plain knit". */
 export const modificationSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('replaceChart'),
@@ -178,38 +150,72 @@ export const modificationSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
+/** A pattern (wzór): one grid of charts worked side by side, with its own progress. */
+export const patternSchema = z.object({
+  id,
+  name: z.string().min(1).max(60),
+  construction: z.enum(['round', 'flat']),
+  firstRowSide: z.enum(['RS', 'WS']),
+  /** Charts of this pattern (schematy). Ids are unique within the pattern. */
+  charts: z.array(chartSchema),
+  /** Symbols this pattern defines itself (built-ins are not stored). */
+  symbols: z.array(customSymbolSchema),
+  /** The pattern's own legend wording. */
+  legend: z.array(legendEntrySchema),
+  layout: z.array(segmentSchema).min(1),
+  /** Planned row count; omit for open-ended patterns ("until X cm"). */
+  rows: sizeValueSchema.optional(),
+  /** Stitch count stated by the pattern text, cross-checked against the layout. */
+  expectedStitches: sizeValueSchema.optional(),
+  /**
+   * How progress is tracked (DR-9): every stitch (default) or whole rows only, for simple
+   * textures such as ribbing where a row counter is enough.
+   */
+  tracking: z.enum(['stitches', 'rows']).optional(),
+  /** Length to knit in an open-ended pattern ("until the piece measures 34 cm", DR-5). */
+  targetCm: sizeMeasureSchema.optional(),
+  /** The knitter's own changes to charts of this pattern (DR-1). */
+  modifications: z.array(modificationSchema).optional(),
+});
+
+/** A project (projekt): what is being knitted, made of patterns worked one after another. */
+export const projectSchema = z.object({
+  id,
+  name: z.string().min(1).max(120),
+  /** Bumped once per editing session of the project content (patterns, charts, sizes). */
+  revision: nonNegInt,
+  designer: z.string().max(120).optional(),
+  notes: z.string().max(5000).optional(),
+  /** Garment sizes; per-size numbers in patterns are indexed by position in this list. */
+  sizes: z.array(z.string().min(1).max(20)).min(1),
+  sizeIndex: nonNegInt,
+  /** Gauge stated by the designer (10 × 10 cm). */
+  gauge: gaugeSchema.optional(),
+  /** The knitter's own gauge, used instead of the designer's for length estimates. */
+  knitterGauge: gaugeSchema.optional(),
+  /** Patterns in the order they are knitted. A new project may have none yet. */
+  patterns: z.array(patternSchema),
+  /** The pattern the tracker opens. */
+  activePatternId: id.optional(),
+  /**
+   * Rows actually worked in patterns the knitter finished (pattern id → rows). Open-ended
+   * patterns end here; patterns that continue a chart's phase count from this (DR-3, DR-5).
+   */
+  finishedRows: z.record(id, nonNegInt).optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
 export const progressSchema = z.object({
   done: nonNegInt,
   undo: z.array(nonNegInt),
   redo: z.array(nonNegInt),
 });
 
-export const projectSchema = z.object({
-  id,
-  name: z.string().min(1).max(120),
-  patternId: id,
-  patternRevision: nonNegInt,
-  sizeIndex: nonNegInt,
-  activeStageId: id,
-  modifications: z.array(modificationSchema),
-  /** Progress per stage id. */
-  progress: z.record(id, progressSchema),
-  /**
-   * Rows actually worked in stages the knitter finished (stage id → rows). Open-ended stages end
-   * here; later stages that continue a chart's phase count from this (DR-3, DR-5).
-   */
-  finishedRows: z.record(id, nonNegInt).optional(),
-  /** The knitter's own gauge, used instead of the pattern's for length estimates. */
-  gauge: gaugeSchema.optional(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-});
-
 export type Chart = z.infer<typeof chartSchema>;
 export type Segment = z.infer<typeof segmentSchema>;
 export type ChartSegment = Extract<Segment, { kind: 'chart' }>;
 export type MarkerSegment = Extract<Segment, { kind: 'marker' }>;
-export type Stage = z.infer<typeof stageSchema>;
 export type Pattern = z.infer<typeof patternSchema>;
 export type LegendEntry = z.infer<typeof legendEntrySchema>;
 export type CustomSymbol = z.infer<typeof customSymbolSchema>;
@@ -217,3 +223,6 @@ export type Modification = z.infer<typeof modificationSchema>;
 export type ProgressRecord = z.infer<typeof progressSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Gauge = z.infer<typeof gaugeSchema>;
+
+/** The parts of a project that resolving and validating a pattern needs. */
+export type ProjectContent = Pick<Project, 'sizes' | 'sizeIndex' | 'patterns' | 'finishedRows'>;

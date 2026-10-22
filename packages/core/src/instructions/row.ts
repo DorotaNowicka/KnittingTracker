@@ -1,4 +1,4 @@
-import type { ResolvedStage, Side } from '../layout/resolve';
+import type { ResolvedPattern, Side } from '../layout/resolve';
 import { wsSymbolId } from '../symbols/registry';
 
 /**
@@ -15,7 +15,7 @@ export interface InstructionToken {
   /** Stitch range covered, in RS stitch numbers (first worked → last worked). */
   readonly fromStitch: number;
   readonly toStitch: number;
-  /** Set when the symbol has no valid WS form (validation error in flat stages). */
+  /** Set when the symbol has no valid WS form (validation error in flat patterns). */
   readonly problem?: 'ws-unsupported';
   /** WS-specific instruction text for `explicit` symbols. */
   readonly wsText?: { readonly pl: string; readonly en: string };
@@ -30,19 +30,19 @@ export interface RowInstructions {
 }
 
 /**
- * Text form of one stage row (DR-12): the cells in work order, merged into runs. Used by the
+ * Text form of one pattern row (DR-12): the cells in work order, merged into runs. Used by the
  * "current row" panel and as the screen-reader view of the canvas grid.
  */
-export function rowInstructions(stage: ResolvedStage, row: number): RowInstructions {
-  const side = stage.side(row);
+export function rowInstructions(grid: ResolvedPattern, row: number): RowInstructions {
+  const side = grid.side(row);
   const rs = side === 'RS';
-  const n = stage.stitchCount;
+  const n = grid.stitchCount;
   const tokens: InstructionToken[] = [];
 
   for (let i = 1; i <= n;) {
     const stitch = rs ? i : n - i + 1;
-    const cell = stage.cellAtStitch(row, stitch);
-    const def = stage.symbol(cell);
+    const cell = grid.cellAtStitch(row, stitch);
+    const def = grid.symbol(cell);
     // A multi-cell symbol is one instruction: skip its remaining cells in work order. RS rows meet
     // a symbol at its rightmost cell, WS rows at its leftmost one.
     const span = rs ? cell.part + 1 : def.width - cell.part;

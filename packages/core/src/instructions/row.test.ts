@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { makePattern, zigzag } from '../__tests__/fixtures';
-import { resolveStage } from '../layout/resolve';
-import type { Pattern } from '../schema/pattern';
+import { makeProject, zigzag } from '../__tests__/fixtures';
+import { resolvePattern } from '../layout/resolve';
+import type { Project } from '../schema/pattern';
 import { rowInstructions } from './row';
 
-const compact = (p: Pattern, stageId: string, row: number) =>
-  rowInstructions(resolveStage(p, stageId, 0), row).tokens.map(
+const compact = (p: Project, patternId: string, row: number) =>
+  rowInstructions(resolvePattern(p, patternId, { sizeIndex: 0 }), row).tokens.map(
     (t) => `${t.symbolId}${t.count > 1 ? `×${t.count}` : ''}${t.problem ? '!' : ''}`,
   );
 
 describe('rowInstructions', () => {
   it('lists an RS round row in work order with runs merged and cables counted once', () => {
-    const p = makePattern();
-    const r = rowInstructions(resolveStage(p, 'body', 0), 1);
+    const p = makeProject();
+    const r = rowInstructions(resolvePattern(p, 'body', { sizeIndex: 0 }), 1);
     expect(r.side).toBe('RS');
     expect(r.direction).toBe('right-to-left');
     // Seed (5) → rope (6) → zigzag (4) → rope with offset (6) → seed (5).
@@ -39,8 +39,8 @@ describe('rowInstructions', () => {
   });
 
   it('translates WS rows: reversed order and knit ↔ purl', () => {
-    const p = makePattern();
-    const r = rowInstructions(resolveStage(p, 'back', 0), 1);
+    const p = makeProject();
+    const r = rowInstructions(resolvePattern(p, 'back', { sizeIndex: 0 }), 1);
     expect(r.side).toBe('WS');
     expect(r.direction).toBe('left-to-right');
     // Work order on WS: stitches 7 → 1. Zigzag row 1 "kppp" from its left edge, then the seed
@@ -54,7 +54,7 @@ describe('rowInstructions', () => {
   });
 
   it('flags cables on WS rows and keeps explicit WS texts', () => {
-    const p = makePattern({
+    const p = makeProject({
       charts: [
         zigzag,
         {
@@ -66,7 +66,7 @@ describe('rowInstructions', () => {
           rows: ['km'],
         },
       ],
-      stages: [
+      patterns: [
         {
           id: 'flat',
           name: 'Flat',
@@ -79,15 +79,15 @@ describe('rowInstructions', () => {
         },
       ],
     });
-    const tokens = rowInstructions(resolveStage(p, 'flat', 0), 1).tokens;
+    const tokens = rowInstructions(resolvePattern(p, 'flat', { sizeIndex: 0 }), 1).tokens;
     expect(tokens[0]).toMatchObject({ chartSymbolId: 'cable:1-1-rpc', problem: 'ws-unsupported' });
     const inc = tokens.find((t) => t.chartSymbolId === 'std:m1l');
     expect(inc?.wsText?.pl).toContain('Dodaj');
   });
 
   it('skips "no stitch" cells', () => {
-    const p = makePattern({
-      stages: [
+    const p = makeProject({
+      patterns: [
         {
           id: 'd',
           name: 'D',

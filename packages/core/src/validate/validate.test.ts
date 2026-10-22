@@ -1,9 +1,9 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { decrease, makePattern, roundStage, rope, seed, zigzag } from '../__tests__/fixtures';
+import { decrease, makeProject, roundPattern, rope, seed, zigzag } from '../__tests__/fixtures';
 import { parseChart } from '../chart/parse';
-import { resolveStage } from '../layout/resolve';
-import type { Chart, Pattern } from '../schema/pattern';
+import { resolvePattern } from '../layout/resolve';
+import type { Chart } from '../schema/pattern';
 import { createRegistry } from '../symbols/registry';
 import {
   checkStitchChain,
@@ -12,8 +12,8 @@ import {
   producedInRow,
   validateChart,
 } from './chart';
-import { validatePattern } from './pattern';
-import { checkWrongSideSymbols, checkZoneEdges, validateStage } from './stage';
+import { validatePattern, validateProject } from './pattern';
+import { checkWrongSideSymbols, checkZoneEdges, validateGrid } from './grid';
 
 const reg = createRegistry();
 const codesOf = (c: Chart) =>
@@ -90,39 +90,39 @@ describe('chart checks', () => {
   });
 });
 
-describe('stage checks', () => {
-  it('passes a well-formed stage', () => {
-    expect(validateStage(resolveStage(makePattern(), 'body', 0))).toEqual([]);
+describe('grid checks', () => {
+  it('passes a well-formed pattern', () => {
+    expect(validateGrid(resolvePattern(makeProject(), 'body', { sizeIndex: 0 }))).toEqual([]);
   });
 
   it('rejects partial repeats that cut through a cable', () => {
-    const p = makePattern({
-      stages: [
+    const p = makeProject({
+      patterns: [
         {
-          ...roundStage,
+          ...roundPattern,
           expectedStitches: 9,
           layout: [{ kind: 'chart', placementId: 'r', chartId: 'rope', stitches: 9 }],
         },
       ],
     });
-    const diags = checkZoneEdges(resolveStage(p, 'body', 0));
+    const diags = checkZoneEdges(resolvePattern(p, 'body', { sizeIndex: 0 }));
     expect(diags.map((d) => d.code)).toContain('zone-cuts-symbol');
     // Whole repeats are fine, also with an offset start column that keeps the cable intact.
-    const ok = makePattern({
-      stages: [
+    const ok = makeProject({
+      patterns: [
         {
-          ...roundStage,
+          ...roundPattern,
           expectedStitches: 12,
           layout: [{ kind: 'chart', placementId: 'r', chartId: 'rope', stitches: 12 }],
         },
       ],
     });
-    expect(checkZoneEdges(resolveStage(ok, 'body', 0))).toEqual([]);
+    expect(checkZoneEdges(resolvePattern(ok, 'body', { sizeIndex: 0 }))).toEqual([]);
   });
 
-  it('rejects cables on wrong-side rows of flat stages', () => {
-    const p = makePattern({
-      stages: [
+  it('rejects cables on wrong-side rows of flat patterns', () => {
+    const p = makeProject({
+      patterns: [
         {
           id: 'f',
           name: 'Flat',
@@ -132,13 +132,13 @@ describe('stage checks', () => {
         },
       ],
     });
-    // Rope row 1 (the cable) now lands on stage rows 6, 12, … — row 6 is a WS row.
-    const diags = checkWrongSideSymbols(resolveStage(p, 'f', 0));
+    // Rope row 1 (the cable) now lands on pattern rows 6, 12, … — row 6 is a WS row.
+    const diags = checkWrongSideSymbols(resolvePattern(p, 'f', { sizeIndex: 0 }));
     expect(diags).toHaveLength(1);
     expect(diags[0]).toMatchObject({ code: 'ws-unsupported', row: 1, chartId: 'rope' });
     // Without the offset, the cable falls on odd = RS rows only.
-    const fine = makePattern({
-      stages: [
+    const fine = makeProject({
+      patterns: [
         {
           id: 'f',
           name: 'Flat',
@@ -148,79 +148,110 @@ describe('stage checks', () => {
         },
       ],
     });
-    expect(checkWrongSideSymbols(resolveStage(fine, 'f', 0))).toEqual([]);
-    expect(checkWrongSideSymbols(resolveStage(makePattern(), 'body', 0))).toEqual([]);
+    expect(checkWrongSideSymbols(resolvePattern(fine, 'f', { sizeIndex: 0 }))).toEqual([]);
+    expect(checkWrongSideSymbols(resolvePattern(makeProject(), 'body', { sizeIndex: 0 }))).toEqual(
+      [],
+    );
   });
 });
 
-describe('validatePattern', () => {
-  it('accepts the synthetic pattern (info-level texture notes only)', () => {
-    const report = validatePattern(makePattern());
+describe('validatePattern / validateProject', () => {
+  it('accepts the synthetic project (info-level texture notes only)', () => {
+    const report = validateProject(makeProject());
     expect(report.ok).toBe(true);
     expect(report.diagnostics.filter((d) => d.severity !== 'info').map((d) => d.code)).toEqual([
       'chain-wrap',
     ]);
+    expect(Object.keys(report.patterns)).toEqual(['body', 'back']);
+    expect(report.diagnostics.every((d) => d.patternId !== undefined)).toBe(true);
   });
 
   it('reports referential problems before anything else', () => {
-    const bad: Pattern = makePattern({
-      charts: [seed, seed, rope, zigzag],
-      legend: [{ symbolId: 'std:nope' }],
-      stages: [
+    const bad = makeProject({
+      patterns: [
         {
-          ...roundStage,
+          ...roundPattern,
+          charts: [seed, seed, rope, zigzag],
+          legend: [{ symbolId: 'std:nope' }],
           rows: [1, 2, 3],
           layout: [
-            ...roundStage.layout,
+            ...roundPattern.layout,
             { kind: 'chart', placementId: 'f1', chartId: 'ghost', stitches: [1] },
           ],
+          modifications: [{ kind: 'replaceChart', chartId: 'ghost-2', chart: seed }],
         },
-        { ...roundStage },
       ],
     });
-    const codes = validatePattern(bad).diagnostics.map((d) => d.code);
+    const codes = validatePattern(bad, 'body').diagnostics.map((d) => d.code);
     expect(codes).toEqual(
       expect.arrayContaining([
         'duplicate-chart',
-        'duplicate-stage',
         'legend-unknown-symbol',
         'duplicate-placement',
         'size-list',
         'unknown-chart',
       ]),
     );
-    expect(validatePattern(bad).ok).toBe(false);
+    expect(validatePattern(bad, 'body').ok).toBe(false);
+    expect(validatePattern(bad, 'nope').diagnostics.map((d) => d.code)).toEqual([
+      'unknown-pattern',
+    ]);
+  });
+
+  it('reports project-level problems', () => {
+    const twice = makeProject({ patterns: [roundPattern, roundPattern] });
+    expect(validateProject(twice).diagnostics.map((d) => d.code)).toEqual(['duplicate-pattern']);
+    expect(validateProject(makeProject({ sizeIndex: 5 })).diagnostics.map((d) => d.code)).toEqual([
+      'size-index',
+    ]);
   });
 
   it('reports symbol table problems', () => {
-    const bad = makePattern({
-      symbols: [
-        { ...customK, id: 'user:a' },
-        { ...customK, id: 'user:a' },
+    const bad = makeProject({
+      patterns: [
+        {
+          ...roundPattern,
+          symbols: [
+            { ...customK, id: 'user:a' },
+            { ...customK, id: 'user:a' },
+          ],
+        },
       ],
     });
-    expect(validatePattern(bad)).toMatchObject({ ok: false, diagnostics: [{ code: 'symbols' }] });
+    expect(validatePattern(bad, 'body')).toMatchObject({
+      ok: false,
+      diagnostics: [{ code: 'symbols' }],
+    });
   });
 
-  it('validates stages per size and labels findings with the size', () => {
-    const p = makePattern({ stages: [{ ...roundStage, expectedStitches: [26, 31] }] });
-    const report = validatePattern(p);
+  it('validates patterns per size and labels findings with the size', () => {
+    const p = makeProject({ patterns: [{ ...roundPattern, expectedStitches: [26, 31] }] });
+    const report = validatePattern(p, 'body');
     expect(report.ok).toBe(false);
     expect(report.diagnostics.find((d) => d.code === 'stitch-count')?.message).toMatch(/^\[M\]/);
   });
 
   it('validates replacement charts from modifications', () => {
-    const report = validatePattern(makePattern(), [
-      { kind: 'replaceChart', chartId: 'seed', chart: { ...seed, rows: ['kq', 'pk'] } },
-    ]);
-    expect(report.diagnostics.map((d) => d.code)).toContain('unknown-cell');
+    const p = makeProject({
+      patterns: [
+        {
+          ...roundPattern,
+          modifications: [
+            { kind: 'replaceChart', chartId: 'seed', chart: { ...seed, rows: ['kq', 'pk'] } },
+          ],
+        },
+      ],
+    });
+    expect(validatePattern(p, 'body').diagnostics.map((d) => d.code)).toContain('unknown-cell');
   });
 
-  it('skips stage checks when charts are structurally broken', () => {
-    const p = makePattern({ charts: [{ ...seed, rows: ['k'] }, rope, zigzag, decrease] });
-    const report = validatePattern(p);
+  it('skips grid checks when charts are structurally broken', () => {
+    const p = makeProject({
+      patterns: [{ ...roundPattern, charts: [{ ...seed, rows: ['k'] }, rope, zigzag, decrease] }],
+    });
+    const report = validatePattern(p, 'body');
     expect(report.ok).toBe(false);
-    expect(report.diagnostics.every((d) => d.stageId === undefined)).toBe(true);
+    expect(report.diagnostics.every((d) => d.chartId !== undefined)).toBe(true);
   });
 });
 

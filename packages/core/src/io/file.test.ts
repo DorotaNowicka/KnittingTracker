@@ -1,68 +1,84 @@
 import { describe, expect, it } from 'vitest';
-import { makePattern } from '../__tests__/fixtures';
+import { makeProject, roundPattern } from '../__tests__/fixtures';
 import { FILE_FORMATS, SCHEMA_VERSION } from '../basics';
-import { projectSchema } from '../schema/pattern';
-import { migrate, readPatternFile, serializePattern, type Migration } from './file';
+import { progressSchema, projectSchema, type CustomSymbol } from '../schema/pattern';
+import { migrate, readProjectFile, serializeProject, type Migration } from './file';
 
-describe('pattern files', () => {
-  it('round-trips a pattern through serialize → read', () => {
-    const pattern = makePattern({
-      designer: 'Me',
-      symbols: [
-        {
-          id: 'user:bobble',
-          numbers: { own: 'B' },
-          family: 'other' as never,
-          width: 1,
-          consumes: 1,
-          produces: 1,
-          worked: true,
-          ws: { mode: 'explicit', text: { pl: 'lewe', en: 'p' } },
-          glyph: { primitives: [{ kind: 'circle', center: [0.5, 0.5], radius: 0.3, fill: 'ink' }] },
-          label: { pl: 'bąbel', en: 'bobble' },
-          description: { pl: 'Bąbel.', en: 'Bobble.' },
-        },
-      ],
-    });
+describe('project files', () => {
+  it('round-trips a project through serialize → read', () => {
+    const symbols: CustomSymbol[] = [
+      {
+        id: 'user:bobble',
+        numbers: { own: 'B' },
+        family: 'other' as never,
+        width: 1,
+        consumes: 1,
+        produces: 1,
+        worked: true,
+        ws: { mode: 'explicit', text: { pl: 'lewe', en: 'p' } },
+        glyph: { primitives: [{ kind: 'circle', center: [0.5, 0.5], radius: 0.3, fill: 'ink' }] },
+        label: { pl: 'bąbel', en: 'bobble' },
+        description: { pl: 'Bąbel.', en: 'Bobble.' },
+      },
+    ];
+    const project = makeProject({ designer: 'Me', patterns: [{ ...roundPattern, symbols }] });
     // 'other' is not a valid family: reading must reject it with a precise path.
-    const rejected = readPatternFile(serializePattern(pattern));
+    const rejected = readProjectFile(serializeProject(project));
     expect(rejected.ok).toBe(false);
-    if (!rejected.ok) expect(rejected.errors[0]).toMatch(/^symbols\.0\.family/);
+    if (!rejected.ok) expect(rejected.errors[0]).toMatch(/^patterns\.0\.symbols\.0\.family/);
 
-    const symbol = pattern.symbols[0];
+    const symbol = symbols[0];
     if (!symbol) throw new Error('missing symbol');
-    const good = { ...pattern, symbols: [{ ...symbol, family: 'basic' as const }] };
-    const text = serializePattern(good, new Date('2026-10-15T20:00:00Z'));
+    const good = makeProject({
+      designer: 'Me',
+      patterns: [{ ...roundPattern, symbols: [{ ...symbol, family: 'basic' as const }] }],
+    });
+    const text = serializeProject(good, new Date('2026-10-15T20:00:00Z'));
     const json = JSON.parse(text) as Record<string, unknown>;
     expect(json).toMatchObject({
-      format: FILE_FORMATS.pattern,
+      format: FILE_FORMATS.project,
       schemaVersion: SCHEMA_VERSION,
       exportedAt: '2026-10-15T20:00:00.000Z',
     });
-    const back = readPatternFile(text);
+    const back = readProjectFile(text);
     expect(back).toEqual({ ok: true, value: good });
   });
 
   it('rejects garbage, foreign files, newer versions and oversized input', () => {
-    expect(readPatternFile('{ nope')).toMatchObject({
+    expect(readProjectFile('{ nope')).toMatchObject({
       ok: false,
       errors: ['The file is not valid JSON.'],
     });
-    expect(readPatternFile('[]')).toMatchObject({ ok: false });
-    expect(readPatternFile(JSON.stringify({ format: 'other' }))).toMatchObject({ ok: false });
+    expect(readProjectFile('[]')).toMatchObject({ ok: false });
+    expect(readProjectFile(JSON.stringify({ format: 'other' }))).toMatchObject({ ok: false });
     expect(
-      readPatternFile(
+      readProjectFile(
         JSON.stringify({
-          format: FILE_FORMATS.pattern,
+          format: FILE_FORMATS.project,
           schemaVersion: SCHEMA_VERSION + 1,
-          pattern: {},
+          project: {},
         }),
       ),
     ).toMatchObject({ ok: false, errors: [expect.stringMatching(/newer version/)] });
     expect(
-      readPatternFile(JSON.stringify({ format: FILE_FORMATS.pattern, pattern: {} })),
+      readProjectFile(JSON.stringify({ format: FILE_FORMATS.pattern, pattern: {} })),
     ).toMatchObject({ ok: false });
-    expect(readPatternFile('x'.repeat(20 * 1024 * 1024 + 1))).toMatchObject({
+    // An old pattern file that is damaged is reported against the old pattern schema.
+    const damaged = readProjectFile(
+      JSON.stringify({ format: FILE_FORMATS.pattern, schemaVersion: 2, pattern: { id: 'x' } }),
+    );
+    expect(damaged.ok).toBe(false);
+    if (!damaged.ok) expect(damaged.errors[0]).toMatch(/^revision:/);
+    expect(
+      readProjectFile(
+        JSON.stringify({
+          format: FILE_FORMATS.project,
+          schemaVersion: SCHEMA_VERSION,
+          project: {},
+        }),
+      ),
+    ).toMatchObject({ ok: false, errors: expect.arrayContaining([expect.stringMatching(/^id:/)]) });
+    expect(readProjectFile('x'.repeat(20 * 1024 * 1024 + 1))).toMatchObject({
       ok: false,
       errors: ['The file is too large.'],
     });
@@ -92,37 +108,32 @@ describe('pattern files', () => {
 });
 
 describe('project schema', () => {
-  it('accepts a project with progress per stage and modifications', () => {
-    const project = {
-      id: 'p1',
-      name: 'My sweater',
-      patternId: 'test-pattern',
-      patternRevision: 1,
-      sizeIndex: 1,
-      activeStageId: 'body',
-      modifications: [
+  it('accepts patterns with changed charts and rejects bad progress', () => {
+    const project = makeProject({
+      patterns: [
         {
-          kind: 'replaceChart',
-          chartId: 'seed',
-          chart: {
-            id: 'st',
-            name: 'St',
-            width: 1,
-            height: 1,
-            palette: { k: 'std:k' },
-            rows: ['k'],
-          },
-          note: 'Filler worked as plain knit',
+          ...roundPattern,
+          modifications: [
+            {
+              kind: 'replaceChart',
+              chartId: 'seed',
+              chart: {
+                id: 'st',
+                name: 'St',
+                width: 1,
+                height: 1,
+                palette: { k: 'std:k' },
+                rows: ['k'],
+              },
+              note: 'Filler worked as plain knit',
+            },
+          ],
         },
       ],
-      progress: { body: { done: 42, undo: [0, 26], redo: [] } },
-      createdAt: '2026-10-15T20:00:00.000Z',
-      updatedAt: '2026-10-15T20:05:00.000Z',
-    };
+      finishedRows: { body: 12 },
+    });
     expect(projectSchema.safeParse(project).success).toBe(true);
-    expect(
-      projectSchema.safeParse({ ...project, progress: { body: { done: -1, undo: [], redo: [] } } })
-        .success,
-    ).toBe(false);
+    expect(projectSchema.safeParse({ ...project, finishedRows: { body: -1 } }).success).toBe(false);
+    expect(progressSchema.safeParse({ done: -1, undo: [], redo: [] }).success).toBe(false);
   });
 });

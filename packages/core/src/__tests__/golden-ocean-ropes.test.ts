@@ -9,10 +9,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseChart } from '../chart/parse';
-import { readPatternFile } from '../io/file';
-import { patternRegistry, resolveStage, type StageCell } from '../layout/resolve';
+import { readProjectFile } from '../io/file';
+import { patternRegistry, resolvePattern, type GridCell } from '../layout/resolve';
 import { createRowModel, indexOfStitch, stitchAt } from '../progress/position';
-import { modificationSchema, type Modification, type Pattern } from '../schema/pattern';
+import { modificationSchema, type Pattern, type Project } from '../schema/pattern';
 import { validateChart } from '../validate/chart';
 import { validatePattern } from '../validate/pattern';
 
@@ -47,23 +47,40 @@ const LETTER: Record<string, string> = {
   'cable:2-1-lpc': 'B',
   'cable:2-2-lc': 'Q',
 };
-const letter = (cell: StageCell) => (cell.part > 0 ? '.' : (LETTER[cell.symbolId] ?? '?'));
+const letter = (cell: GridCell) => (cell.part > 0 ? '.' : (LETTER[cell.symbolId] ?? '?'));
 
-function load(): { pattern: Pattern; modifications: Modification[]; expected: Expected } {
-  const read = readPatternFile(readFileSync(files.pattern, 'utf8'));
+/**
+ * The golden pattern file is a schema v2 pattern file: reading it converts it to a project whose
+ * "body" pattern holds the charts. `original` is that project as drawn; `knitted` carries the
+ * knitter's "A.1 → knit" change on the body pattern.
+ */
+function load(): { original: Project; knitted: Project; body: Pattern; expected: Expected } {
+  const read = readProjectFile(readFileSync(files.pattern, 'utf8'));
   if (!read.ok) throw new Error(read.errors.join('\n'));
   const modifications = modificationSchema
     .array()
     .parse(JSON.parse(readFileSync(files.modifications, 'utf8')));
   const expected = JSON.parse(readFileSync(files.expected, 'utf8')) as Expected;
-  return { pattern: read.value, modifications, expected };
+  const original = { ...read.value, sizeIndex: expected.sizeIndex };
+  const body = original.patterns.find((p) => p.id === 'body');
+  if (!body) throw new Error('no body pattern');
+  const knitted = {
+    ...original,
+    patterns: original.patterns.map((p) => (p.id === 'body' ? { ...p, modifications } : p)),
+  };
+  return { original, knitted, body, expected };
 }
 
 describe.skipIf(!available)('golden: Ocean Ropes M (local data)', () => {
-  const { pattern, modifications, expected } = available
+  const { original, knitted, body, expected } = available
     ? load()
-    : { pattern: undefined as never, modifications: [], expected: undefined as never };
-  const M = () => resolveStage(pattern, 'body', expected.sizeIndex, { modifications });
+    : {
+        original: undefined as never,
+        knitted: undefined as never,
+        body: undefined as never,
+        expected: undefined as never,
+      };
+  const M = () => resolvePattern(knitted, 'body');
 
   it('has 262 stitches with markers at the start and after stitch 131', () => {
     const s = M();
@@ -74,24 +91,24 @@ describe.skipIf(!available)('golden: Ocean Ropes M (local data)', () => {
   });
 
   it('matches the stitch counts and side markers of every size in the pattern text', () => {
-    pattern.sizes.forEach((_, size) => {
-      const s = resolveStage(pattern, 'body', size);
+    original.sizes.forEach((_, size) => {
+      const s = resolvePattern(original, 'body', { sizeIndex: size });
       expect(s.stitchCount).toBe(expected.stitchCountsPerSize[size]);
       expect(s.markers[1]?.afterStitch).toBe(expected.markerAfterPerSize[size]);
     });
   });
 
   it('charts A.2, A.3 and A.4 equal the transcription row by row', () => {
-    const byId = new Map(pattern.charts.map((c) => [c.id, c]));
+    const byId = new Map(body.charts.map((c) => [c.id, c]));
     for (const id of ['A.1', 'A.2', 'A.3', 'A.4'] as const) {
       expect(byId.get(id)?.rows).toEqual(expected.charts[id]);
     }
-    const dims = pattern.charts.map((c) => `${c.id}:${c.width}x${c.height}`);
+    const dims = body.charts.map((c) => `${c.id}:${c.width}x${c.height}`);
     expect(dims).toEqual(['A.1:3x9', 'A.2:14x22', 'A.3:8x9', 'A.4:44x20']);
   });
 
   it('passes the control values of the transcription', () => {
-    const a4 = pattern.charts.find((c) => c.id === 'A.4');
+    const a4 = body.charts.find((c) => c.id === 'A.4');
     const row = (r: number) => [...(a4?.rows[r - 1] ?? '')];
     const cols = (r: number, pred: (ch: string) => boolean) =>
       row(r).flatMap((ch, i) => (pred(ch) ? [i + 1] : []));
@@ -104,14 +121,14 @@ describe.skipIf(!available)('golden: Ocean Ropes M (local data)', () => {
   });
 
   it('every cable sits on its stitches: no flow warnings in A.2 and A.4, only texture notes in A.3', () => {
-    const reg = patternRegistry(pattern);
-    for (const chart of pattern.charts) {
+    const reg = patternRegistry(body);
+    for (const chart of body.charts) {
       const diags = validateChart(parseChart(chart, reg), reg);
       const notInfo = diags.filter((d) => d.severity !== 'info');
       expect(notInfo, chart.id).toEqual([]);
       if (chart.id === 'A.2' || chart.id === 'A.4') expect(diags, chart.id).toEqual([]);
     }
-    const report = validatePattern(pattern, modifications);
+    const report = validatePattern(knitted, 'body');
     expect(report.ok).toBe(true);
   });
 
@@ -145,7 +162,7 @@ describe.skipIf(!available)('golden: Ocean Ropes M (local data)', () => {
   });
 
   it('places the real A.1 so each filler starts and ends with the chart first stitch', () => {
-    const s = resolveStage(pattern, 'body', expected.sizeIndex);
+    const s = resolvePattern(original, 'body');
     const a1 = s.zones.filter((z) => z.chartId === 'A.1');
     expect(a1.map((z) => z.lastStitch - z.firstStitch + 1)).toEqual([22, 21, 22, 21]);
     // Row 1 of A.1 is "ppk" (left → right): the first worked stitch is the knit column.

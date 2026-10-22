@@ -27,12 +27,12 @@ describe('basics', () => {
 
   it('builds diagnostics without undefined location fields', () => {
     expect(diagnostic('x', 'error', 'm')).toEqual({ code: 'x', severity: 'error', message: 'm' });
-    expect(diagnostic('x', 'info', 'm', { chartId: 'c', stageId: 's', row: 2, col: 3 })).toEqual({
+    expect(diagnostic('x', 'info', 'm', { chartId: 'c', patternId: 's', row: 2, col: 3 })).toEqual({
       code: 'x',
       severity: 'info',
       message: 'm',
       chartId: 'c',
-      stageId: 's',
+      patternId: 's',
       row: 2,
       col: 3,
     });

@@ -1,7 +1,7 @@
 /**
  * Synthetic, self-invented charts and patterns for core tests (never third-party material).
  */
-import type { Chart, Pattern, Stage } from '../schema/pattern';
+import type { Chart, CustomSymbol, LegendEntry, Pattern, Project } from '../schema/pattern';
 
 /** 2×2 seed stitch. */
 export const seed: Chart = {
@@ -53,12 +53,20 @@ export const stockinette: Chart = {
   rows: ['k'],
 };
 
-/** Round stage: filler, rope, zigzag, rope, filler; markers split it into two halves. */
-export const roundStage: Stage = {
+export const legend: LegendEntry[] = [
+  { symbolId: 'cable:2-2-lc', number: 'C4', text: 'Own wording for a 4-stitch cross' },
+];
+const allCharts = [seed, rope, zigzag, decrease, stockinette];
+
+/** Round pattern: filler, rope, zigzag, rope, filler; markers split it into two halves. */
+export const roundPattern: Pattern = {
   id: 'body',
   name: 'Body',
   construction: 'round',
   firstRowSide: 'RS',
+  charts: allCharts,
+  symbols: [],
+  legend,
   layout: [
     { kind: 'marker', id: 'start', sectionName: 'Front' },
     { kind: 'chart', placementId: 'f1', chartId: 'seed', stitches: [5, 7] },
@@ -72,28 +80,67 @@ export const roundStage: Stage = {
   expectedStitches: [26, 30],
 };
 
-/** Flat stage, starting on the wrong side. */
-export const flatStage: Stage = {
+/** Flat pattern, starting on the wrong side. */
+export const flatPattern: Pattern = {
   id: 'back',
   name: 'Back',
   construction: 'flat',
   firstRowSide: 'WS',
+  charts: [seed, zigzag],
+  symbols: [],
+  legend,
   layout: [
     { kind: 'chart', placementId: 'f', chartId: 'seed', stitches: 3 },
     { kind: 'chart', placementId: 'z', chartId: 'zigzag' },
   ],
 };
 
-export function makePattern(overrides: Partial<Pattern> = {}): Pattern {
+/** A pattern in a test, which may leave out its charts, symbols and legend. */
+export type PatternInput = Omit<Pattern, 'charts' | 'symbols' | 'legend'> &
+  Partial<Pick<Pattern, 'charts' | 'symbols' | 'legend'>>;
+
+export interface ProjectInput extends Partial<Omit<Project, 'patterns'>> {
+  readonly patterns?: readonly PatternInput[];
+  /** Extra charts given to every pattern that does not list its own. */
+  readonly charts?: readonly Chart[];
+  /** Custom symbols given to every pattern that does not list its own. */
+  readonly symbols?: readonly CustomSymbol[];
+}
+
+/**
+ * A synthetic project. Patterns that leave out `charts` get every fixture chart (plus
+ * `charts`), so tests can describe just a layout.
+ */
+export function makeProject(input: ProjectInput = {}): Project {
+  const { patterns, charts = [], symbols = [], ...overrides } = input;
+  const fill = (p: PatternInput): Pattern => ({
+    ...p,
+    charts: p.charts ?? [...allCharts, ...charts],
+    symbols: p.symbols ?? [...symbols],
+    legend: p.legend ?? legend,
+  });
   return {
-    id: 'test-pattern',
+    id: 'test-project',
+    name: 'Synthetic sweater',
     revision: 1,
-    title: 'Synthetic sweater',
     sizes: ['S', 'M'],
-    symbols: [],
-    legend: [{ symbolId: 'cable:2-2-lc', number: 'C4', text: 'Own wording for a 4-stitch cross' }],
-    charts: [seed, rope, zigzag, decrease, stockinette],
-    stages: [roundStage, flatStage],
+    sizeIndex: 0,
+    patterns: (patterns ?? [roundPattern, flatPattern]).map(fill),
+    activePatternId: 'body',
+    createdAt: '2026-10-01T10:00:00.000Z',
+    updatedAt: '2026-10-01T10:00:00.000Z',
     ...overrides,
+  };
+}
+
+/** One pattern of {@link makeProject}, changed by `overrides`. */
+export function withPattern(
+  project: Project,
+  patternId: string,
+  overrides: Partial<Pattern>,
+): Project {
+  return {
+    ...project,
+    patterns: project.patterns.map((p) => (p.id === patternId ? { ...p, ...overrides } : p)),
   };
 }

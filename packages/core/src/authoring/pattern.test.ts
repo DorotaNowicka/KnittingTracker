@@ -1,39 +1,47 @@
 import { describe, expect, it } from 'vitest';
-import { makePattern, rope } from '../__tests__/fixtures';
+import { makeProject, rope, roundPattern } from '../__tests__/fixtures';
 import { createHistory, pushHistory, redoHistory, replacePresent, undoHistory } from '../history';
-import { resolveStage } from '../layout/resolve';
-import { patternSchema, type Pattern } from '../schema/pattern';
-import { validatePattern } from '../validate/pattern';
+import { resolvePattern } from '../layout/resolve';
+import { patternSchema, projectSchema, type Pattern, type Project } from '../schema/pattern';
+import { validatePattern, validateProject } from '../validate/pattern';
 import {
   addChart,
+  addPattern,
   addSize,
-  addStage,
   blankPattern,
+  blankProject,
   chartUsage,
+  collapseSizes,
   customSymbolId,
   duplicateChart,
+  duplicatePattern,
+  insertPattern,
   isUniform,
+  mapPattern,
   moveItem,
   newChartSegment,
   newMarker,
+  patternForProject,
   removeChart,
   removeCustomSymbol,
+  removePattern,
   removeSize,
-  removeStage,
   renameSize,
   setLegendEntry,
   setSizeValue,
   sizeValueAt,
   uniqueId,
   updateChart,
-  updateStage,
+  updatePattern,
   upsertCustomSymbol,
   usedSymbolIds,
 } from './pattern';
 
-const fixturePattern = makePattern();
-const blank = () =>
-  blankPattern({ id: 'p', title: 'Test', sizes: ['S', 'M'], stageName: 'Korpus' });
+const NOW = '2026-10-22T10:00:00.000Z';
+const fixture = makeProject();
+const blank = () => blankPattern('p', 'Korpus');
+const blankWithSizes = (): Project =>
+  blankProject({ id: 'proj', name: 'Test', sizes: ['S', 'M'], patternName: 'Korpus', now: NOW });
 
 describe('ids', () => {
   it('derives readable unique ids', () => {
@@ -44,71 +52,88 @@ describe('ids', () => {
   });
 });
 
-describe('building a pattern from scratch', () => {
-  it('produces a valid pattern that resolves', () => {
-    let p = blank();
-    expect(patternSchema.safeParse(p).success).toBe(true);
-    expect(validatePattern(p).diagnostics.map((d) => d.code)).toContain('empty-layout');
+describe('building a project from scratch', () => {
+  it('produces a valid project whose pattern resolves', () => {
+    let project = blankWithSizes();
+    expect(projectSchema.safeParse(project).success).toBe(true);
+    expect(project.activePatternId).toBe('pattern-1');
+    expect(validatePattern(project, 'pattern-1').diagnostics.map((d) => d.code)).toContain(
+      'empty-layout',
+    );
 
+    let p = project.patterns[0];
+    if (!p) throw new Error('no pattern');
     const a = addChart(p, 'A.1', 4, 2);
     p = a.pattern;
     const b = addChart(p, 'A.1', 2, 2);
     p = b.pattern;
     expect([a.chartId, b.chartId]).toEqual(['a-1', 'a-1-2']);
+    expect(patternSchema.safeParse(p).success).toBe(true);
 
-    const stage = p.stages[0];
-    if (!stage) throw new Error('no stage');
     const chartA = p.charts[0];
     if (!chartA) throw new Error('no chart');
-    const seg1 = newChartSegment(stage, chartA);
-    const withSeg = { ...stage, layout: [...stage.layout, seg1] };
+    const seg1 = newChartSegment(p, chartA);
+    const withSeg = { ...p, layout: [...p.layout, seg1] };
     const seg2 = newChartSegment(withSeg, chartA);
     expect([seg1.placementId, seg2.placementId]).toEqual(['a-1-1', 'a-1-2']);
     const marker = newMarker(withSeg, 'Tył');
-    p = updateStage(p, {
-      ...stage,
-      layout: [...stage.layout, seg1, marker, { ...seg2, stitches: [6, 8] }],
+    project = updatePattern(project, {
+      ...p,
+      layout: [...p.layout, seg1, marker, { ...seg2, stitches: [6, 8] }],
       expectedStitches: [10, 12],
     });
-    const report = validatePattern(p);
+    const report = validateProject(project);
     expect(report.diagnostics).toEqual([]);
-    expect(resolveStage(p, 'stage-1', 1).stitchCount).toBe(12);
-    expect(chartUsage(p).get('a-1')).toBe(2);
-    expect(chartUsage(p).get('a-1-2')).toBe(0);
+    expect(report.patterns['pattern-1']?.ok).toBe(true);
+    expect(resolvePattern(project, 'pattern-1', { sizeIndex: 1 }).stitchCount).toBe(12);
+    const built = project.patterns[0];
+    if (!built) throw new Error('no pattern');
+    expect(chartUsage(built).get('a-1')).toBe(2);
+    expect(chartUsage(built).get('a-1-2')).toBe(0);
   });
 
-  it('removing a chart removes its placements but keeps the stage valid', () => {
-    const p = removeChart(fixturePattern, 'seed');
+  it('starts a project without patterns when no name is given', () => {
+    const empty = blankProject({ id: 'e', name: 'Pusty', now: NOW });
+    expect(empty.patterns).toEqual([]);
+    expect(empty.activePatternId).toBeUndefined();
+    expect(empty.sizes).toEqual(['1']);
+    expect(projectSchema.safeParse(empty).success).toBe(true);
+    expect(validateProject(empty).ok).toBe(true);
+  });
+
+  it('removing a chart removes its placements and changes but keeps the layout valid', () => {
+    const changed: Pattern = {
+      ...roundPattern,
+      modifications: [{ kind: 'replaceChart', chartId: 'seed', chart: rope }],
+    };
+    const p = removeChart(changed, 'seed');
     expect(p.charts.some((c) => c.id === 'seed')).toBe(false);
-    expect(
-      p.stages.every((s) => s.layout.every((x) => x.kind !== 'chart' || x.chartId !== 'seed')),
-    ).toBe(true);
+    expect(p.layout.every((x) => x.kind !== 'chart' || x.chartId !== 'seed')).toBe(true);
+    expect(p.modifications).toBeUndefined();
     const only = removeChart(addChart(blank(), 'X', 1, 1).pattern, 'x');
-    expect(only.stages[0]?.layout).toEqual([{ kind: 'marker', id: 'start' }]);
+    expect(only.layout).toEqual([{ kind: 'marker', id: 'start' }]);
   });
 
   it('duplicates and updates charts', () => {
-    const d = duplicateChart(fixturePattern, 'rope', 'R kopia');
+    const d = duplicateChart(roundPattern, 'rope', 'R kopia');
     expect(d.chartId).toBe('r-kopia');
     expect(d.pattern.charts.at(-1)?.rows).toEqual(rope.rows);
-    expect(duplicateChart(fixturePattern, 'none', 'x').pattern).toBe(fixturePattern);
-    const u = updateChart(fixturePattern, { ...rope, name: 'Nowa' });
+    expect(duplicateChart(roundPattern, 'none', 'x').pattern).toBe(roundPattern);
+    const u = updateChart(roundPattern, { ...rope, name: 'Nowa' });
     expect(u.charts.find((c) => c.id === 'rope')?.name).toBe('Nowa');
   });
 });
 
 describe('sizes', () => {
-  const withLists = (): Pattern => {
-    const p = addChart(blank(), 'A', 2, 2).pattern;
-    const stage = p.stages[0];
-    if (!stage) throw new Error('no stage');
-    return updateStage(p, {
-      ...stage,
+  const withLists = (): Project => {
+    const project = blankWithSizes();
+    return mapPattern(project, 'pattern-1', (p) => ({
+      ...addChart(p, 'A', 2, 2).pattern,
       rows: [10, 20],
       expectedStitches: [2, 4],
       targetCm: [30, 32.5],
       layout: [{ kind: 'chart', placementId: 'x', chartId: 'a', stitches: [2, 4] }],
-    });
+    }));
   };
 
   it('reads and writes per-size values', () => {
@@ -121,32 +146,75 @@ describe('sizes', () => {
     expect(isUniform([3, 4])).toBe(false);
   });
 
-  it('adding a size copies values, removing it drops them', () => {
-    const p = addSize(withLists(), 'L');
-    expect(p.sizes).toEqual(['S', 'M', 'L']);
-    expect(p.stages[0]?.rows).toEqual([10, 20, 20]);
-    expect(p.stages[0]?.expectedStitches).toEqual([2, 4, 4]);
-    expect(p.stages[0]?.targetCm).toEqual([30, 32.5, 32.5]);
-    const seg = p.stages[0]?.layout[0];
+  it('adding a size copies values in every pattern, removing it drops them', () => {
+    const p = addSize({ ...withLists(), sizeIndex: 1 }, 'L', 0);
+    expect(p.sizes).toEqual(['S', 'L', 'M']);
+    expect(p.sizeIndex).toBe(2);
+    expect(p.patterns[0]?.rows).toEqual([10, 10, 20]);
+    const q0 = addSize(withLists(), 'L');
+    expect(q0.patterns[0]?.expectedStitches).toEqual([2, 4, 4]);
+    expect(q0.patterns[0]?.targetCm).toEqual([30, 32.5, 32.5]);
+    const seg = q0.patterns[0]?.layout[0];
     expect(seg?.kind === 'chart' && seg.stitches).toEqual([2, 4, 4]);
-    const q = removeSize(p, 0);
+    const q = removeSize({ ...q0, sizeIndex: 2 }, 0);
     expect(q.sizes).toEqual(['M', 'L']);
-    expect(q.stages[0]?.rows).toEqual([20, 20]);
-    expect(q.stages[0]?.targetCm).toEqual([32.5, 32.5]);
-    expect(
-      removeSize(blankPattern({ id: 'x', title: 'x', sizes: ['1'], stageName: 's' }), 0).sizes,
-    ).toEqual(['1']);
+    expect(q.sizeIndex).toBe(1);
+    expect(q.patterns[0]?.rows).toEqual([20, 20]);
+    expect(q.patterns[0]?.targetCm).toEqual([32.5, 32.5]);
+    expect(removeSize(blankProject({ id: 'x', name: 'x', now: NOW }), 0).sizes).toEqual(['1']);
     expect(renameSize(q, 1, 'XL').sizes).toEqual(['M', 'XL']);
-    expect(validatePattern(addSize(withLists(), 'L', 0)).ok).toBe(true);
+    expect(validateProject(addSize(withLists(), 'L', 0)).ok).toBe(true);
+  });
+
+  it('collapses per-size values to one size', () => {
+    const p = withLists().patterns[0];
+    if (!p) throw new Error('no pattern');
+    const c = collapseSizes(p, 1);
+    expect(c.rows).toEqual([20, 20]);
+    expect(c.targetCm).toEqual([32.5, 32.5]);
   });
 });
 
-describe('stages', () => {
-  it('adds and removes stages, keeping at least one', () => {
-    const { pattern, stageId } = addStage(blank(), 'Rękaw');
-    expect(stageId).toBe('rekaw');
-    expect(removeStage(pattern, stageId).stages).toHaveLength(1);
-    expect(removeStage(blank(), 'stage-1').stages).toHaveLength(1);
+describe('patterns of a project', () => {
+  it('adds, duplicates and removes patterns', () => {
+    const { project, patternId } = addPattern(blankWithSizes(), 'Rękaw');
+    expect(patternId).toBe('rekaw');
+    expect(project.patterns.map((p) => p.id)).toEqual(['pattern-1', 'rekaw']);
+    const again = addPattern(project, 'Rękaw');
+    expect(again.patternId).toBe('rekaw-2');
+    const dup = duplicatePattern(project, 'pattern-1', 'Korpus 2');
+    expect(dup.project.patterns.map((p) => p.id)).toEqual(['pattern-1', 'korpus-2', 'rekaw']);
+    expect(dup.project.patterns[1]?.name).toBe('Korpus 2');
+    const removed = removePattern(project, 'pattern-1');
+    expect(removed.patterns.map((p) => p.id)).toEqual(['rekaw']);
+    expect(removed.activePatternId).toBe('rekaw');
+    const none = removePattern(removed, 'rekaw');
+    expect(none.patterns).toEqual([]);
+    expect(none.activePatternId).toBeUndefined();
+  });
+
+  it('makes the first added pattern the active one', () => {
+    const empty = blankProject({ id: 'e', name: 'e', now: NOW });
+    const { project } = insertPattern(empty, blank());
+    expect(project.activePatternId).toBe('p');
+    expect(mapPattern(project, 'nope', () => blank())).toBe(project);
+  });
+
+  it('prepares a pattern for another project', () => {
+    const source = { ...makeProject(), sizeIndex: 1 };
+    const body = source.patterns[0];
+    if (!body) throw new Error('no pattern');
+    const linked: Pattern = {
+      ...body,
+      layout: body.layout.map((s) =>
+        s.kind === 'chart' ? { ...s, continueFrom: { patternId: 'x', placementId: 'y' } } : s,
+      ),
+    };
+    const same = patternForProject(source, linked, { sizes: ['S', 'M'] });
+    expect(same.layout.some((s) => s.kind === 'chart' && s.continueFrom)).toBe(false);
+    expect(same.expectedStitches).toEqual([26, 30]);
+    const other = patternForProject(source, linked, { sizes: ['one'] });
+    expect(other.expectedStitches).toEqual([30, 30]);
   });
 
   it('moves items', () => {
@@ -158,7 +226,8 @@ describe('stages', () => {
 
 describe('symbols and legend', () => {
   it('lists used symbols', () => {
-    expect(usedSymbolIds(fixturePattern)).toContain('cable:2-2-lc');
+    expect(usedSymbolIds(roundPattern)).toContain('cable:2-2-lc');
+    expect(fixture.patterns).toHaveLength(2);
   });
 
   it('sets, edits and clears legend entries in place', () => {
@@ -203,7 +272,10 @@ describe('symbols and legend', () => {
     expect(removeCustomSymbol(used, id)).toBeNull();
     expect(removeCustomSymbol(p, id)?.symbols).toEqual([]);
     // The only problem left is the empty layout: the custom symbol itself is valid.
-    expect(validatePattern(used).diagnostics.map((d) => d.code)).toEqual(['empty-layout']);
+    const project = { ...blankWithSizes(), patterns: [used] };
+    expect(validatePattern(project, used.id).diagnostics.map((d) => d.code)).toEqual([
+      'empty-layout',
+    ]);
   });
 });
 

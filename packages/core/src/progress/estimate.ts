@@ -1,26 +1,23 @@
 import { resolveSize } from '../basics';
-import type { ResolvedStage } from '../layout/resolve';
-import type { Gauge, Pattern, Project } from '../schema/pattern';
+import type { ResolvedPattern } from '../layout/resolve';
+import type { Gauge, Project } from '../schema/pattern';
 
 /**
- * Length estimates for open-ended stages (DR-5): "knit until the piece measures 34 cm". With a
+ * Length estimates for open-ended patterns (DR-5): "knit until the piece measures 34 cm". With a
  * gauge (rows in 10 cm) the target becomes an approximate row count. The knitter still decides
- * when the stage ends: this is an estimate, never a stop.
+ * when the pattern ends: this is an estimate, never a stop.
  */
 
 /** The knitter's own gauge when set, else the pattern's; null when neither is known. */
-export function effectiveGauge(
-  pattern: Pick<Pattern, 'gauge'>,
-  project?: Pick<Project, 'gauge'> | null,
-): Gauge | null {
-  return project?.gauge ?? pattern.gauge ?? null;
+export function effectiveGauge(project: Pick<Project, 'gauge' | 'knitterGauge'>): Gauge | null {
+  return project.knitterGauge ?? project.gauge ?? null;
 }
 
 export const cmForRows = (rows: number, gauge: Gauge): number => (rows * 10) / gauge.rows;
 export const rowsForCm = (cm: number, gauge: Gauge): number => Math.round((cm * gauge.rows) / 10);
 
 export interface LengthEstimate {
-  /** Target length of the stage in cm (this size). */
+  /** Target length of the pattern in cm (this size). */
   readonly targetCm: number;
   /** Estimated rows for the target, or null without a gauge. */
   readonly targetRows: number | null;
@@ -30,17 +27,17 @@ export interface LengthEstimate {
   readonly rowsLeft: number | null;
 }
 
-/** Estimate for a stage with a target length; null when the stage has none. */
+/** Estimate for a pattern with a target length; null when the pattern has none. */
 export function lengthEstimate(
-  stage: ResolvedStage,
+  grid: ResolvedPattern,
   rowsDone: number,
   gauge: Gauge | null,
 ): LengthEstimate | null {
-  const target = stage.stage.targetCm;
+  const target = grid.pattern.targetCm;
   if (target === undefined) return null;
   let targetCm: number;
   try {
-    targetCm = resolveSize(target, stage.sizeIndex);
+    targetCm = resolveSize(target, grid.sizeIndex);
   } catch {
     return null;
   }

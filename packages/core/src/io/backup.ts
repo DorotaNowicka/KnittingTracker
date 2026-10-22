@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import { FILE_FORMATS, SCHEMA_VERSION } from '../basics';
-import { patternSchema, progressSchema, projectSchema } from '../schema/pattern';
+import { progressSchema, projectSchema } from '../schema/pattern';
 import { migrate, type ReadResult } from './file';
 
 /**
- * Full backups (ADR-3, M5): every pattern, project and progress record on the device in one file.
+ * Full backups (ADR-3, M5): every project and progress record on the device in one file.
  *
- *   { "format": "knitting-tracker/backup", "schemaVersion": 2, "exportedAt": "…",
- *     "patterns": [StoredPattern], "projects": [StoredProject], "progress": [StoredProgress] }
+ *   { "format": "knitting-tracker/backup", "schemaVersion": 3, "exportedAt": "…",
+ *     "projects": [StoredProject], "progress": [StoredProgress] }
+ *
+ * Schema 2 backups (with a separate pattern list) are converted on reading (`legacy/convert.ts`).
  *
  * Reading never trusts the file: JSON.parse → migrate → zod per record. Invalid records are skipped
  * and reported, so one broken entry does not lose the rest.
@@ -16,31 +18,20 @@ import { migrate, type ReadResult } from './file';
 const id = z.string().min(1).max(120);
 const iso = z.iso.datetime();
 
-/** A pattern as kept on the device (with where it came from). */
-export const storedPatternSchema = z.object({
-  id,
-  pattern: patternSchema,
-  source: z.enum(['file', 'sample', 'user']),
-  importedAt: iso,
-  updatedAt: iso.optional(),
-});
+/** A project as kept on the device: its content. Progress is stored per pattern, see below. */
+export const storedProjectSchema = projectSchema;
 
-/** A project without its progress (progress is stored per stage, see below). */
-export const storedProjectSchema = projectSchema.omit({ progress: true });
-
-/** Progress of one project in one stage. */
+/** Progress of one pattern of a project. */
 export const storedProgressSchema = progressSchema.extend({
   projectId: id,
-  stageId: id,
+  patternId: id,
   updatedAt: iso,
 });
 
-export type StoredPatternRecord = z.infer<typeof storedPatternSchema>;
 export type StoredProjectRecord = z.infer<typeof storedProjectSchema>;
 export type StoredProgressRecord = z.infer<typeof storedProgressSchema>;
 
 export interface BackupContent {
-  readonly patterns: readonly StoredPatternRecord[];
   readonly projects: readonly StoredProjectRecord[];
   readonly progress: readonly StoredProgressRecord[];
 }
@@ -56,7 +47,6 @@ export function serializeBackup(content: BackupContent, now: Date = new Date()):
     format: FILE_FORMATS.backup,
     schemaVersion: SCHEMA_VERSION,
     exportedAt: now.toISOString(),
-    patterns: content.patterns,
     projects: content.projects,
     progress: content.progress,
   };
@@ -98,11 +88,10 @@ export function readBackupFile(text: string): ReadResult<ReadBackup> {
   if (!migrated.ok) return migrated;
   const doc = migrated.value;
   const skipped: string[] = [];
-  const patterns = records(doc['patterns'], storedPatternSchema, 'pattern', skipped);
   const projects = records(doc['projects'], storedProjectSchema, 'project', skipped);
   const progress = records(doc['progress'], storedProgressSchema, 'progress', skipped);
   const exportedAt = typeof doc['exportedAt'] === 'string' ? doc['exportedAt'] : null;
-  return { ok: true, value: { patterns, projects, progress, exportedAt, skipped } };
+  return { ok: true, value: { projects, progress, exportedAt, skipped } };
 }
 
 export type RestoreAction = 'add' | 'update' | 'keep' | 'same';
@@ -117,15 +106,10 @@ export interface RestorePlanItem<T> {
 }
 
 export interface RestorePlan {
-  readonly patterns: readonly RestorePlanItem<StoredPatternRecord>[];
   readonly projects: readonly RestorePlanItem<StoredProjectRecord>[];
   /** Progress records written with their project (only for projects that are added or updated). */
   readonly progress: readonly StoredProgressRecord[];
-  /** Projects left out because their pattern is neither on the device nor in the backup. */
-  readonly orphans: readonly StoredProjectRecord[];
 }
-
-const patternTime = (p: StoredPatternRecord) => p.updatedAt ?? p.importedAt;
 
 function decide<T>(device: T | undefined, backup: T, time: (x: T) => string): RestoreAction {
   if (!device) return 'add';
@@ -134,33 +118,19 @@ function decide<T>(device: T | undefined, backup: T, time: (x: T) => string): Re
 }
 
 /**
- * Plan a restore that never loses newer work: records missing on the device are added, records
- * that are newer in the backup replace the device copy, and newer device records are kept. A
+ * Plan a restore that never loses newer work: projects missing on the device are added, projects
+ * that are newer in the backup replace the device copy, and newer device projects are kept. A
  * project's progress travels with the project.
  */
 export function planRestore(device: BackupContent, backup: BackupContent): RestorePlan {
-  const devPatterns = new Map(device.patterns.map((p) => [p.id, p] as const));
   const devProjects = new Map(device.projects.map((p) => [p.id, p] as const));
-  const patterns = backup.patterns.map((record) => ({
+  const projects = backup.projects.map((record) => ({
     record,
-    action: decide(devPatterns.get(record.id), record, patternTime),
+    action: decide(devProjects.get(record.id), record, (p) => p.updatedAt),
   }));
-  const known = new Set([...devPatterns.keys(), ...backup.patterns.map((p) => p.id)]);
-  const orphans: StoredProjectRecord[] = [];
-  const projects: RestorePlanItem<StoredProjectRecord>[] = [];
-  for (const record of backup.projects) {
-    if (!known.has(record.patternId)) {
-      orphans.push(record);
-      continue;
-    }
-    projects.push({
-      record,
-      action: decide(devProjects.get(record.id), record, (p) => p.updatedAt),
-    });
-  }
   const writing = new Set(
     projects.filter((p) => p.action === 'add' || p.action === 'update').map((p) => p.record.id),
   );
   const progress = backup.progress.filter((r) => writing.has(r.projectId));
-  return { patterns, projects, progress, orphans };
+  return { projects, progress };
 }
