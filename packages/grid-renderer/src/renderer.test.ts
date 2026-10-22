@@ -1,4 +1,11 @@
-import { createRegistry, createRowModel, parseChart, resolveStage, type Pattern } from '@kt/core';
+import {
+  createRegistry,
+  createRowModel,
+  parseChart,
+  resolvePattern,
+  type Chart,
+  type Project,
+} from '@kt/core';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { clampCamera, hitTest, panBy, revealCell, zoomAt, type CameraState } from './camera';
@@ -6,41 +13,46 @@ import {
   chartSource,
   editorOverlay,
   progressOverlay,
-  stageSource,
+  patternSource,
   visibleRowCount,
-} from './fromStage';
+} from './fromPattern';
 import { CELL_PX_MAX, CELL_PX_MIN, clampCellPx, GridGeometry, type GridSource } from './geometry';
 import { alignmentStep } from './renderer';
 import { buildScene, LOD, type DrawCommand } from './scene';
 
-/** Synthetic pattern: 2 sections of 6 + 4 stitches; a 2-cell cable in the first. */
-const pattern: Pattern = {
+/** Synthetic charts: a 2-cell cable in A, a "no stitch" cell in B. */
+const charts: Chart[] = [
+  {
+    id: 'a',
+    name: 'A',
+    width: 6,
+    height: 2,
+    palette: { k: 'std:k', p: 'std:p', X: 'cable:1-1-rc' },
+    rows: ['pX.kkp', 'pkkkkp'],
+  },
+  {
+    id: 'b',
+    name: 'B',
+    width: 4,
+    height: 3,
+    palette: { k: 'std:k', p: 'std:p', x: 'std:none' },
+    rows: ['kpkp', 'pkpk', 'kxkp'],
+  },
+];
+const own = { charts, symbols: [], legend: [] };
+
+/** Synthetic project: 2 sections of 6 + 4 stitches, and a flat pattern. */
+const pattern: Project = {
   id: 'p',
+  name: 'T',
   revision: 1,
-  title: 'T',
   sizes: ['one'],
-  symbols: [],
-  legend: [],
-  charts: [
+  sizeIndex: 0,
+  createdAt: '2026-10-01T10:00:00.000Z',
+  updatedAt: '2026-10-01T10:00:00.000Z',
+  patterns: [
     {
-      id: 'a',
-      name: 'A',
-      width: 6,
-      height: 2,
-      palette: { k: 'std:k', p: 'std:p', X: 'cable:1-1-rc' },
-      rows: ['pX.kkp', 'pkkkkp'],
-    },
-    {
-      id: 'b',
-      name: 'B',
-      width: 4,
-      height: 3,
-      palette: { k: 'std:k', p: 'std:p', x: 'std:none' },
-      rows: ['kpkp', 'pkpk', 'kxkp'],
-    },
-  ],
-  stages: [
-    {
+      ...own,
       id: 's',
       name: 'S',
       construction: 'round',
@@ -54,6 +66,7 @@ const pattern: Pattern = {
       ],
     },
     {
+      ...own,
       id: 'flat',
       name: 'F',
       construction: 'flat',
@@ -62,8 +75,8 @@ const pattern: Pattern = {
     },
   ],
 };
-const stage = resolveStage(pattern, 's', 0);
-const source: GridSource = stageSource(stage, 6);
+const stage = resolvePattern(pattern, 's');
+const source: GridSource = patternSource(stage, 6);
 const cam = (over: Partial<CameraState> = {}): CameraState => ({
   cell: 20,
   scrollX: 0,
@@ -80,7 +93,7 @@ describe('geometry', () => {
     expect(clampCellPx(Number.NaN)).toBe(CELL_PX_MIN);
   });
 
-  it('adapts the stage: Back on the left, Front on the right, stitch 1 at the right edge', () => {
+  it('adapts the pattern: Back on the left, Front on the right, stitch 1 at the right edge', () => {
     expect(source.cols).toBe(10);
     expect(source.sections).toEqual([
       { label: 'Back', firstCol: 1, lastCol: 4 },
@@ -220,7 +233,7 @@ describe('scene', () => {
   });
 
   it('shows WS rows working left to right and finishes with no keeper', () => {
-    const flat = createRowModel(resolveStage(pattern, 'flat', 0));
+    const flat = createRowModel(resolvePattern(pattern, 'flat'));
     expect(progressOverlay(flat, 6).direction).toBe('left-to-right');
     expect(progressOverlay(flat, 7).done(2)).toEqual({ fromCol: 1, toCol: 1 });
     const end = progressOverlay(model, model.total() ?? 0);
@@ -230,12 +243,12 @@ describe('scene', () => {
   });
 
   it('marks the edge when more rows follow', () => {
-    const open = resolveStage(pattern, 'flat', 0);
-    expect(visibleRowCount(open, 1, 'stageEnd')).toBe(4); // current row + one repeat, whole repeats
-    expect(visibleRowCount(open, 2, 'stageEnd')).toBe(4);
-    expect(visibleRowCount(stage, 1, 'stageEnd')).toBe(6);
+    const open = resolvePattern(pattern, 'flat');
+    expect(visibleRowCount(open, 1, 'end')).toBe(4); // current row + one repeat, whole repeats
+    expect(visibleRowCount(open, 2, 'end')).toBe(4);
+    expect(visibleRowCount(stage, 1, 'end')).toBe(6);
     expect(visibleRowCount(stage, 1, 3)).toBe(3);
-    const src = stageSource(open, 4);
+    const src = patternSource(open, 4);
     expect(src.continuesAbove).toBe(true);
     const geo = new GridGeometry(src, 20);
     const cmds = buildScene(
@@ -250,10 +263,11 @@ describe('scene', () => {
   });
 
   it('builds a 500 × 300 viewport scene within budget', () => {
-    const wide: Pattern = {
+    const wide: Project = {
       ...pattern,
-      stages: [
+      patterns: [
         {
+          ...own,
           id: 'w',
           name: 'W',
           construction: 'round',
@@ -265,8 +279,8 @@ describe('scene', () => {
         },
       ],
     };
-    const st = resolveStage(wide, 'w', 0);
-    const src = stageSource(st, 300);
+    const st = resolvePattern(wide, 'w');
+    const src = patternSource(st, 300);
     const m = createRowModel(st);
     const geo = new GridGeometry(src, 16);
     const view = clampCamera(
@@ -312,7 +326,7 @@ describe('static layer cache helpers', () => {
 
 describe('editor', () => {
   const registry = createRegistry();
-  const chart = pattern.charts[0];
+  const chart = charts[0];
   if (!chart) throw new Error('fixture');
   const src = chartSource(parseChart(chart, registry), registry);
 

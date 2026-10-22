@@ -27,7 +27,7 @@ export interface Band {
 }
 
 /**
- * What the grid shows. The app adapts a resolved stage from `@kt/core` to this interface, so the
+ * What the grid shows. The app adapts a resolved pattern from `@kt/core` to this interface, so the
  * renderer stays independent of how patterns are modelled.
  */
 export interface GridSource {

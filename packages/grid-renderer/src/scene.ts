@@ -23,7 +23,7 @@ export type ColorRole =
 export interface Overlay {
   /** Done cells per row: `all`, a display-column range, or nothing. */
   done(row: number): 'all' | { readonly fromCol: number; readonly toCol: number } | null;
-  /** Row being worked (the row keeper sits on it), or null when the stage is complete. */
+  /** Row being worked (the row keeper sits on it), or null when the pattern is complete. */
   readonly currentRow: number | null;
   /** Work direction of the current row in the RS view. */
   readonly direction: 'right-to-left' | 'left-to-right';

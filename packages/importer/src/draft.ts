@@ -7,13 +7,15 @@ import {
   type ChartSegment,
   type LegendEntry,
   type Pattern,
+  type Project,
   type Segment,
   type SymbolRows,
 } from '@kt/core';
 
 /**
- * Turn a verified import into a pattern draft (FR-1, last step before the layout wizard). Pure:
- * the web app passes what the user confirmed on the verification screen.
+ * Turn a verified import into a pattern (and, for a new project, the project around it): FR-1,
+ * last step before the layout wizard. Pure: the web app passes what the user confirmed on the
+ * verification screen.
  */
 export interface DraftChart {
   readonly name: string;
@@ -22,12 +24,14 @@ export interface DraftChart {
 }
 
 export interface DraftInput {
+  /** Pattern id (made unique when the pattern joins a project). */
   readonly id: string;
-  readonly title: string;
+  /** Pattern name, e.g. "Korpus". */
+  readonly name: string;
+  /** Sizes of the project the pattern is for; per-size numbers follow this list. */
   readonly sizes: readonly string[];
   readonly charts: readonly DraftChart[];
   readonly legend: readonly LegendEntry[];
-  readonly stageName: string;
   /** Chart order of a round from the description; names refer to `charts[].name`. */
   readonly sequence?: readonly { readonly chart: string; readonly stitches?: readonly number[] }[];
   /** Stitches of the round per size, as stated by the pattern. */
@@ -160,24 +164,39 @@ export function buildPattern(input: DraftInput): Pattern {
   const count =
     input.stitchCount && input.stitchCount.length === n ? [...input.stitchCount] : undefined;
   return {
-    id: input.id,
-    revision: 1,
-    title: input.title.slice(0, 120) || 'Wzór',
-    sizes: input.sizes.length ? input.sizes.map((s) => s.slice(0, 20)) : ['1'],
+    id: uniqueId(input.id, [], 'pattern'),
+    name: input.name.slice(0, 60) || 'Wzór',
+    construction: 'round',
+    firstRowSide: 'RS',
+    charts,
     symbols: [],
     legend: [...input.legend],
-    charts,
-    stages: [
-      {
-        id: 'stage-1',
-        name: input.stageName,
-        construction: 'round',
-        firstRowSide: 'RS',
-        layout,
-        ...(count
-          ? { expectedStitches: count.every((v) => v === count[0]) ? (count[0] ?? 0) : count }
-          : {}),
-      },
-    ],
+    layout,
+    ...(count
+      ? { expectedStitches: count.every((v) => v === count[0]) ? (count[0] ?? 0) : count }
+      : {}),
+  };
+}
+
+export interface ProjectDraftInput extends DraftInput {
+  readonly projectId: string;
+  /** Project name, e.g. the pattern's title from the description. */
+  readonly title: string;
+  readonly now: string;
+}
+
+/** A new project holding the imported pattern. */
+export function buildProject(input: ProjectDraftInput): Project {
+  const pattern = buildPattern(input);
+  return {
+    id: input.projectId,
+    name: input.title.slice(0, 120) || 'Projekt',
+    revision: 1,
+    sizes: input.sizes.length ? input.sizes.map((s) => s.slice(0, 20)) : ['1'],
+    sizeIndex: 0,
+    patterns: [pattern],
+    activePatternId: pattern.id,
+    createdAt: input.now,
+    updatedAt: input.now,
   };
 }

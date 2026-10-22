@@ -47,5 +47,12 @@ export type { ParsedDescription, SequenceItem } from './describe/parse';
 export { parseDescription } from './describe/parse';
 export type { PdfJsLike } from './pdf/analyze';
 export { loadPdfJs } from './pdf/load';
-export { buildPattern, placeMarker, type DraftChart, type DraftInput } from './draft';
+export {
+  buildPattern,
+  buildProject,
+  placeMarker,
+  type DraftChart,
+  type DraftInput,
+  type ProjectDraftInput,
+} from './draft';
 export type { Point } from './raster/warp';

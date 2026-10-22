@@ -30,8 +30,8 @@ export { alignmentStep, GridRenderer, type RendererStats } from './renderer';
 export {
   chartSource,
   editorOverlay,
+  patternSource,
   progressOverlay,
-  stageSource,
   visibleRowCount,
   type OverlayOptions,
-} from './fromStage';
+} from './fromPattern';
