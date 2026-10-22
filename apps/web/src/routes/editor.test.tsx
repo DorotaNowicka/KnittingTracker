@@ -27,14 +27,19 @@ beforeEach(() => {
 
 const pattern = () => useDraft.getState().project?.patterns[0];
 
-/** "Zacznij od zera": a new project with one empty pattern, opened in the pattern editor. */
+/** "Stwórz projekt", then "Dodaj wzór" Korpus: opens the pattern editor of an empty pattern. */
 async function startFromScratch(user: ReturnType<typeof userEvent.setup>) {
   render(<App />);
-  await user.click(await screen.findByRole('button', { name: 'Zacznij od zera' }));
+  await user.click(await screen.findByRole('button', { name: /Stwórz projekt/ }));
+  await screen.findByRole('heading', { level: 1, name: 'Mój projekt' });
+  await user.click(screen.getByRole('button', { name: 'Dodaj wzór' }));
+  const dialog = screen.getByRole('dialog', { name: 'Nowy wzór' });
+  await user.type(within(dialog).getByLabelText('Nazwa wzoru'), 'Korpus');
+  await user.click(within(dialog).getByRole('button', { name: 'Utwórz wzór' }));
   expect(
     await screen.findByRole('heading', { level: 1, name: 'Wzór: Korpus' }),
   ).toBeInTheDocument();
-  expect(location.pathname).toMatch(/^\/projekt\/[^/]+\/wzor\/pattern-1\/edycja$/);
+  expect(location.pathname).toMatch(/^\/projekt\/[^/]+\/wzor\/korpus\/edycja$/);
 }
 
 describe('project and pattern editor screens', () => {
@@ -82,7 +87,7 @@ describe('project and pattern editor screens', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Wzór: Rękaw' }),
     ).toBeInTheDocument();
-    expect(useDraft.getState().project?.patterns.map((p) => p.id)).toEqual(['pattern-1', 'rekaw']);
+    expect(useDraft.getState().project?.patterns.map((p) => p.id)).toEqual(['korpus', 'rekaw']);
 
     await user.click(screen.getByRole('link', { name: 'Mój projekt' }));
     await screen.findByRole('heading', { level: 1, name: 'Mój projekt' });
@@ -104,7 +109,7 @@ describe('project and pattern editor screens', () => {
     await user.clear(within(dialog).getByLabelText('Szerokość (oczka)'));
     await user.type(within(dialog).getByLabelText('Szerokość (oczka)'), '2');
     await user.click(within(dialog).getByRole('button', { name: 'Utwórz i rysuj' }));
-    await waitFor(() => expect(location.pathname).toMatch(/\/wzor\/pattern-1\/schemat\/ryz$/));
+    await waitFor(() => expect(location.pathname).toMatch(/\/wzor\/korpus\/schemat\/ryz$/));
     // The chart editor loads on demand.
     await screen.findByRole('heading', { level: 1, name: 'Edytor schematu Ryż' });
     expect(screen.getByLabelText('Nazwa schematu')).toHaveValue('Ryż');
@@ -117,7 +122,7 @@ describe('project and pattern editor screens', () => {
   it('sets up a layout and reports the stitch count', async () => {
     const user = userEvent.setup();
     await startFromScratch(user);
-    useDraft.getState().updatePattern('pattern-1', (p) => ({
+    useDraft.getState().updatePattern('korpus', (p) => ({
       ...p,
       charts: [
         {

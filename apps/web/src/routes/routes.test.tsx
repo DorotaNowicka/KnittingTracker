@@ -1,9 +1,9 @@
-import { serializeProject } from '@kt/core';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../App';
 import { initI18n } from '../i18n';
+import { useImport } from '../import/session';
 import { navigate } from '../lib/router';
 import { createMemoryStorage } from '../lib/storage';
 import { sampleProject } from '../sample/sampleProject';
@@ -62,31 +62,52 @@ describe('screens', () => {
     );
   });
 
-  it('opens a project file, reports invalid files and creates the project', async () => {
+  it('new project: a name and two tiles; "Stwórz projekt" creates an empty project', async () => {
     const user = userEvent.setup();
     navigate('/nowy', { replace: true });
-    const { container } = render(<App />);
+    render(<App />);
     await screen.findByRole('heading', { level: 1, name: 'Nowy projekt' });
-    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
-    if (!input) throw new Error('file input missing');
-    expect(input.closest('label')).toHaveTextContent('Wczytaj plik projektu');
-
-    await user.upload(input, new File(['{"nope":1}'], 'bad.json', { type: 'application/json' }));
-    expect(await screen.findByText('Tego pliku nie da się wczytać')).toBeInTheDocument();
-
-    const text = serializeProject(sample());
-    await user.upload(input, new File([text], 'projekt.json', { type: 'application/json' }));
-    expect(await screen.findByRole('heading', { level: 2, name: 'Przykład' })).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Zacznij od wzoru'), 'rib');
-    await user.clear(screen.getByLabelText('Nazwa projektu'));
+    expect(screen.getByLabelText(/Wgraj PDF z opisem projektu/)).toHaveAttribute(
+      'accept',
+      'application/pdf,.pdf',
+    );
     await user.type(screen.getByLabelText('Nazwa projektu'), 'Sweter testowy');
-    await user.click(screen.getByRole('button', { name: 'Utwórz projekt' }));
+    await user.click(screen.getByRole('button', { name: /Stwórz projekt/ }));
 
-    await waitFor(() => expect(location.pathname).toMatch(/^\/projekt\/[^/]+\/wzor\/rib$/));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Sweter testowy' }),
+    ).toBeInTheDocument();
+    expect(location.pathname).toMatch(/^\/projekt\/[^/]+$/);
+    expect(screen.getByText('Projekt nie ma jeszcze wzorów. Dodaj pierwszy.')).toBeInTheDocument();
     const project = useLibrary.getState().projects[0];
-    expect(project?.name).toBe('Sweter testowy');
-    // A file never reuses an id already on the device.
-    expect(project?.id).not.toBe('s1');
-    expect(project?.patterns).toHaveLength(2);
+    expect(project).toMatchObject({ name: 'Sweter testowy', patterns: [] });
+  });
+
+  it('new project without a name gets a default one', async () => {
+    const user = userEvent.setup();
+    navigate('/nowy', { replace: true });
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: /Stwórz projekt/ }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Mój projekt' }),
+    ).toBeInTheDocument();
+  });
+
+  it('the PDF tile refuses other files and keeps the typed name for the import', async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    navigate('/nowy', { replace: true });
+    render(<App />);
+    await screen.findByRole('heading', { level: 1, name: 'Nowy projekt' });
+    const input = screen.getByLabelText(/Wgraj PDF z opisem projektu/);
+    await user.upload(input, new File(['not a pdf'], 'opis.txt', { type: 'text/plain' }));
+    expect(await screen.findByText('To nie jest plik PDF.')).toBeInTheDocument();
+    expect(location.pathname).toBe('/nowy');
+
+    // A PDF starts the import with the typed name (recognition itself needs a browser worker).
+    await user.type(screen.getByLabelText('Nazwa projektu'), 'Sweter z PDF');
+    await user.upload(input, new File(['%PDF-1.7 synthetic'], 'opis.pdf'));
+    await waitFor(() => expect(location.pathname).toBe('/import'));
+    expect(useImport.getState().projectName).toBe('Sweter z PDF');
+    expect(useImport.getState().file?.name).toBe('opis.pdf');
   });
 });

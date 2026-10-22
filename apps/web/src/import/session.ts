@@ -39,6 +39,9 @@ interface ImportState {
   readonly legend: readonly (string | null)[];
   readonly description: { text: string; parsed: ParsedDescription };
   readonly error: string | null;
+  /** Name typed on the "new project" screen; proposed for the project the import creates. */
+  readonly projectName: string;
+  setProjectName(name: string): void;
   start(file: CheckedFile): Promise<void>;
   run(corners?: readonly (readonly [number, number])[]): Promise<void>;
   rerun(symbols: readonly string[]): Promise<void>;
@@ -92,6 +95,11 @@ export const useImport = create<ImportState>((set, get) => ({
   legend: [],
   description: blank,
   error: null,
+  projectName: '',
+
+  setProjectName(projectName) {
+    set({ projectName });
+  },
 
   async start(file) {
     set({ file, error: null, result: null, charts: [], preview: null, description: blank });
@@ -166,6 +174,7 @@ export const useImport = create<ImportState>((set, get) => ({
     set({ description: { text, parsed: description } });
   },
 
+  /** Back to picking a file. The project name stays (it was typed before the file was chosen). */
   reset() {
     client?.cancel();
     set({
@@ -232,6 +241,7 @@ export const useImport = create<ImportState>((set, get) => ({
     }
     const project = buildProject({ ...draft, projectId: newId(), title, now });
     await library.addProject(project);
+    set({ projectName: '' });
     return { projectId: project.id, patternId: project.patterns[0]?.id ?? '' };
   },
 }));

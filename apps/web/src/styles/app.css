@@ -1171,3 +1171,62 @@ input[type='range'] {
 .empty-line {
   color: var(--ink-muted);
 }
+
+/* New project: two large choices ------------------------------------------ */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--sp-4);
+  margin: var(--sp-5) 0 var(--sp-4);
+}
+
+.tile {
+  position: relative;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--sp-2);
+  min-height: 11rem;
+  padding: var(--sp-5);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sheet);
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.tile > svg {
+  color: var(--indigo);
+}
+
+.tile:hover {
+  border-color: var(--indigo);
+  box-shadow: var(--shadow);
+}
+
+.tile:focus-visible,
+.tile--file:focus-within {
+  outline: 3px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.tile:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.tile__title {
+  font-size: var(--fs-4);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.tile__body {
+  color: var(--ink-muted);
+  font-size: var(--fs-2);
+}

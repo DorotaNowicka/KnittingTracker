@@ -439,10 +439,14 @@ function CreateForm({
   const [patternName, setPatternName] = useState(suggestedName);
   const file = useImport((s) => s.file);
   const parsedSizes = useImport((s) => s.description.parsed.sizes?.value);
+  const typedName = useImport((s) => s.projectName);
+  // The name typed on the "new project" screen wins over the file name.
   const defaultTitle = useMemo(
     () =>
-      (file?.name ?? '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120) || t('newProject.blankName'),
-    [file, t],
+      typedName.slice(0, 120) ||
+      (file?.name ?? '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120) ||
+      t('newProject.blankName'),
+    [typedName, file, t],
   );
   const [title, setTitle] = useState(defaultTitle);
   const [sizesText, setSizesText] = useState<string | null>(null);
