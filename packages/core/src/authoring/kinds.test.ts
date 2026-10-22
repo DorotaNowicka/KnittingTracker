@@ -23,6 +23,16 @@ describe('project kinds', () => {
     expect(PROJECT_KIND_INFO.socks.pair).toBe(true);
   });
 
+  it('names a main item that exists in every kind with parts', () => {
+    for (const kind of PROJECT_KIND_LIST) {
+      if (kind.items.length === 0) continue;
+      expect(
+        kind.items.some((i) => i.id === kind.main),
+        kind.id,
+      ).toBe(true);
+    }
+  });
+
   it('has unique part ids per kind and labels in both languages', () => {
     for (const kind of PROJECT_KIND_LIST) {
       const list = ids(kind.items);

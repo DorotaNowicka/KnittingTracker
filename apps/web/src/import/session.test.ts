@@ -176,4 +176,34 @@ describe('import session', () => {
     expect(project?.patterns[0]?.legend).toEqual([]);
     expect(project?.name).toBe('Projekt');
   });
+
+  it('moves a chart between garment parts and builds the project from them', async () => {
+    useImport.setState({
+      status: 'verify',
+      result: result(),
+      charts: [draftOf(recognized, 'C.1')],
+      legend: ['std:p'],
+    });
+    useImport.getState().setProjectKind('hat');
+    expect(useImport.getState().elements['body']?.charts).toEqual([0]);
+    useImport.getState().updateElement('crown', { charts: [0] });
+    expect(useImport.getState().elements['body']?.charts).toEqual([]);
+    expect(useImport.getState().elements['crown']?.charts).toEqual([0]);
+    useImport.getState().updateElement('nope', { include: true });
+    const id = await useImport.getState().createProject({
+      title: 'Czapka zimowa',
+      sizes: ['S'],
+      sections: ['A', 'B'],
+      lang: 'pl',
+    });
+    const project = useLibrary.getState().project(id);
+    expect(project).toMatchObject({ name: 'Czapka zimowa', kind: 'hat', activePatternId: 'body' });
+    expect(project?.patterns.map((p) => [p.name, p.charts.length])).toEqual([
+      ['Ściągacz / wywinięcie', 0],
+      ['Korpus czapki', 0],
+      ['Denko (ujmowanie)', 1],
+    ]);
+    expect(project?.patterns[2]?.legend).toEqual([{ symbolId: 'std:p', text: 'lewe oczko' }]);
+    expect(useImport.getState().projectName).toBe('');
+  });
 });

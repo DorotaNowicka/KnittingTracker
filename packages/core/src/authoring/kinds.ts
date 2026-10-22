@@ -34,6 +34,8 @@ export interface KindInfo {
   readonly label: LocalizedText;
   /** Knitted as a pair (left and right): every part is made twice. */
   readonly pair?: boolean;
+  /** The item a pattern description's main chart layout belongs to (e.g. the body). */
+  readonly main: string;
   readonly items: readonly KindItem[];
 }
 
@@ -73,6 +75,7 @@ const front = { id: 'front', label: t('Przód', 'Front') };
 export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   sweater: {
     id: 'sweater',
+    main: 'body',
     label: t('Sweter', 'Sweater'),
     items: [
       bottomRib,
@@ -85,6 +88,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   cardigan: {
     id: 'cardigan',
+    main: 'body',
     label: t('Kardigan', 'Cardigan'),
     items: [
       bottomRib,
@@ -103,6 +107,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   vest: {
     id: 'vest',
+    main: 'body',
     label: t('Kamizelka', 'Vest'),
     items: [
       bottomRib,
@@ -113,6 +118,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   hat: {
     id: 'hat',
+    main: 'body',
     label: t('Czapka', 'Hat'),
     items: [
       part('brim', t('Ściągacz / wywinięcie', 'Brim')),
@@ -122,6 +128,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   scarf: {
     id: 'scarf',
+    main: 'main',
     label: t('Szalik', 'Scarf'),
     items: [
       part('start-border', t('Brzeg początkowy', 'Cast-on border'), { optional: true }),
@@ -131,6 +138,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   cowl: {
     id: 'cowl',
+    main: 'main',
     label: t('Komin', 'Cowl'),
     items: [
       part('bottom-rib', t('Ściągacz dolny', 'Bottom ribbing')),
@@ -140,6 +148,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   mittens: {
     id: 'mittens',
+    main: 'hand',
     label: t('Rękawiczki', 'Mittens and gloves'),
     pair: true,
     items: [
@@ -173,6 +182,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   socks: {
     id: 'socks',
+    main: 'leg',
     label: t('Skarpetki', 'Socks'),
     pair: true,
     items: [
@@ -187,6 +197,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   custom: {
     id: 'custom',
     label: t('Własny projekt', 'Custom project'),
+    main: 'main',
     items: [],
   },
 };

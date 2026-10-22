@@ -1,8 +1,18 @@
-import { createRegistry, insertPattern, STD, type SymbolRows } from '@kt/core';
+import {
+  createRegistry,
+  insertPattern,
+  STD,
+  type LegendEntry,
+  type Locale,
+  type ProjectKind,
+  type SymbolRows,
+} from '@kt/core';
 import {
   buildPattern,
   buildProject,
+  detectKind,
   parseDescription,
+  type KindGuess,
   type ImportProgress,
   type ImportResult,
   type ParsedDescription,
@@ -15,6 +25,21 @@ import { useDraft } from '../state/draft';
 import { useNewProject } from '../state/newProject';
 import { useLibrary } from '../state/library';
 import { ImportClient, ImportError, type CheckedFile } from './client';
+import {
+  buildProjectFromElements,
+  initialElements,
+  type ElementState,
+  type Elements,
+  type MainLayout,
+} from './elements';
+
+/** Sizes typed as "S - M - L" or "S, M, L". */
+export const splitSizes = (text: string): string[] =>
+  text
+    .split(/\s*-\s*|\s*,\s*/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => x.slice(0, 20));
 
 /** Cells below this confidence are highlighted for checking. */
 export const UNCERTAIN = UNCERTAIN_BELOW;
@@ -43,6 +68,15 @@ interface ImportState {
   /** Name typed on the "new project" screen; proposed for the project the import creates. */
   readonly projectName: string;
   setProjectName(name: string): void;
+  /** What the PDF looks like (sweater, socks…), recognised from its text; null when unclear. */
+  readonly guess: KindGuess | null;
+  /** The kind of the new project: the guess or the knitter's choice ('custom' when unclear). */
+  readonly projectKind: ProjectKind;
+  /** The garment's parts in the check and the charts each one uses. */
+  readonly elements: Elements;
+  /** Change the kind; the parts start again from that kind's usual ones. */
+  setProjectKind(kind: ProjectKind): void;
+  updateElement(id: string, change: Partial<ElementState>): void;
   start(file: CheckedFile): Promise<void>;
   run(corners?: readonly (readonly [number, number])[]): Promise<void>;
   rerun(symbols: readonly string[]): Promise<void>;
@@ -56,6 +90,15 @@ interface ImportState {
    * added to the existing project `projectId` (whose sizes are used).
    */
   create(input: CreateInput): Promise<{ projectId: string; patternId: string } | null>;
+  /** A new project of `projectKind` with one pattern per chosen garment part; returns its id. */
+  createProject(input: CreateProjectInput): Promise<string>;
+}
+
+export interface CreateProjectInput {
+  readonly title: string;
+  readonly sizes: readonly string[];
+  readonly sections: readonly [string, string];
+  readonly lang: Locale;
 }
 
 export interface CreateInput {
@@ -86,6 +129,49 @@ export function draftOf(rec: RecognizedChart, name: string): ChartDraft {
 
 const blank = { text: '', parsed: parseDescription('') };
 
+type Checked = Pick<ImportState, 'result' | 'legend' | 'description'>;
+
+/** Chosen legend symbols, one entry per symbol (the first wording wins). */
+function legendEntries({ result, legend }: Checked): LegendEntry[] {
+  const registry = createRegistry();
+  const seen = new Set<string>();
+  return (result?.legend ?? []).flatMap((item, i) => {
+    const symbolId = legend[i];
+    if (!symbolId || !registry.has(symbolId) || seen.has(symbolId)) return [];
+    seen.add(symbolId);
+    return [{ symbolId, ...(item.text ? { text: item.text.slice(0, 500) } : {}) }];
+  });
+}
+
+/** The round described in the text, kept only where it fits the project's number of sizes. */
+function describedLayout(
+  { description }: Checked,
+  n: number,
+  sectionNames: readonly [string, string],
+): MainLayout {
+  const d = description.parsed;
+  const fit = (v: readonly number[] | undefined) => (v && v.length === n ? v : undefined);
+  const sequence = (d.sequence?.value ?? []).map((s) => {
+    const st = fit(s.stitches);
+    return st ? { chart: s.chart, stitches: st } : { chart: s.chart };
+  });
+  const stitchCount = fit(d.stitchCount?.value);
+  const marker = fit(d.marker?.value);
+  return {
+    sequence,
+    ...(stitchCount ? { stitchCount } : {}),
+    ...(marker ? { marker } : {}),
+    sectionNames,
+  };
+}
+
+/** The kind guessed from the text, with the parts it usually has. */
+function kindOf(result: ImportResult, hints: string) {
+  const guess = detectKind(result.text, hints);
+  const projectKind = guess?.kind ?? 'custom';
+  return { guess, projectKind, elements: initialElements(projectKind, result.charts.length) };
+}
+
 export const useImport = create<ImportState>((set, get) => ({
   status: 'idle',
   file: null,
@@ -97,9 +183,36 @@ export const useImport = create<ImportState>((set, get) => ({
   description: blank,
   error: null,
   projectName: '',
+  guess: null,
+  projectKind: 'custom',
+  elements: initialElements('custom', 0),
 
   setProjectName(projectName) {
     set({ projectName });
+  },
+
+  setProjectKind(projectKind) {
+    set({ projectKind, elements: initialElements(projectKind, get().charts.length) });
+  },
+
+  updateElement(id, change) {
+    const { elements } = get();
+    const current = elements[id];
+    if (!current) return;
+    // A chart belongs to one part: giving it to this one takes it from the others.
+    const taken = change.charts?.filter((c) => !current.charts.includes(c)) ?? [];
+    set({
+      elements: Object.fromEntries(
+        Object.entries(elements).map(([key, state]) => [
+          key,
+          key === id
+            ? { ...state, ...change }
+            : taken.length
+              ? { ...state, charts: state.charts.filter((c) => !taken.includes(c)) }
+              : state,
+        ]),
+      ),
+    });
   },
 
   async start(file) {
@@ -131,6 +244,7 @@ export const useImport = create<ImportState>((set, get) => ({
         charts: result.charts.map((c, i) => draftOf(c.recognized, c.name ?? `Schemat ${i + 1}`)),
         legend: result.legend.map((l) => (l.confidence >= 0.6 ? l.symbolId : null)),
         description: { text: result.text, parsed: result.description },
+        ...kindOf(result, `${get().projectName}\n${file.name}`),
       });
     } catch (e) {
       set({ status: 'error', error: codeOf(e) });
@@ -188,44 +302,28 @@ export const useImport = create<ImportState>((set, get) => ({
       legend: [],
       description: blank,
       error: null,
+      guess: null,
+      projectKind: 'custom',
+      elements: initialElements('custom', 0),
     });
   },
 
   async create({ projectId, title, sizes: newSizes, patternName, sections }) {
-    const { charts, result, legend, description } = get();
+    const { charts } = get();
     const library = useLibrary.getState();
     const target = projectId ? library.project(projectId) : undefined;
     if (projectId && !target) return null;
     const sizes = target ? target.sizes : newSizes;
-    const registry = createRegistry();
-    const d = description.parsed;
-    const n = sizes.length;
-    const fit = (v: readonly number[] | undefined) => (v && v.length === n ? v : undefined);
-    const entries = (result?.legend ?? []).flatMap((item, i) => {
-      const symbolId = legend[i];
-      if (!symbolId || !registry.has(symbolId)) return [];
-      return [{ symbolId, ...(item.text ? { text: item.text.slice(0, 500) } : {}) }];
-    });
-    // One entry per symbol (the first wording wins).
-    const seen = new Set<string>();
-    const unique = entries.filter((e) =>
-      seen.has(e.symbolId) ? false : (seen.add(e.symbolId), true),
-    );
-    const sequence = (d.sequence?.value ?? []).map((s) => {
-      const st = fit(s.stitches);
-      return st ? { chart: s.chart, stitches: st } : { chart: s.chart };
-    });
-    const stitchCount = fit(d.stitchCount?.value);
-    const marker = fit(d.marker?.value);
+    const { sequence, ...rest } = describedLayout(get(), sizes.length, sections);
     const draft = {
       id: patternName,
       name: patternName,
       sizes,
       charts: charts.filter((c) => c.include).map((c) => ({ name: c.name, rows: c.rows })),
-      legend: unique,
+      legend: legendEntries(get()),
       sequence,
-      ...(stitchCount ? { stitchCount } : {}),
-      ...(marker ? { marker } : {}),
+      ...(rest.stitchCount ? { stitchCount: rest.stitchCount } : {}),
+      ...(rest.marker ? { marker: rest.marker } : {}),
       sectionNames: sections,
     };
     const now = new Date().toISOString();
@@ -245,6 +343,26 @@ export const useImport = create<ImportState>((set, get) => ({
     set({ projectName: '' });
     useNewProject.getState().setName('');
     return { projectId: project.id, patternId: project.patterns[0]?.id ?? '' };
+  },
+
+  async createProject({ title, sizes, sections, lang }) {
+    const state = get();
+    const project = buildProjectFromElements({
+      id: newId(),
+      name: title,
+      kind: state.projectKind,
+      sizes,
+      now: new Date().toISOString(),
+      lang,
+      charts: state.charts.map((c) => ({ name: c.name, rows: c.rows })),
+      legend: legendEntries(state),
+      layout: describedLayout(state, sizes.length, sections),
+      elements: state.elements,
+    });
+    await useLibrary.getState().addProject(project);
+    set({ projectName: '' });
+    useNewProject.getState().setName('');
+    return project.id;
   },
 }));
 

@@ -45,6 +45,7 @@ export type { DetectedGrid } from './raster/grid';
 export type { LegendItem } from './legend/pair';
 export type { ParsedDescription, SequenceItem } from './describe/parse';
 export { parseDescription } from './describe/parse';
+export { detectKind, type KindGuess } from './describe/kind';
 export type { PdfJsLike } from './pdf/analyze';
 export { loadPdfJs } from './pdf/load';
 export {

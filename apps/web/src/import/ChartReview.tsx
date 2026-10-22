@@ -18,12 +18,15 @@ export function ChartReview({
   draft,
   result,
   registry,
+  selectable = true,
 }: {
   index: number;
   found: FoundChart;
   draft: ChartDraft;
   result: ImportResult;
   registry: SymbolRegistry;
+  /** Show the "use this chart" switch (off when charts are assigned to garment elements). */
+  selectable?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
@@ -32,6 +35,7 @@ export function ChartReview({
   const [cursor, setCursor] = useState<CellPoint | null>(null);
   const width = draft.rows[0]?.length ?? 0;
   const height = draft.rows.length;
+  const shown = !selectable || draft.include;
 
   const parsed = useMemo(() => {
     const chart = applySymbolRows(
@@ -127,10 +131,7 @@ export function ChartReview({
   };
 
   return (
-    <article
-      className={`review${draft.include ? '' : ' review--off'}`}
-      aria-labelledby={`${ids}-t`}
-    >
+    <article className={`review${shown ? '' : ' review--off'}`} aria-labelledby={`${ids}-t`}>
       <header className="review__head">
         <h3 id={`${ids}-t`} className="review__title">
           {t('importer.chartN', { n: index + 1 })}
@@ -145,16 +146,18 @@ export function ChartReview({
           hint={t('importer.nameHint')}
           onCommit={(name) => update({ name })}
         />
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={draft.include}
-            onChange={(e) => update({ include: e.target.checked })}
-          />
-          {t('importer.include')}
-        </label>
+        {selectable && (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={draft.include}
+              onChange={(e) => update({ include: e.target.checked })}
+            />
+            {t('importer.include')}
+          </label>
+        )}
       </header>
-      {draft.include && (
+      {shown && (
         <>
           <p
             className={`review__status${uncertain.length ? ' review__status--todo' : ''}`}
