@@ -69,6 +69,7 @@ export {
 } from './history';
 
 export * from './authoring/pattern';
+export * from './authoring/kinds';
 
 export {
   customToSymbolDef,

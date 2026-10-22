@@ -12,6 +12,7 @@ import {
 import { create } from 'zustand';
 import { newId } from '../lib/files';
 import { useDraft } from '../state/draft';
+import { useNewProject } from '../state/newProject';
 import { useLibrary } from '../state/library';
 import { ImportClient, ImportError, type CheckedFile } from './client';
 
@@ -242,6 +243,7 @@ export const useImport = create<ImportState>((set, get) => ({
     const project = buildProject({ ...draft, projectId: newId(), title, now });
     await library.addProject(project);
     set({ projectName: '' });
+    useNewProject.getState().setName('');
     return { projectId: project.id, patternId: project.patterns[0]?.id ?? '' };
   },
 }));

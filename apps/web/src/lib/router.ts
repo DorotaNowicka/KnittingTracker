@@ -7,6 +7,8 @@ import { useSyncExternalStore } from 'react';
 export type Route =
   | { readonly name: 'projects' }
   | { readonly name: 'new' }
+  /** Second step of "Stwórz projekt": what kind of project. */
+  | { readonly name: 'newKind' }
   | { readonly name: 'settings' }
   /** Import a PDF or picture: into a new project, or as a new pattern of `id`. */
   | { readonly name: 'import'; readonly id?: string }
@@ -30,6 +32,7 @@ const enc = encodeURIComponent;
 export const paths = {
   projects: () => '/',
   new: () => '/nowy',
+  newKind: () => '/nowy/rodzaj',
   settings: () => '/ustawienia',
   import: (id?: string) => (id ? `/projekt/${enc(id)}/import` : '/import'),
   project: (id: string) => `/projekt/${enc(id)}`,
@@ -50,6 +53,7 @@ const decode = (parts: readonly (string | undefined)[]): string[] | null => {
 export function parseRoute(pathname: string): Route {
   if (pathname === '/' || pathname === '') return { name: 'projects' };
   if (pathname === '/nowy') return { name: 'new' };
+  if (pathname === '/nowy/rodzaj') return { name: 'newKind' };
   if (pathname === '/ustawienia') return { name: 'settings' };
   if (pathname === '/import') return { name: 'import' };
   const m =

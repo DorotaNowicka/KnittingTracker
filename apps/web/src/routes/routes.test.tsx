@@ -8,6 +8,7 @@ import { navigate } from '../lib/router';
 import { createMemoryStorage } from '../lib/storage';
 import { sampleProject } from '../sample/sampleProject';
 import { setStorageForTests, useLibrary } from '../state/library';
+import { useNewProject } from '../state/newProject';
 
 beforeAll(() => {
   initI18n('pl');
@@ -15,6 +16,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   setStorageForTests(createMemoryStorage());
+  useNewProject.setState({ name: '' });
   useLibrary.setState({
     status: 'idle',
     projects: [],
@@ -62,7 +64,7 @@ describe('screens', () => {
     );
   });
 
-  it('new project: a name and two tiles; "Stwórz projekt" creates an empty project', async () => {
+  it('new project: a name, two tiles, then the kind; the kind creates the project', async () => {
     const user = userEvent.setup();
     navigate('/nowy', { replace: true });
     render(<App />);
@@ -74,20 +76,55 @@ describe('screens', () => {
     await user.type(screen.getByLabelText('Nazwa projektu'), 'Sweter testowy');
     await user.click(screen.getByRole('button', { name: /Stwórz projekt/ }));
 
+    // Step 2: nine kinds.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Co dziergasz?' }),
+    ).toBeInTheDocument();
+    expect(location.pathname).toBe('/nowy/rodzaj');
+    expect(screen.getByText('Projekt: Sweter testowy')).toBeInTheDocument();
+    const kinds = within(screen.getByRole('list', { name: 'Co dziergasz?' }));
+    expect(kinds.getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Sweter',
+      'Kardigan',
+      'Kamizelka',
+      'Czapka',
+      'Szalik',
+      'Komin',
+      'Rękawiczki',
+      'Skarpetki',
+      'Własny projekt',
+    ]);
+    // Back keeps the typed name.
+    await user.click(screen.getByRole('link', { name: 'Nowy projekt' }));
+    expect(await screen.findByLabelText('Nazwa projektu')).toHaveValue('Sweter testowy');
+    await user.click(screen.getByRole('button', { name: /Stwórz projekt/ }));
+    await user.click(await screen.findByRole('button', { name: 'Kardigan' }));
+
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Sweter testowy' }),
     ).toBeInTheDocument();
     expect(location.pathname).toMatch(/^\/projekt\/[^/]+$/);
+    expect(screen.getByText('Kardigan')).toBeInTheDocument();
     expect(screen.getByText('Projekt nie ma jeszcze wzorów. Dodaj pierwszy.')).toBeInTheDocument();
-    const project = useLibrary.getState().projects[0];
-    expect(project).toMatchObject({ name: 'Sweter testowy', patterns: [] });
+    expect(useLibrary.getState().projects[0]).toMatchObject({
+      name: 'Sweter testowy',
+      kind: 'cardigan',
+      patterns: [],
+    });
+    // The typed name is not offered again for the next project.
+    navigate('/nowy');
+    await screen.findByRole('heading', { level: 1, name: 'Nowy projekt' });
+    expect(screen.getByLabelText('Nazwa projektu')).toHaveValue('');
   });
 
-  it('new project without a name gets a default one', async () => {
+  it('without a typed name the kind names the project', async () => {
     const user = userEvent.setup();
-    navigate('/nowy', { replace: true });
+    navigate('/nowy/rodzaj', { replace: true });
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /Stwórz projekt/ }));
+    await user.click(await screen.findByRole('button', { name: 'Skarpetki' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Skarpetki' })).toBeInTheDocument();
+    navigate('/nowy/rodzaj');
+    await user.click(await screen.findByRole('button', { name: 'Własny projekt' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Mój projekt' }),
     ).toBeInTheDocument();

@@ -1,0 +1,197 @@
+import type { LocalizedText } from '../basics';
+import { PROJECT_KINDS, type ProjectKind } from '../schema/pattern';
+
+/**
+ * The usual parts of each kind of project, in knitting order (top-down garments reverse some of
+ * it). Each part is a candidate pattern (wzór) of the project. A choice lists alternatives, e.g. a
+ * sweater body knitted in the round (one pattern) or as a back and a front (two patterns).
+ */
+export interface KindPart {
+  readonly id: string;
+  readonly label: LocalizedText;
+  /** Knitted this many times with the same pattern (e.g. 2 sleeves). Default 1. */
+  readonly count?: number;
+  /** Not every garment of this kind has it. */
+  readonly optional?: boolean;
+  readonly hint?: LocalizedText;
+}
+
+export interface KindChoice {
+  readonly id: string;
+  readonly label: LocalizedText;
+  readonly options: readonly {
+    readonly id: string;
+    readonly label: LocalizedText;
+    readonly parts: readonly KindPart[];
+  }[];
+}
+
+export type KindItem =
+  ({ readonly type: 'part' } & KindPart) | ({ readonly type: 'choice' } & KindChoice);
+
+export interface KindInfo {
+  readonly id: ProjectKind;
+  readonly label: LocalizedText;
+  /** Knitted as a pair (left and right): every part is made twice. */
+  readonly pair?: boolean;
+  readonly items: readonly KindItem[];
+}
+
+const t = (pl: string, en: string): LocalizedText => ({ pl, en });
+const part = (id: string, label: LocalizedText, more: Omit<KindPart, 'id' | 'label'> = {}) =>
+  ({ type: 'part', id, label, ...more }) as const;
+
+const bottomRib = part('bottom-rib', t('Ściągacz dołu', 'Bottom ribbing'));
+const yoke = part('yoke', t('Karczek', 'Yoke'), {
+  optional: true,
+  hint: t(
+    'Przy swetrze robionym od góry: raglan albo karczek okrągły.',
+    'In a top-down garment: raglan or a round yoke.',
+  ),
+});
+const sleeve = part('sleeve', t('Rękaw', 'Sleeve'), { count: 2 });
+const cuff = part('sleeve-cuff', t('Ściągacz rękawa', 'Sleeve cuff'), { count: 2 });
+
+const body = (pieces: readonly KindPart[]) =>
+  ({
+    type: 'choice',
+    id: 'body',
+    label: t('Korpus', 'Body'),
+    options: [
+      {
+        id: 'round',
+        label: t('Na okrągło, w jednym kawałku', 'In the round, in one piece'),
+        parts: [{ id: 'body', label: t('Korpus', 'Body') }],
+      },
+      { id: 'pieces', label: t('Z osobnych części', 'In separate pieces'), parts: pieces },
+    ],
+  }) as const;
+
+const back = { id: 'back', label: t('Tył', 'Back') };
+const front = { id: 'front', label: t('Przód', 'Front') };
+
+export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
+  sweater: {
+    id: 'sweater',
+    label: t('Sweter', 'Sweater'),
+    items: [
+      bottomRib,
+      body([back, front]),
+      yoke,
+      sleeve,
+      cuff,
+      part('neck', t('Dekolt / golf', 'Neckline / collar')),
+    ],
+  },
+  cardigan: {
+    id: 'cardigan',
+    label: t('Kardigan', 'Cardigan'),
+    items: [
+      bottomRib,
+      body([
+        back,
+        { id: 'left-front', label: t('Lewy przód', 'Left front') },
+        { id: 'right-front', label: t('Prawy przód', 'Right front') },
+      ]),
+      yoke,
+      sleeve,
+      cuff,
+      part('neck', t('Dekolt', 'Neckline')),
+      part('buttonhole-band', t('Listwa z dziurkami', 'Buttonhole band')),
+      part('button-band', t('Listwa pod guziki', 'Button band')),
+    ],
+  },
+  vest: {
+    id: 'vest',
+    label: t('Kamizelka', 'Vest'),
+    items: [
+      bottomRib,
+      body([back, front]),
+      part('armhole', t('Wykończenie podkroju', 'Armhole edging'), { count: 2 }),
+      part('neck', t('Dekolt', 'Neckline')),
+    ],
+  },
+  hat: {
+    id: 'hat',
+    label: t('Czapka', 'Hat'),
+    items: [
+      part('brim', t('Ściągacz / wywinięcie', 'Brim')),
+      part('body', t('Korpus czapki', 'Body')),
+      part('crown', t('Denko (ujmowanie)', 'Crown (decreases)')),
+    ],
+  },
+  scarf: {
+    id: 'scarf',
+    label: t('Szalik', 'Scarf'),
+    items: [
+      part('start-border', t('Brzeg początkowy', 'Cast-on border'), { optional: true }),
+      part('main', t('Główna część', 'Main part')),
+      part('end-border', t('Brzeg końcowy', 'Bind-off border'), { optional: true }),
+    ],
+  },
+  cowl: {
+    id: 'cowl',
+    label: t('Komin', 'Cowl'),
+    items: [
+      part('bottom-rib', t('Ściągacz dolny', 'Bottom ribbing')),
+      part('main', t('Główna część', 'Main part')),
+      part('top-rib', t('Ściągacz górny', 'Top ribbing')),
+    ],
+  },
+  mittens: {
+    id: 'mittens',
+    label: t('Rękawiczki', 'Mittens and gloves'),
+    pair: true,
+    items: [
+      part('cuff', t('Mankiet (ściągacz)', 'Cuff (ribbing)')),
+      part('hand', t('Dłoń', 'Hand')),
+      part('thumb-gusset', t('Klin kciuka', 'Thumb gusset')),
+      part('thumb', t('Kciuk', 'Thumb')),
+      {
+        type: 'choice',
+        id: 'top',
+        label: t('Rodzaj', 'Type'),
+        options: [
+          {
+            id: 'mittens',
+            label: t('Jednopalczaste', 'Mittens'),
+            parts: [{ id: 'top', label: t('Szczyt dłoni', 'Top of the hand') }],
+          },
+          {
+            id: 'gloves',
+            label: t('Z palcami', 'Gloves'),
+            parts: [{ id: 'fingers', label: t('Palce', 'Fingers'), count: 4 }],
+          },
+          {
+            id: 'fingerless',
+            label: t('Mitenki', 'Fingerless'),
+            parts: [{ id: 'top-edge', label: t('Wykończenie górne', 'Top edging') }],
+          },
+        ],
+      },
+    ],
+  },
+  socks: {
+    id: 'socks',
+    label: t('Skarpetki', 'Socks'),
+    pair: true,
+    items: [
+      part('cuff', t('Ściągacz', 'Cuff')),
+      part('leg', t('Cholewka', 'Leg')),
+      part('heel', t('Pięta', 'Heel')),
+      part('gusset', t('Klin', 'Gusset')),
+      part('foot', t('Stopa', 'Foot')),
+      part('toe', t('Czubek', 'Toe')),
+    ],
+  },
+  custom: {
+    id: 'custom',
+    label: t('Własny projekt', 'Custom project'),
+    items: [],
+  },
+};
+
+/** The kinds in the order the "what are you knitting" screen shows them. */
+export const PROJECT_KIND_LIST: readonly KindInfo[] = PROJECT_KINDS.map(
+  (k) => PROJECT_KIND_INFO[k],
+);

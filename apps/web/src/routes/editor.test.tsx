@@ -7,6 +7,7 @@ import { navigate } from '../lib/router';
 import { createMemoryStorage } from '../lib/storage';
 import { resetDraftForTests, useDraft } from '../state/draft';
 import { setStorageForTests, useLibrary } from '../state/library';
+import { useNewProject } from '../state/newProject';
 
 beforeAll(() => {
   initI18n('pl');
@@ -14,6 +15,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   setStorageForTests(createMemoryStorage());
+  useNewProject.setState({ name: '' });
   useLibrary.setState({
     status: 'idle',
     projects: [],
@@ -31,6 +33,7 @@ const pattern = () => useDraft.getState().project?.patterns[0];
 async function startFromScratch(user: ReturnType<typeof userEvent.setup>) {
   render(<App />);
   await user.click(await screen.findByRole('button', { name: /Stwórz projekt/ }));
+  await user.click(await screen.findByRole('button', { name: 'Własny projekt' }));
   await screen.findByRole('heading', { level: 1, name: 'Mój projekt' });
   await user.click(screen.getByRole('button', { name: 'Dodaj wzór' }));
   const dialog = screen.getByRole('dialog', { name: 'Nowy wzór' });

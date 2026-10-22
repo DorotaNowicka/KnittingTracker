@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoute } from './lib/router';
-import { NewProjectPage } from './routes/NewProjectPage';
+import { NewProjectKindPage, NewProjectPage } from './routes/NewProjectPage';
 import { NotFoundPage } from './routes/NotFoundPage';
 import { ProjectsPage } from './routes/ProjectsPage';
 import { SettingsPage } from './routes/SettingsPage';
@@ -46,6 +46,8 @@ export function App() {
         <ProjectsPage />
       ) : route.name === 'new' ? (
         <NewProjectPage />
+      ) : route.name === 'newKind' ? (
+        <NewProjectKindPage />
       ) : route.name === 'tracker' ? (
         <TrackerPage projectId={route.id} patternId={route.patternId} />
       ) : route.name === 'settings' ? (

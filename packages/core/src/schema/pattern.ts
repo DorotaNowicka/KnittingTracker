@@ -178,10 +178,25 @@ export const patternSchema = z.object({
   modifications: z.array(modificationSchema).optional(),
 });
 
+/** What a project is (the "what are you knitting" choice); `custom` = anything else. */
+export const PROJECT_KINDS = [
+  'sweater',
+  'cardigan',
+  'vest',
+  'hat',
+  'scarf',
+  'cowl',
+  'mittens',
+  'socks',
+  'custom',
+] as const;
+
 /** A project (projekt): what is being knitted, made of patterns worked one after another. */
 export const projectSchema = z.object({
   id,
   name: z.string().min(1).max(120),
+  /** Kind of garment; older projects have none. */
+  kind: z.enum(PROJECT_KINDS).optional(),
   /** Bumped once per editing session of the project content (patterns, charts, sizes). */
   revision: nonNegInt,
   designer: z.string().max(120).optional(),
@@ -223,6 +238,7 @@ export type Modification = z.infer<typeof modificationSchema>;
 export type ProgressRecord = z.infer<typeof progressSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Gauge = z.infer<typeof gaugeSchema>;
+export type ProjectKind = (typeof PROJECT_KINDS)[number];
 
 /** The parts of a project that resolving and validating a pattern needs. */
 export type ProjectContent = Pick<Project, 'sizes' | 'sizeIndex' | 'patterns' | 'finishedRows'>;

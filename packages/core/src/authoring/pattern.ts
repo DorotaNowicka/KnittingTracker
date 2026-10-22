@@ -8,6 +8,7 @@ import {
   type LegendEntry,
   type Pattern,
   type Project,
+  type ProjectKind,
   type Segment,
 } from '../schema/pattern';
 
@@ -54,6 +55,7 @@ export function blankPattern(id: string, name: string): Pattern {
 export interface BlankProjectInput {
   readonly id: string;
   readonly name: string;
+  readonly kind?: ProjectKind;
   readonly sizes?: readonly string[];
   /** Name of a first, empty pattern; omit for a project without patterns. */
   readonly patternName?: string;
@@ -66,6 +68,7 @@ export function blankProject(input: BlankProjectInput): Project {
   return {
     id: input.id,
     name: input.name.slice(0, 120),
+    ...(input.kind ? { kind: input.kind } : {}),
     revision: 1,
     sizes: input.sizes && input.sizes.length > 0 ? [...input.sizes] : ['1'],
     sizeIndex: 0,

@@ -6,6 +6,7 @@ import {
   duplicatePattern,
   movePattern,
   patternRegistry,
+  PROJECT_KIND_INFO,
   removePattern,
   removeSize,
   renameSize,
@@ -29,6 +30,7 @@ import { useDraft } from '../state/draft';
 import { DiagnosticsPanel } from '../ui/Diagnostics';
 import { NumberField, TextField } from '../ui/fields';
 import { Icon } from '../ui/Icon';
+import { KIND_ICONS } from '../ui/kindIcons';
 import { AppHeader } from './AppHeader';
 
 /** A project (projekt): its patterns in knitting order, sizes and details. */
@@ -39,7 +41,8 @@ export function ProjectPage({ projectId }: { projectId: string }) {
 const update = (f: (p: Project) => Project) => useDraft.getState().update(f);
 
 function ProjectEditor({ project }: { project: Project }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
   const report = useMemo(() => validateProject(project), [project]);
   const active =
@@ -77,6 +80,12 @@ function ProjectEditor({ project }: { project: Project }) {
           <SaveState />
         </p>
         <h1 className="page__title">{project.name}</h1>
+        {project.kind && project.kind !== 'custom' && (
+          <p className="project-kind">
+            <Icon name={KIND_ICONS[project.kind]} size={20} />
+            {PROJECT_KIND_INFO[project.kind].label[lang]}
+          </p>
+        )}
         {project.designer && <p className="lead">{project.designer}</p>}
         {active && (
           <p className="project-continue">

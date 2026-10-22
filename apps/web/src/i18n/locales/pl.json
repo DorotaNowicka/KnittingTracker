@@ -38,13 +38,15 @@
     "fromPdf": "Wgraj PDF z opisem projektu",
     "fromPdfHint": "Rozpoznamy schematy, legendę i kolejność schematów w okrążeniu. Potem razem to sprawdzimy.",
     "create": "Stwórz projekt",
-    "createHint": "Pusty projekt. Wzory i schematy dodasz sama.",
+    "createHint": "Wybierzesz, co dziergasz. Wzory i schematy dodasz sama.",
     "notPdf": "To nie jest plik PDF.",
     "limits": "PDF do {{mb}} MB i {{pages}} stron.",
     "privacy": "Plik jest czytany tylko na tym urządzeniu. Nic nie jest wysyłane.",
     "blankName": "Mój projekt",
     "title": "Nowy projekt",
-    "size": "Rozmiar"
+    "size": "Rozmiar",
+    "kindTitle": "Co dziergasz?",
+    "kindFor": "Projekt: {{name}}"
   },
   "settings": {
     "title": "Ustawienia",
