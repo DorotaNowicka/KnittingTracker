@@ -1,10 +1,10 @@
-import { validatePattern } from '@kt/core';
+import { validateProject } from '@kt/core';
 import { describe, expect, it } from 'vitest';
-import { samplePattern } from './samplePattern';
+import { sampleProject } from './sampleProject';
 
-describe('sample pattern', () => {
+describe('sample project', () => {
   it('is valid and every cable sits on matching stitches', () => {
-    const report = validatePattern(samplePattern);
+    const report = validateProject(sampleProject('s', 'Przykład', '2026-10-22T10:00:00.000Z'));
     expect(report.ok).toBe(true);
     expect(report.diagnostics.filter((d) => d.severity !== 'info')).toEqual([]);
   });

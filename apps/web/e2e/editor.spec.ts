@@ -64,6 +64,13 @@ async function backToPattern(page: Page) {
   await expect(page.getByRole('heading', { level: 2, name: 'Schematy' })).toBeVisible();
 }
 
+/** "Start from scratch": a new project with one empty pattern, opened in the pattern editor. */
+async function startFromScratch(page: Page) {
+  await page.goto('/nowy');
+  await page.getByRole('button', { name: 'Zacznij od zera' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Wzór: Korpus' })).toBeVisible();
+}
+
 async function pickFromLibrary(page: Page, query: string, label: RegExp) {
   await page.getByRole('button', { name: 'Więcej' }).click();
   const dialog = page.getByRole('dialog', { name: 'Biblioteka symboli' });
@@ -78,19 +85,22 @@ const EXPECTED_ROWS = {
   sciezka: ['kppp', 'R.pp', 'pkpp', 'L.pp'],
 };
 
-test('build a 3-chart pattern from scratch, knit it, export it and import it again', async ({
+test('build a 3-chart project from scratch, knit it, export it and open it again', async ({
   page,
 }, testInfo) => {
   test.slow();
   const csp = await watchCsp(page);
-  await page.goto('/wzory');
-  await page.getByRole('button', { name: 'Nowy wzór' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Mój wzór' })).toBeVisible();
+  await startFromScratch(page);
 
-  await page.getByLabel('Nazwa wzoru').fill('Sweter od zera');
+  // Project: name and sizes.
+  await page.getByRole('link', { name: 'Mój projekt' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Mój projekt' })).toBeVisible();
+  await page.getByLabel('Nazwa projektu').fill('Sweter od zera');
   await page.getByRole('textbox', { name: 'Rozmiar 1' }).fill('S');
   await page.getByRole('button', { name: 'Dodaj rozmiar' }).click();
   await page.getByRole('textbox', { name: 'Rozmiar 2' }).fill('M');
+  await page.getByTestId('pattern-list').getByRole('link', { name: 'Edytuj' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Wzór: Korpus' })).toBeVisible();
 
   // Chart 1: seed stitch, drawn cell by cell.
   await addChart(page, 'Ryż', 2, 2);
@@ -141,9 +151,7 @@ test('build a 3-chart pattern from scratch, knit it, export it and import it aga
   await backToPattern(page);
 
   // Layout: Ryż (3/5) · Warkocz · Ścieżka · Warkocz | Tył: Ryż (3/5) · Warkocz.
-  await page.getByRole('link', { name: 'Ustaw układ' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Układ: Korpus' })).toBeVisible();
-  const add = page.getByLabel('Dodaj schemat');
+  const add = page.getByLabel('Dodaj schemat do układu');
   for (const chart of ['Ryż (2×2)', 'Warkocz (6×6)', 'Ścieżka (4×4)', 'Warkocz (6×6)']) {
     await add.selectOption({ label: chart });
   }
@@ -160,7 +168,7 @@ test('build a 3-chart pattern from scratch, knit it, export it and import it aga
     await seg.getByRole('textbox', { name: 'S', exact: true }).fill('3');
     await seg.getByRole('textbox', { name: 'M', exact: true }).fill('5');
   }
-  await page.getByLabel('Znam liczbę rzędów etapu').check();
+  await page.getByLabel('Znam liczbę rzędów wzoru').check();
   await page.getByRole('group', { name: 'Rzędy' }).getByRole('textbox').fill('12');
   await page.getByLabel('Wzór podaje liczbę oczek').check();
   const expected = page.getByRole('group', { name: 'Oczka wg wzoru' });
@@ -178,26 +186,31 @@ test('build a 3-chart pattern from scratch, knit it, export it and import it aga
     const axe = await new AxeBuilder({ page }).exclude('[data-testid="stage-preview"]').analyze();
     expect(axe.violations.map((v) => v.id)).toEqual([]);
   }
-  await page.getByRole('link', { name: 'Gotowe' }).click();
-
-  // The pattern is valid: export it.
-  await expect(page.getByRole('button', { name: 'Zacznij dziergać' })).toBeEnabled();
+  // The pattern is valid: back to the project, export it.
+  await expect(page.getByRole('button', { name: 'Dziergaj ten wzór' })).toBeEnabled();
+  await page.getByRole('link', { name: 'Wróć do projektu' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Sweter od zera' })).toBeVisible();
+  // Only notes (texture changes), no errors or warnings.
+  await expect(page.getByText('4 uwagi', { exact: true })).toBeVisible();
   await expect(page.locator('.notice--danger')).toHaveCount(0);
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Zapisz do pliku' }).click();
+  await page.getByRole('button', { name: 'Zapisz projekt do pliku' }).click();
   const download = await downloadPromise;
   const exported = JSON.parse(await readFile((await download.path()) ?? '', 'utf8')) as {
     format: string;
-    pattern: {
-      id: string;
+    schemaVersion: number;
+    project: {
       sizes: string[];
-      charts: { id: string; name: string; palette: Record<string, string>; rows: string[] }[];
-      stages: { expectedStitches: number[]; rows: number }[];
+      patterns: {
+        expectedStitches: number[];
+        rows: number;
+        charts: { id: string; name: string; palette: Record<string, string>; rows: string[] }[];
+      }[];
     };
   };
-  expect(exported.format).toBe('knitting-tracker/pattern');
-  expect(exported.pattern.sizes).toEqual(['S', 'M']);
-  expect(exported.pattern.stages[0]).toMatchObject({ expectedStitches: [28, 32], rows: 12 });
+  expect(exported).toMatchObject({ format: 'knitting-tracker/project', schemaVersion: 3 });
+  expect(exported.project.sizes).toEqual(['S', 'M']);
+  expect(exported.project.patterns[0]).toMatchObject({ expectedStitches: [28, 32], rows: 12 });
   const asChars = (c: { palette: Record<string, string>; rows: string[] }) => {
     const sym: Record<string, string> = {
       'std:k': 'k',
@@ -210,23 +223,23 @@ test('build a 3-chart pattern from scratch, knit it, export it and import it aga
       [...row].map((ch) => (ch === '.' ? '.' : (sym[c.palette[ch] ?? ''] ?? '?'))).join(''),
     );
   };
-  const byName = Object.fromEntries(exported.pattern.charts.map((c) => [c.id, asChars(c)]));
+  const byName = Object.fromEntries(
+    (exported.project.patterns[0]?.charts ?? []).map((c) => [c.id, asChars(c)]),
+  );
   expect(byName).toEqual(EXPECTED_ROWS);
 
   // Knit it (size M).
-  await page.getByRole('button', { name: 'Zacznij dziergać' }).click();
-  await page.getByLabel('Rozmiar').selectOption({ label: 'M' });
-  await page.getByLabel('Nazwa projektu').fill('Mój sweter');
-  await page.getByRole('button', { name: 'Utwórz projekt' }).click();
-  await expect(page).toHaveURL(/\/projekt\//);
+  await page.getByLabel('Dziergasz rozmiar').selectOption({ label: 'M' });
+  await page.getByTestId('continue-knitting').click();
+  await expect(page).toHaveURL(/\/projekt\/[^/]+\/wzor\/pattern-1$/);
   await expect(page.getByTestId('grid')).toBeVisible();
   await page.getByRole('button', { name: /Ukończ okrążenie/ }).click();
   await expect(page.getByTestId('status-detail')).toContainText('okrążenie 1, oczko 32');
 
-  // Import the exported file as a new project: the same pattern, not a copy.
+  // Open the exported file as a new project.
   await page.goto('/nowy');
   await page.locator('input[type="file"]').setInputFiles({
-    name: 'sweter.ktpattern.json',
+    name: 'sweter.ktproject.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(exported)),
   });
@@ -237,16 +250,14 @@ test('build a 3-chart pattern from scratch, knit it, export it and import it aga
   await expect(page.getByTestId('grid')).toBeVisible();
   await expect(page.getByText('/ 28')).toBeVisible();
 
-  await page.goto('/wzory');
-  await expect(page.locator('.pattern-list > li')).toHaveCount(1);
-  await expect(page.getByText('2 projekty')).toBeVisible();
+  await page.goto('/');
+  await expect(page.locator('.project-list > li')).toHaveCount(2);
   expect(await csp()).toEqual([]);
 });
 
 test('touch: a tap paints one cell and undo restores it', async ({ page }, testInfo) => {
   test.skip(!testInfo.project.use.hasTouch, 'touch devices only');
-  await page.goto('/wzory');
-  await page.getByRole('button', { name: 'Nowy wzór' }).click();
+  await startFromScratch(page);
   await addChart(page, 'Dotyk', 4, 3);
   await page.getByRole('button', { name: /^lewe/ }).first().click();
   const p = await cellPoint(page, 2, 3);

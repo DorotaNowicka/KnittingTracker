@@ -1,4 +1,4 @@
-import { rowInstructions, type Pattern, type ResolvedStage, type StitchLocation } from '@kt/core';
+import { rowInstructions, type ResolvedPattern, type StitchLocation } from '@kt/core';
 import { CELL_PX_MAX } from '@kt/grid-renderer';
 import { useEffect, useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,17 +10,17 @@ const lang = (l: string): Lang => (l.startsWith('en') ? 'en' : 'pl');
 
 /** Current row as text (DR-12): the instructions in work order, with the next stitch highlighted. */
 export function RowText({
-  stage,
+  grid,
   row,
   next,
 }: {
-  stage: ResolvedStage;
+  grid: ResolvedPattern;
   row: number;
   next: StitchLocation | null;
 }) {
   const { t, i18n } = useTranslation();
   const ids = useId();
-  const info = useMemo(() => rowInstructions(stage, row), [stage, row]);
+  const info = useMemo(() => rowInstructions(grid, row), [grid, row]);
   const l = lang(i18n.language);
   const nextStitch = next?.row === row ? next.stitch : null;
   const list = useRef<HTMLOListElement>(null);
@@ -31,7 +31,7 @@ export function RowText({
   return (
     <section className="panel__section" aria-labelledby={`${ids}-rt`}>
       <h2 id={`${ids}-rt`} className="panel__title">
-        {stage.stage.construction === 'round'
+        {grid.pattern.construction === 'round'
           ? t('rowText.titleRound', { row })
           : t('rowText.titleRow', { row })}
       </h2>
@@ -41,7 +41,7 @@ export function RowText({
       </p>
       <ol className="row-text" ref={list}>
         {info.tokens.map((tok, i) => {
-          const s = stage.registry.require(tok.symbolId);
+          const s = grid.registry.require(tok.symbolId);
           const lo = Math.min(tok.fromStitch, tok.toStitch);
           const hi = Math.max(tok.fromStitch, tok.toStitch);
           const current = nextStitch !== null && nextStitch >= lo && nextStitch <= hi;
@@ -62,17 +62,17 @@ export function RowText({
   );
 }
 
-/** Legend for the symbols used in this stage, drawn with the grid's own glyphs. */
-export function Legend({ stage, pattern }: { stage: ResolvedStage; pattern: Pattern }) {
+/** Legend for the symbols used in this pattern, drawn with the grid's own glyphs. */
+export function Legend({ grid }: { grid: ResolvedPattern }) {
   const { t, i18n } = useTranslation();
   const ids = useId();
   const l = lang(i18n.language);
   const used = useMemo(() => {
     const set = new Set<string>();
-    for (const z of stage.zones)
+    for (const z of grid.zones)
       for (const row of z.chart.cells) for (const c of row) set.add(c.symbolId);
-    return [...set].map((id) => stage.registry.require(id));
-  }, [stage]);
+    return [...set].map((id) => grid.registry.require(id));
+  }, [grid]);
   return (
     <section className="panel__section" aria-labelledby={`${ids}-lg`}>
       <h2 id={`${ids}-lg`} className="panel__title">
@@ -80,7 +80,7 @@ export function Legend({ stage, pattern }: { stage: ResolvedStage; pattern: Patt
       </h2>
       <ul className="legend">
         {used.map((s) => {
-          const entry = pattern.legend.find((e) => e.symbolId === s.id);
+          const entry = grid.pattern.legend.find((e) => e.symbolId === s.id);
           const number = entry?.number ?? s.numbers?.['drops'];
           return (
             <li key={s.id} className="legend__item">
@@ -102,7 +102,7 @@ export function Legend({ stage, pattern }: { stage: ResolvedStage; pattern: Patt
 
 export interface ViewSettings {
   readonly cell: number;
-  readonly rows: number | 'stageEnd';
+  readonly rows: number | 'end';
   readonly veil: boolean;
 }
 
@@ -162,11 +162,11 @@ export function ViewControls({
           onChange={(e) =>
             onChange({
               ...view,
-              rows: e.target.value === 'stageEnd' ? 'stageEnd' : Number(e.target.value),
+              rows: e.target.value === 'end' ? 'end' : Number(e.target.value),
             })
           }
         >
-          <option value="stageEnd">{t('view.rowsStageEnd')}</option>
+          <option value="end">{t('view.rowsEnd')}</option>
           {[10, 20, 40, 80, 160].map((n) => (
             <option key={n} value={n}>
               {n}

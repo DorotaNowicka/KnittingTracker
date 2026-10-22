@@ -1,16 +1,18 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { watchCsp } from './fixtures';
+import { createProjectFromFile, projectIdOf, testPattern, watchCsp } from './fixtures';
 import { syntheticPdf, syntheticPng } from './synthetic';
 
 test.describe('import from a PDF or a picture', () => {
-  test('PDF → legend and charts recognised → fix a cell → pattern → knit; nothing leaves the device', async ({
+  test('PDF → legend and charts recognised → fix a cell → project → knit; nothing leaves the device', async ({
     page,
   }, testInfo) => {
     test.slow();
     const csp = await watchCsp(page);
     await page.goto('/import');
-    await expect(page.getByRole('heading', { level: 1, name: 'Import wzoru' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Nowy projekt z PDF lub zdjęcia' }),
+    ).toBeVisible();
     // From here on, every request is recorded: only the app's own files may be fetched.
     const requests: { method: string; url: string }[] = [];
     page.on('request', (r) => requests.push({ method: r.method(), url: r.url() }));
@@ -62,24 +64,55 @@ test.describe('import from a PDF or a picture', () => {
       expect(axe.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
     }
 
-    await page.getByLabel('Nazwa wzoru').fill('Wzór z importu');
+    await page.getByLabel('Nazwa projektu').fill('Projekt z importu');
+    await expect(page.getByLabel('Nazwa wzoru')).toHaveValue('Korpus');
     await page.getByRole('button', { name: 'Utwórz wzór' }).click();
-    await expect(page).toHaveURL(/\/wzor\//);
-    await expect(page.getByRole('heading', { level: 1, name: 'Wzór z importu' })).toBeVisible();
-    await expect(page.locator('.card--row')).toContainText('oczka: 18-22');
-    await expect(page.getByRole('button', { name: 'Zacznij dziergać' })).toBeEnabled();
+    await expect(page).toHaveURL(/\/projekt\/[^/]+\/wzor\/korpus\/edycja$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Wzór: Korpus' })).toBeVisible();
+    const sizes = page.locator('.size-table tbody');
+    await expect(sizes.getByRole('row').nth(0)).toContainText('18');
+    await expect(sizes.getByRole('row').nth(1)).toContainText('22');
+    await expect(page.getByRole('button', { name: 'Dziergaj ten wzór' })).toBeEnabled();
 
     // Nothing was sent anywhere: only GETs of the app's own assets (the lazy import code).
     const origin = new URL(page.url()).origin;
     const foreign = requests.filter((r) => r.method !== 'GET' || !r.url.startsWith(origin));
     expect(foreign).toEqual([]);
-    expect(requests.filter((r) => !/\/(assets|icons)\/|\/wzor\//.test(r.url))).toEqual([]);
+    expect(requests.filter((r) => !/\/(assets|icons)\/|\/projekt\//.test(r.url))).toEqual([]);
     expect(await csp()).toEqual([]);
 
     // Knit it.
-    await page.getByRole('button', { name: 'Zacznij dziergać' }).click();
-    await page.getByRole('button', { name: 'Utwórz projekt' }).click();
+    await page.getByRole('button', { name: 'Dziergaj ten wzór' }).click();
     await expect(page.getByTestId('grid')).toBeVisible();
+  });
+
+  test('a PDF adds a new pattern to an existing project', async ({ page }) => {
+    test.slow();
+    await createProjectFromFile(page, testPattern, 'Sweter', 1);
+    const id = projectIdOf(page);
+    await page.goto(`/projekt/${id}`);
+    await page.getByRole('link', { name: 'Wzór z PDF lub zdjęcia' }).click();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Nowy wzór w projekcie Sweter' }),
+    ).toBeVisible();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'wzor.pdf',
+      mimeType: 'application/pdf',
+      buffer: syntheticPdf().buffer,
+    });
+    await expect(page.getByText('Znaleziono 2 schematy. Sprawdź je z oryginałem.')).toBeVisible({
+      timeout: 30_000,
+    });
+    // The project's sizes are used; there is no project name to type.
+    await expect(page.getByLabel('Nazwa projektu')).toHaveCount(0);
+    await expect(page.getByText('Rozmiary projektu: S – M.', { exact: false })).toBeVisible();
+    await page.getByLabel('Nazwa wzoru').fill('Rękaw');
+    await page.getByRole('button', { name: 'Utwórz wzór' }).click();
+    await expect(page).toHaveURL(new RegExp(`/projekt/${id}/wzor/rekaw/edycja$`));
+    await page.getByRole('link', { name: 'Sweter', exact: true }).click();
+    const list = page.getByTestId('pattern-list');
+    await expect(list.getByRole('listitem')).toHaveCount(3);
+    await expect(list.getByRole('listitem').nth(2)).toContainText('Rękaw');
   });
 
   test('a picture: straighten step, recognition, file checks', async ({ page }) => {

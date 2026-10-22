@@ -16,13 +16,12 @@ import { Icon } from '../ui/Icon';
 import { SymbolGlyph } from '../ui/SymbolGlyph';
 import { CustomSymbolDialog } from './CustomSymbolDialog';
 
-const update = (f: (p: Pattern) => Pattern) => useDraft.getState().update(f);
-
 /**
  * The pattern's own legend (FR-15): for every symbol used in the charts, the number and wording
  * of the source pattern. Also lists the pattern's custom symbols.
  */
 export function LegendEditor({ pattern }: { pattern: Pattern }) {
+  const update = (f: (p: Pattern) => Pattern) => useDraft.getState().updatePattern(pattern.id, f);
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const dialog = useRef<HTMLDialogElement>(null);

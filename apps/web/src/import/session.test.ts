@@ -1,3 +1,4 @@
+import { blankProject } from '@kt/core';
 import type { ImportResult } from '@kt/importer';
 import { parseDescription } from '@kt/importer';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -69,7 +70,7 @@ const result = (): ImportResult => ({
 
 beforeEach(() => {
   setStorageForTests(createMemoryStorage());
-  useLibrary.setState({ status: 'idle', patterns: [], projects: [], progress: {}, persist: null });
+  useLibrary.setState({ status: 'idle', projects: [], progress: {}, persist: null });
   useImport.getState().reset();
 });
 
@@ -83,7 +84,7 @@ describe('import session', () => {
     expect(d.confidence[0]?.[1]).toBe(0.2);
   });
 
-  it('creates a pattern from the confirmed charts, legend and description', async () => {
+  it('creates a project from the confirmed charts, legend and description', async () => {
     const r = result();
     useImport.setState({
       status: 'verify',
@@ -99,17 +100,65 @@ describe('import session', () => {
     expect(useImport.getState().description.parsed.sizes?.value).toEqual(['S', 'M']);
     useImport.getState().updateChart(0, { name: 'C.1' });
     useImport.getState().setLegend(0, 'std:p');
-    const id = await useImport.getState().create({
+    const created = await useImport.getState().create({
       title: 'Test',
       sizes: ['S', 'M'],
-      stageName: 'Korpus',
+      patternName: 'Korpus',
       sections: ['Przód', 'Tył'],
     });
-    const stored = useLibrary.getState().patterns.find((p) => p.id === id);
-    expect(stored?.pattern.charts[0]?.name).toBe('C.1');
-    expect(stored?.pattern.legend).toEqual([{ symbolId: 'std:p', text: 'lewe oczko' }]);
-    expect(stored?.pattern.stages[0]?.expectedStitches).toEqual([8, 10]);
-    expect(stored?.pattern.stages[0]?.layout.filter((s) => s.kind === 'chart')).toHaveLength(3);
+    if (!created) throw new Error('nothing created');
+    const project = useLibrary.getState().project(created.projectId);
+    expect(project).toMatchObject({ name: 'Test', sizes: ['S', 'M'] });
+    const pattern = project?.patterns.find((p) => p.id === created.patternId);
+    expect(pattern?.name).toBe('Korpus');
+    expect(pattern?.charts[0]?.name).toBe('C.1');
+    expect(pattern?.legend).toEqual([{ symbolId: 'std:p', text: 'lewe oczko' }]);
+    expect(pattern?.expectedStitches).toEqual([8, 10]);
+    expect(pattern?.layout.filter((s) => s.kind === 'chart')).toHaveLength(3);
+  });
+
+  it('adds the pattern to an existing project, using its sizes', async () => {
+    await useLibrary.getState().addProject(
+      blankProject({
+        id: 'p1',
+        name: 'Sweter',
+        sizes: ['S', 'M'],
+        patternName: 'Korpus',
+        now: '2026-10-22T10:00:00.000Z',
+      }),
+    );
+    useImport.setState({
+      status: 'verify',
+      result: result(),
+      charts: [draftOf(recognized, 'C.1')],
+      legend: ['std:p'],
+    });
+    useImport
+      .getState()
+      .setDescription(
+        'ROZMIARY: S - M\nRazem = 8-10 oczek. Dalej: C.1 ponad 4-6 oczkami, C.1, C.1 ponad 0-0 oczkami.',
+      );
+    const created = await useImport.getState().create({
+      projectId: 'p1',
+      title: 'ignored',
+      sizes: ['ignored'],
+      patternName: 'Korpus',
+      sections: ['Przód', 'Tył'],
+    });
+    expect(created).toEqual({ projectId: 'p1', patternId: 'korpus' });
+    const project = useLibrary.getState().project('p1');
+    expect(project?.patterns.map((p) => p.id)).toEqual(['pattern-1', 'korpus']);
+    expect(project?.sizes).toEqual(['S', 'M']);
+    expect(project?.patterns[1]?.layout[1]).toMatchObject({ stitches: [4, 6] });
+    expect(
+      await useImport.getState().create({
+        projectId: 'nope',
+        title: '',
+        sizes: [],
+        patternName: 'x',
+        sections: ['A', 'B'],
+      }),
+    ).toBeNull();
   });
 
   it('leaves out charts the user excluded', async () => {
@@ -119,12 +168,12 @@ describe('import session', () => {
       charts: [{ ...draftOf(recognized, 'C.1'), include: false }],
       legend: [null],
     });
-    const id = await useImport
+    const created = await useImport
       .getState()
-      .create({ title: '', sizes: ['1'], stageName: 'Korpus', sections: ['A', 'B'] });
-    const stored = useLibrary.getState().patterns.find((p) => p.id === id);
-    expect(stored?.pattern.charts).toEqual([]);
-    expect(stored?.pattern.legend).toEqual([]);
-    expect(stored?.pattern.title).toBe('Wzór');
+      .create({ title: '', sizes: ['1'], patternName: 'Korpus', sections: ['A', 'B'] });
+    const project = useLibrary.getState().project(created?.projectId ?? '');
+    expect(project?.patterns[0]?.charts).toEqual([]);
+    expect(project?.patterns[0]?.legend).toEqual([]);
+    expect(project?.name).toBe('Projekt');
   });
 });

@@ -2,7 +2,7 @@ import { createIdbStorage } from './idb';
 import { createMemoryStorage } from './memory';
 import type { StorageAdapter } from './types';
 
-export type { StorageAdapter, StoredPattern, StoredProgress, StoredProject } from './types';
+export type { StorageAdapter, StoredProgress, StoredProject } from './types';
 export { createMemoryStorage } from './memory';
 
 /**

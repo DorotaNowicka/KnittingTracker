@@ -20,7 +20,10 @@ const charts = [
   },
 ];
 
-/** A pattern file. The older patterns stay at schema v1 on purpose: they are migrated on import. */
+/**
+ * A pattern file of schema v1 or v2 (one pattern with stages). Kept on purpose: opening it in
+ * the app converts it to a project whose patterns are the former stages (schema v3).
+ */
 export function patternFile(
   pattern: object,
   schemaVersion = 1,
@@ -170,8 +173,23 @@ export async function createProjectFromFile(
   await page.locator('input[type="file"]').setInputFiles(patternFile(pattern, schemaVersion));
   await page.getByLabel('Nazwa projektu').fill(name);
   await page.getByRole('button', { name: 'Utwórz projekt' }).click();
-  await expect(page).toHaveURL(/\/projekt\//);
+  await expect(page).toHaveURL(/\/projekt\/[^/]+\/wzor\//);
   await expect(page.getByTestId('grid')).toBeVisible();
+}
+
+/** Id of the project the page shows (from a /projekt/<id>/… address). */
+export function projectIdOf(page: Page): string {
+  const id = /\/projekt\/([^/]+)/.exec(new URL(page.url()).pathname)?.[1];
+  if (!id) throw new Error(`not a project page: ${page.url()}`);
+  return decodeURIComponent(id);
+}
+
+/** From the project list: open a project and continue knitting its active pattern. */
+export async function continueKnitting(page: Page, name: string) {
+  await page.goto('/');
+  await page.getByRole('link', { name: new RegExp(name) }).click();
+  await page.getByTestId('continue-knitting').click();
+  await expect(page.getByTestId('grid').or(page.getByTestId('row-counter'))).toBeVisible();
 }
 
 /** Tap the centre of a grid cell (row, display column) after scrolling it into view. */

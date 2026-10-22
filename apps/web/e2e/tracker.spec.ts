@@ -62,9 +62,10 @@ test.describe('tracking a pattern from a file', () => {
     await expect(detail(page)).toContainText('okrążenie 2, oczko 2');
   });
 
-  test('flat stage starts on the wrong side and reads left to right', async ({ page }) => {
+  test('a flat pattern starts on the wrong side and reads left to right', async ({ page }) => {
     await createProjectFromFile(page, testPattern);
-    await page.getByRole('combobox', { name: 'Etap' }).selectOption('back');
+    await page.getByRole('combobox', { name: 'Wzór' }).selectOption('back');
+    await expect(page).toHaveURL(/\/wzor\/back$/);
     await expect(page.getByText('Lewa strona').first()).toBeVisible();
     // Row 1 is WS: the first stitch worked is the leftmost one (display column 1 = stitch 10).
     await tapCell(page, 1, 1);
@@ -91,8 +92,11 @@ test.describe('tracking a pattern from a file', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await check();
+    await page.getByRole('link', { name: /Projekt testowy/ }).click();
+    await expect(page.getByTestId('pattern-list')).toBeVisible();
+    await check();
     await page.goto('/nowy');
-    await page.getByRole('button', { name: 'Użyj przykładowego wzoru' }).click();
+    await page.getByRole('button', { name: 'Użyj przykładowego projektu' }).click();
     await check();
     await page.goto('/ustawienia');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();

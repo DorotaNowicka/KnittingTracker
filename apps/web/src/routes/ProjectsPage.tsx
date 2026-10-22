@@ -1,10 +1,11 @@
-import { createProgressModel, resolveStage, summarize } from '@kt/core';
+import { createProgressModel, resolvePattern, summarize } from '@kt/core';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from '../lib/Link';
+import { newId } from '../lib/files';
 import { navigate, paths } from '../lib/router';
 import type { StoredProject } from '../lib/storage';
-import { samplePattern } from '../sample/samplePattern';
+import { sampleProject } from '../sample/sampleProject';
 import { useLibrary } from '../state/library';
 import { Icon } from '../ui/Icon';
 import { AppHeader } from './AppHeader';
@@ -17,16 +18,10 @@ export function ProjectsPage() {
   const startSample = async () => {
     setBusy(true);
     try {
-      const lib = useLibrary.getState();
-      const pattern = await lib.savePattern(samplePattern, 'sample');
-      const project = await lib.createProject({
-        pattern,
-        name: t('projects.sampleName'),
-        sizeIndex: 0,
-        stageId: samplePattern.stages[0]?.id ?? 'body',
-        modifications: [],
-      });
-      navigate(paths.project(project.id));
+      const project = await useLibrary
+        .getState()
+        .addProject(sampleProject(newId(), t('projects.sampleName'), new Date().toISOString()));
+      navigate(paths.tracker(project.id, project.activePatternId ?? 'body'));
     } finally {
       setBusy(false);
     }
@@ -45,8 +40,8 @@ export function ProjectsPage() {
             <p className="empty__body">{t('projects.empty.body')}</p>
             <div className="empty__actions">
               <Link className="btn btn--primary" to={paths.new()}>
-                <Icon name="upload" />
-                {t('projects.loadFile')}
+                <Icon name="plus" />
+                {t('projects.new')}
               </Link>
               <button
                 type="button"
@@ -80,27 +75,24 @@ export function ProjectsPage() {
 
 function ProjectRow({ project }: { project: StoredProject }) {
   const { t, i18n } = useTranslation();
-  const pattern = useLibrary((s) => s.patterns.find((p) => p.id === project.patternId));
   const progress = useLibrary((s) => s.progress[project.id]);
   const dialog = useRef<HTMLDialogElement>(null);
   const done = progress?.done ?? 0;
 
   const summary = useMemo(() => {
-    if (!pattern) return null;
+    const active = project.activePatternId ?? project.patterns[0]?.id;
+    if (!active) return null;
     try {
-      const stage = resolveStage(pattern.pattern, project.activeStageId, project.sizeIndex, {
-        modifications: project.modifications,
-        ...(project.finishedRows ? { finishedRows: project.finishedRows } : {}),
-      });
+      const grid = resolvePattern(project, active);
       return {
-        stageName: stage.stage.name,
-        round: stage.stage.construction === 'round',
-        s: summarize(createProgressModel(stage), done),
+        patternName: grid.pattern.name,
+        round: grid.pattern.construction === 'round',
+        s: summarize(createProgressModel(grid), done),
       };
     } catch {
       return null;
     }
-  }, [pattern, project, done]);
+  }, [project, done]);
 
   const remove = async () => {
     dialog.current?.close();
@@ -112,8 +104,14 @@ function ProjectRow({ project }: { project: StoredProject }) {
       <Link className="project__link" to={paths.project(project.id)}>
         <span className="project__name">{project.name}</span>
         <span className="project__meta">
-          {pattern?.pattern.title ?? t('projects.patternMissing')}
-          {summary && <span>{summary.stageName}</span>}
+          {project.patterns.length === 0 ? (
+            t('projects.noPatterns')
+          ) : (
+            <>
+              {t('projects.patterns', { count: project.patterns.length })}
+              {summary && <span>{summary.patternName}</span>}
+            </>
+          )}
         </span>
         {summary && (
           <span className="project__progress">

@@ -10,33 +10,47 @@ import { Icon } from '../ui/Icon';
 import { SymbolGlyph } from '../ui/SymbolGlyph';
 import { ChartReview } from './ChartReview';
 import { checkFile, ImportError } from './client';
-import { UNCERTAIN, useImport } from './session';
+import { useLibrary } from '../state/library';
+import { UNCERTAIN, useImport, type CreateInput } from './session';
 import { StraightenStep } from './StraightenStep';
 
 const registry = createRegistry();
 
-/** "From file to grid" (FR-1): pick a PDF or a picture, check what was recognised, create the pattern. */
-export function ImportPage() {
+/**
+ * "From file to grid" (FR-1): pick a PDF or a picture, check what was recognised, create the
+ * pattern — in a new project, or as a new pattern of `projectId`.
+ */
+export function ImportPage({ projectId }: { projectId?: string } = {}) {
   const { t } = useTranslation();
   const s = useImport();
+  const project = useLibrary((st) => (projectId ? st.project(projectId) : undefined));
 
   return (
     <>
       <AppHeader />
       <main className="page page--wide" id="main">
         <p className="page__back">
-          <Link to={paths.patterns()} className="link-back">
-            <Icon name="back" size={18} />
-            {t('nav.patterns')}
-          </Link>
+          {project ? (
+            <Link to={paths.project(project.id)} className="link-back">
+              <Icon name="back" size={18} />
+              {project.name}
+            </Link>
+          ) : (
+            <Link to={paths.new()} className="link-back">
+              <Icon name="back" size={18} />
+              {t('newProject.title')}
+            </Link>
+          )}
         </p>
-        <h1 className="page__title">{t('importer.title')}</h1>
+        <h1 className="page__title">
+          {project ? t('importer.titleAdd', { name: project.name }) : t('importer.title')}
+        </h1>
         {(s.status === 'idle' || s.status === 'error') && <PickFile error={s.error} />}
         {s.status === 'straighten' && s.preview && (
           <StraightenStep image={s.preview} onRun={(c) => void s.run(c)} onCancel={s.reset} />
         )}
         {s.status === 'running' && <Progress progress={s.progress} onCancel={s.reset} />}
-        {s.status === 'verify' && <Verify />}
+        {s.status === 'verify' && <Verify projectId={project?.id} />}
       </main>
     </>
   );
@@ -112,7 +126,7 @@ function Progress({ progress, onCancel }: { progress: ImportProgress | null; onC
   );
 }
 
-function Verify() {
+function Verify({ projectId }: { projectId?: string | undefined }) {
   const { t } = useTranslation();
   const ids = useId();
   const s = useImport();
@@ -158,14 +172,16 @@ function Verify() {
       <DescriptionReview />
 
       <CreateForm
+        projectId={projectId}
         disabled={included.length === 0 || busy}
         uncertain={uncertain}
         onCreate={async (input) => {
           setBusy(true);
           try {
-            const id = await useImport.getState().create(input);
+            const created = await useImport.getState().create(input);
+            if (!created) return;
             useImport.getState().reset();
-            navigate(paths.pattern(id));
+            navigate(paths.pattern(created.projectId, created.patternId));
           } finally {
             setBusy(false);
           }
@@ -403,25 +419,29 @@ function DescriptionReview() {
 }
 
 function CreateForm({
+  projectId,
   disabled,
   uncertain,
   onCreate,
 }: {
+  projectId: string | undefined;
   disabled: boolean;
   uncertain: number;
-  onCreate(input: {
-    title: string;
-    sizes: readonly string[];
-    stageName: string;
-    sections: readonly [string, string];
-  }): Promise<void>;
+  onCreate(input: CreateInput): Promise<void>;
 }) {
   const { t } = useTranslation();
   const ids = useId();
+  const project = useLibrary((st) => (projectId ? st.project(projectId) : undefined));
+  const suggestedName =
+    project && project.patterns.length > 0
+      ? t('editor.stageName', { n: project.patterns.length + 1 })
+      : t('editor.firstStage');
+  const [patternName, setPatternName] = useState(suggestedName);
   const file = useImport((s) => s.file);
   const parsedSizes = useImport((s) => s.description.parsed.sizes?.value);
   const defaultTitle = useMemo(
-    () => (file?.name ?? '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120) || t('editor.newTitle'),
+    () =>
+      (file?.name ?? '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120) || t('newProject.blankName'),
     [file, t],
   );
   const [title, setTitle] = useState(defaultTitle);
@@ -435,33 +455,48 @@ function CreateForm({
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void onCreate({
+      ...(project ? { projectId: project.id } : {}),
       title: title.trim() || defaultTitle,
       sizes: sizes.length ? sizes : [t('editor.oneSize')],
-      stageName: t('editor.firstStage'),
+      patternName: patternName.trim().slice(0, 60) || suggestedName,
       sections: [t('importer.front'), t('importer.back')],
     });
   };
   return (
     <form className="editor-section" aria-labelledby={`${ids}-c`} onSubmit={submit}>
       <h2 id={`${ids}-c`} className="section-title">
-        {t('importer.create')}
+        {t(project ? 'importer.createInProject' : 'importer.create')}
       </h2>
       <div className="form-grid">
+        {!project && (
+          <TextField
+            label={t('project.name')}
+            value={title}
+            required
+            maxLength={120}
+            onCommit={setTitle}
+          />
+        )}
         <TextField
-          label={t('editor.titleLabel')}
-          value={title}
+          label={t('project.patternName')}
+          value={patternName}
           required
-          maxLength={120}
-          onCommit={setTitle}
+          maxLength={60}
+          onCommit={setPatternName}
         />
-        <TextField
-          label={t('editor.sizes')}
-          value={sizesValue}
-          maxLength={200}
-          hint={t('importer.sizesHint')}
-          onCommit={setSizesText}
-        />
+        {!project && (
+          <TextField
+            label={t('editor.sizes')}
+            value={sizesValue}
+            maxLength={200}
+            hint={t('importer.sizesHint')}
+            onCommit={setSizesText}
+          />
+        )}
       </div>
+      {project && (
+        <p className="hint">{t('importer.projectSizes', { sizes: project.sizes.join(' – ') })}</p>
+      )}
       {uncertain > 0 && (
         <p className="notice notice--warning" role="status">
           {t('importer.stillUncertain', { count: uncertain })}

@@ -1,24 +1,29 @@
-import { patternSchema, type Pattern } from '@kt/core';
+import { mapPattern, projectSchema, type Pattern, type Project } from '@kt/core';
 import { create } from 'zustand';
-import type { StoredPattern } from '../lib/storage';
+import type { StoredProject } from '../lib/storage';
 import { getStorage, useLibrary } from './library';
 
 /**
- * The pattern open in the editor (M3). Every change is applied in memory at once and written to
- * storage shortly after (debounced), so typing and painting stay fast. A pattern is only written
- * when it passes the file schema: storage never holds a pattern that could not be exported or
- * read back.
+ * The project open in the editors (project page, pattern page, chart editor). Every change is
+ * applied in memory at once and written shortly after (debounced), so typing and painting stay
+ * fast. A project is only written when it passes the schema: storage never holds a project that
+ * could not be exported or read back.
+ *
+ * Writing merges into the library's latest copy: only the top-level fields this draft changed
+ * since it was loaded are taken, so a change the tracker made meanwhile (e.g. the active pattern
+ * or finished rows) is never overwritten by a stale copy.
  */
 interface DraftState {
   readonly status: 'idle' | 'loading' | 'ready' | 'missing';
   readonly id: string | null;
-  readonly stored: StoredPattern | null;
-  readonly pattern: Pattern | null;
+  readonly project: Project | null;
   /** Unsaved changes are pending. */
   readonly dirty: boolean;
   readonly saveError: boolean;
   open(id: string): Promise<void>;
-  update(change: (pattern: Pattern) => Pattern): void;
+  update(change: (project: Project) => Project): void;
+  /** Change one pattern of the open project. */
+  updatePattern(patternId: string, change: (pattern: Pattern) => Pattern): void;
   flush(): Promise<void>;
 }
 
@@ -28,40 +33,62 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 /** Revision is bumped once per editing session, on the first change. */
 let bumped = false;
 let saving: Promise<void> = Promise.resolve();
+/** The project as last loaded or saved: the base of the three-way merge. */
+let base: Project | null = null;
+
+/** Fields of `draft` that differ from `from` (by reference), applied onto `latest`. */
+function merge(latest: StoredProject, from: Project, draft: Project): StoredProject {
+  const before = from as Record<string, unknown>;
+  const after = draft as Record<string, unknown>;
+  const changed = new Set(
+    [...Object.keys(from), ...Object.keys(draft)].filter((key) => before[key] !== after[key]),
+  );
+  // Keys the draft changed come from the draft (or are dropped when it removed them).
+  const kept = Object.entries(latest).filter(([key]) => !changed.has(key));
+  const taken = Object.entries(draft).filter(([key]) => changed.has(key));
+  return Object.fromEntries([...kept, ...taken]) as StoredProject;
+}
 
 export const useDraft = create<DraftState>((set, get) => ({
   status: 'idle',
   id: null,
-  stored: null,
-  pattern: null,
+  project: null,
   dirty: false,
   saveError: false,
 
   async open(id) {
     const current = get();
-    if (current.id === id && current.status === 'ready') return;
+    if (current.id === id && current.status === 'ready' && current.dirty) return;
     await get().flush();
-    bumped = false;
-    set({ status: 'loading', id, stored: null, pattern: null, dirty: false, saveError: false });
-    const fromLibrary = useLibrary.getState().patterns.find((p) => p.id === id);
-    const stored = fromLibrary ?? (await (await getStorage()).getPattern(id));
+    if (current.id !== id) bumped = false;
+    if (current.id !== id) set({ status: 'loading', id, project: null, saveError: false });
+    const fromLibrary = useLibrary.getState().project(id);
+    const stored = fromLibrary ?? (await (await getStorage()).getProject(id));
     if (get().id !== id) return;
-    if (!stored) return set({ status: 'missing' });
-    set({ status: 'ready', stored, pattern: stored.pattern });
+    if (!stored) {
+      base = null;
+      return set({ status: 'missing', project: null });
+    }
+    base = stored;
+    set({ status: 'ready', project: stored, dirty: false });
   },
 
   update(change) {
-    const { pattern, stored } = get();
-    if (!pattern || !stored) return;
-    let next = change(pattern);
-    if (next === pattern) return;
+    const { project } = get();
+    if (!project || !base) return;
+    let next = change(project);
+    if (next === project) return;
     if (!bumped) {
       bumped = true;
-      next = { ...next, revision: stored.pattern.revision + 1 };
+      next = { ...next, revision: base.revision + 1 };
     }
-    set({ pattern: next, dirty: true });
+    set({ project: next, dirty: true });
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => void get().flush(), SAVE_DELAY_MS);
+  },
+
+  updatePattern(patternId, change) {
+    get().update((p) => mapPattern(p, patternId, change));
   },
 
   async flush() {
@@ -70,22 +97,28 @@ export const useDraft = create<DraftState>((set, get) => ({
       timer = null;
     }
     const run = async () => {
-      const { pattern, stored, dirty } = get();
-      if (!pattern || !stored || !dirty) return;
-      if (!patternSchema.safeParse(pattern).success) {
-        console.error('[draft] refusing to save a pattern that fails the schema');
+      const { project, dirty, id } = get();
+      const from = base;
+      if (!project || !from || !dirty || !id) return;
+      if (!projectSchema.safeParse(project).success) {
+        console.error('[draft] refusing to save a project that fails the schema');
         set({ saveError: true });
         return;
       }
-      const next: StoredPattern = { ...stored, pattern, updatedAt: new Date().toISOString() };
+      const now = new Date().toISOString();
       try {
-        await useLibrary.getState().updatePattern(next);
-        // Only clear `dirty` if nothing changed while writing.
-        set(
-          get().pattern === pattern
-            ? { stored: next, dirty: false, saveError: false }
-            : { stored: next },
-        );
+        const saved = await useLibrary
+          .getState()
+          .updateProject(id, (latest) => ({ ...merge(latest, from, project), updatedAt: now }));
+        if (!saved) throw new Error('the project is gone');
+        if (get().project === project) {
+          // Nothing changed while writing: continue from the merged copy.
+          base = saved;
+          set({ project: saved, dirty: false, saveError: false });
+        } else {
+          // Edits came in while writing: the next merge compares against what was written.
+          base = project;
+        }
       } catch (error) {
         console.error('[draft] save failed', error);
         set({ saveError: true });
@@ -108,13 +141,7 @@ export function resetDraftForTests(): void {
   if (timer) clearTimeout(timer);
   timer = null;
   bumped = false;
+  base = null;
   saving = Promise.resolve();
-  useDraft.setState({
-    status: 'idle',
-    id: null,
-    stored: null,
-    pattern: null,
-    dirty: false,
-    saveError: false,
-  });
+  useDraft.setState({ status: 'idle', id: null, project: null, dirty: false, saveError: false });
 }

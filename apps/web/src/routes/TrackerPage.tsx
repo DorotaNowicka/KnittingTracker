@@ -4,33 +4,37 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import { getWakeLockPref } from '../lib/preferences';
 import { Link } from '../lib/Link';
-import { paths } from '../lib/router';
+import { navigate, paths } from '../lib/router';
 import { useWakeLock } from '../lib/wakeLock';
 import { useSession } from '../state/session';
 import { GridCanvas, type ViewRequest } from '../tracker/GridCanvas';
 import { Legend, RowText, ViewControls, type ViewSettings } from '../tracker/PanelParts';
-import { nextStageOf } from '../tracker/stages';
 import {
   FinishDialog,
+  PatternPanel,
   PositionDialog,
   ProjectDialog,
   RowCounter,
-  StagePanel,
-} from '../tracker/StageParts';
+} from '../tracker/PatternParts';
+import { nextPatternOf } from '../tracker/patterns';
 import { Icon } from '../ui/Icon';
 
-const VIEW_KEY = (id: string) => `kt.view.${id}`;
+/** View settings are kept per pattern (patterns differ in width); 1.0 kept them per project. */
+const VIEW_KEY = (projectId: string, patternId: string) => `kt.view.${projectId}.${patternId}`;
+const OLD_VIEW_KEY = (projectId: string) => `kt.view.${projectId}`;
 
-function loadView(projectId: string): ViewSettings {
+function loadView(projectId: string, patternId: string): ViewSettings {
   // cell 0 = not chosen yet: the grid picks a size that fits the screen on first open.
-  const fallback: ViewSettings = { cell: 0, rows: 'stageEnd', veil: true };
+  const fallback: ViewSettings = { cell: 0, rows: 'end', veil: true };
   try {
-    const raw = localStorage.getItem(VIEW_KEY(projectId));
+    const raw =
+      localStorage.getItem(VIEW_KEY(projectId, patternId)) ??
+      localStorage.getItem(OLD_VIEW_KEY(projectId));
     if (!raw) return fallback;
-    const v = JSON.parse(raw) as Partial<ViewSettings>;
+    const v = JSON.parse(raw) as Partial<Omit<ViewSettings, 'rows'>> & { rows?: unknown };
     return {
       cell: typeof v.cell === 'number' ? v.cell : fallback.cell,
-      rows: v.rows === 'stageEnd' || typeof v.rows === 'number' ? v.rows : fallback.rows,
+      rows: typeof v.rows === 'number' ? v.rows : fallback.rows,
       veil: typeof v.veil === 'boolean' ? v.veil : fallback.veil,
     };
   } catch {
@@ -38,59 +42,60 @@ function loadView(projectId: string): ViewSettings {
   }
 }
 
-function saveView(projectId: string, v: ViewSettings) {
+function saveView(projectId: string, patternId: string, v: ViewSettings) {
   try {
-    localStorage.setItem(VIEW_KEY(projectId), JSON.stringify(v));
+    localStorage.setItem(VIEW_KEY(projectId, patternId), JSON.stringify(v));
   } catch {
     /* per-device convenience only */
   }
 }
 
-export function TrackerPage({ projectId }: { projectId: string }) {
+export function TrackerPage({ projectId, patternId }: { projectId: string; patternId: string }) {
+  return <Tracker key={`${projectId}/${patternId}`} projectId={projectId} patternId={patternId} />;
+}
+
+function Tracker({ projectId, patternId }: { projectId: string; patternId: string }) {
   const { t } = useTranslation();
   const ids = useId();
   const s = useSession();
-  const [view, setView] = useState<ViewSettings>(() => loadView(projectId));
+  const [view, setView] = useState<ViewSettings>(() => loadView(projectId, patternId));
   const [panelOpen, setPanelOpen] = useState(() => matchMedia('(min-width: 1100px)').matches);
   const [request, setRequest] = useState<ViewRequest | null>(null);
   const positionRef = useRef<HTMLDialogElement>(null);
   const finishRef = useRef<HTMLDialogElement>(null);
   const projectRef = useRef<HTMLDialogElement>(null);
   useWakeLock(getWakeLockPref());
-  // On phones and tablets the panel covers the grid: close it when the stage changes from there.
-  const closeOverlay = () => {
-    if (!matchMedia('(min-width: 1100px)').matches) setPanelOpen(false);
-  };
+  const goTo = (id: string) => navigate(paths.tracker(projectId, id));
 
   useEffect(() => {
-    void useSession.getState().open(projectId);
+    void useSession.getState().open(projectId, patternId);
     return () => useSession.getState().close();
-  }, [projectId]);
+  }, [projectId, patternId]);
 
-  useEffect(() => saveView(projectId, view), [projectId, view]);
+  useEffect(() => saveView(projectId, patternId, view), [projectId, patternId, view]);
 
   const summary = useMemo(
     () => (s.model ? summarize(s.model, s.progress.done) : null),
     [s.model, s.progress.done],
   );
   const rows = useMemo(
-    () => (s.stage && summary ? visibleRowCount(s.stage, summary.currentRow, view.rows) : 1),
-    [s.stage, summary, view.rows],
+    () => (s.grid && summary ? visibleRowCount(s.grid, summary.currentRow, view.rows) : 1),
+    [s.grid, summary, view.rows],
   );
   const sections = useMemo(
     () =>
-      s.stage?.sections.map((sec) => ({
+      s.grid?.sections.map((sec) => ({
         label: sec.name,
-        first: s.stage ? s.stage.stitchCount - sec.lastStitch + 1 : 1,
-        last: s.stage ? s.stage.stitchCount - sec.firstStitch + 1 : 1,
+        first: s.grid ? s.grid.stitchCount - sec.lastStitch + 1 : 1,
+        last: s.grid ? s.grid.stitchCount - sec.firstStitch + 1 : 1,
       })) ?? [],
-    [s.stage],
+    [s.grid],
   );
 
-  const round = s.stage?.stage.construction === 'round';
+  const round = s.grid?.pattern.construction === 'round';
   const rowWord = round ? t('status.roundWord') : t('status.rowWord');
   const sectionOf = (stitch: number) =>
-    s.stage?.sections.find((x) => stitch >= x.firstStitch && stitch <= x.lastStitch)?.name;
+    s.grid?.sections.find((x) => stitch >= x.firstStitch && stitch <= x.lastStitch)?.name;
 
   // Polite announcement of the new position for screen readers (derived, re-read on each change).
   const announcement = summary?.lastDone
@@ -152,48 +157,59 @@ export function TrackerPage({ projectId }: { projectId: string }) {
     return (
       <main className="page" id="main">
         <h1 className="page__title">{t(`tracker.error.${s.error}`)}</h1>
-        <Link className="btn" to={paths.projects()}>
-          {t('nav.projects')}
-        </Link>
+        {s.project ? (
+          <Link className="btn" to={paths.project(projectId)}>
+            {t('editor.backToProject')}
+          </Link>
+        ) : (
+          <Link className="btn" to={paths.projects()}>
+            {t('nav.projects')}
+          </Link>
+        )}
       </main>
     );
   }
-  if (!s.stage || !s.model || !s.project || !s.pattern || !summary) {
+  if (!s.grid || !s.model || !s.project || !summary || s.patternId !== patternId) {
     return <main className="page page--loading" aria-busy="true" />;
   }
 
-  const stage = s.stage;
+  const grid = s.grid;
+  const project = s.project;
   const next = summary.next;
   const last = summary.lastDone;
   const counter = s.model.unit === 'row';
-  const finished = s.project.finishedRows?.[stage.stage.id];
+  const finished = project.finishedRows?.[grid.pattern.id];
   const complete = next === null || finished !== undefined;
-  const nextStage = nextStageOf(s.pattern, stage.stage.id);
-  const showGrid = stage.stitchCount > 0;
+  const nextPattern = nextPatternOf(project, grid.pattern.id);
+  const showGrid = grid.stitchCount > 0;
 
   return (
     <main id="main" className={`tracker${panelOpen ? ' tracker--panel' : ''}`}>
       <header className="tracker__bar">
-        <Link to={paths.projects()} className="icon-btn" aria-label={t('nav.projects')}>
+        <Link
+          to={paths.project(project.id)}
+          className="icon-btn"
+          aria-label={t('tracker.toProject', { name: project.name })}
+        >
           <Icon name="back" />
         </Link>
         <div className="tracker__titles">
-          <h1 className="tracker__title">{s.project.name}</h1>
-          {s.pattern.stages.length > 1 ? (
+          <h1 className="tracker__title">{project.name}</h1>
+          {project.patterns.length > 1 ? (
             <select
               className="stage-select"
-              aria-label={t('tracker.stage')}
-              value={stage.stage.id}
-              onChange={(e) => void s.setStage(e.target.value)}
+              aria-label={t('tracker.pattern')}
+              value={grid.pattern.id}
+              onChange={(e) => goTo(e.target.value)}
             >
-              {s.pattern.stages.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.name}
+              {project.patterns.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
                 </option>
               ))}
             </select>
           ) : (
-            <span className="tracker__stage">{stage.stage.name}</span>
+            <span className="tracker__stage">{grid.pattern.name}</span>
           )}
         </div>
         <button
@@ -219,8 +235,8 @@ export function TrackerPage({ projectId }: { projectId: string }) {
               <span className="status__label">{t('status.rowsDone')}</span>
               <span className="status__value num">
                 {summary.done}
-                {stage.plannedRows !== null && (
-                  <span className="status__of"> / {stage.plannedRows}</span>
+                {grid.plannedRows !== null && (
+                  <span className="status__of"> / {grid.plannedRows}</span>
                 )}
               </span>
             </span>
@@ -235,7 +251,7 @@ export function TrackerPage({ projectId }: { projectId: string }) {
           )}
           {summary.percent !== null && (
             <span className="status__item status__item--secondary">
-              <span className="status__label">{t('status.stage')}</span>
+              <span className="status__label">{t('status.pattern')}</span>
               <span className="status__value status__value--small num">
                 {Math.floor(summary.percent)}%
               </span>
@@ -275,14 +291,14 @@ export function TrackerPage({ projectId }: { projectId: string }) {
             {t('position.short')}
           </button>
         </p>
-        {complete && nextStage && (
+        {complete && nextPattern && (
           <p className="status__next">
             <button
               type="button"
               className="btn btn--primary btn--small"
-              onClick={() => void s.setStage(nextStage.id)}
+              onClick={() => goTo(nextPattern.id)}
             >
-              {t('stagePanel.next', { name: nextStage.name })}
+              {t('patternPanel.next', { name: nextPattern.name })}
             </button>
           </p>
         )}
@@ -298,14 +314,14 @@ export function TrackerPage({ projectId }: { projectId: string }) {
           {!showGrid ? (
             <RowCounter
               summary={summary}
-              planned={stage.plannedRows}
+              planned={grid.plannedRows}
               round={round}
               onAdd={() => dispatch({ type: 'completeRow' })}
               onRemove={() => dispatch({ type: 'set', done: summary.done - 1 })}
             />
           ) : (
             <GridCanvas
-              stage={stage}
+              grid={grid}
               model={s.model}
               done={s.progress.done}
               mode={mode}
@@ -337,22 +353,18 @@ export function TrackerPage({ projectId }: { projectId: string }) {
               <Icon name="close" />
             </button>
           </div>
-          <StagePanel
-            pattern={s.pattern}
-            project={s.project}
-            stage={stage}
+          <PatternPanel
+            project={project}
+            grid={grid}
             summary={summary}
             onPosition={() => positionRef.current?.showModal()}
             onFinish={() => finishRef.current?.showModal()}
-            onReopen={() => void s.reopenStage(stage.stage.id)}
-            onNext={(id) => {
-              closeOverlay();
-              void s.setStage(id);
-            }}
+            onReopen={() => void s.reopenPattern(grid.pattern.id)}
+            onNext={goTo}
             onProject={() => projectRef.current?.showModal()}
           />
-          {showGrid && <RowText stage={stage} row={summary.currentRow} next={next} />}
-          {showGrid && <Legend stage={stage} pattern={s.pattern} />}
+          {showGrid && <RowText grid={grid} row={summary.currentRow} next={next} />}
+          {showGrid && <Legend grid={grid} />}
           <ViewControls
             view={view}
             sections={sections}
@@ -438,21 +450,21 @@ export function TrackerPage({ projectId }: { projectId: string }) {
         onSet={(done) => dispatch({ type: 'set', done })}
       />
       <FinishDialog
-        key={stage.stage.id}
+        key={grid.pattern.id}
         dialogRef={finishRef}
-        stage={stage}
+        grid={grid}
         summary={summary}
-        next={nextStage}
+        next={nextPattern}
         onFinish={(rows, nextId) => {
-          if (nextId) closeOverlay();
-          void s.finishStage(rows, nextId);
+          void s.finishPattern(rows).then(() => {
+            if (nextId) goTo(nextId);
+          });
         }}
       />
       <ProjectDialog
-        key={s.project.id}
+        key={project.id}
         dialogRef={projectRef}
-        project={s.project}
-        pattern={s.pattern}
+        project={project}
         onSave={(change) => void s.updateProject(change)}
       />
     </main>

@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useRoute } from './lib/router';
 import { NewProjectPage } from './routes/NewProjectPage';
 import { NotFoundPage } from './routes/NotFoundPage';
-import { PatternsPage } from './routes/PatternsPage';
 import { ProjectsPage } from './routes/ProjectsPage';
 import { SettingsPage } from './routes/SettingsPage';
 import { TrackerPage } from './routes/TrackerPage';
@@ -11,14 +10,16 @@ import { useLibrary } from './state/library';
 import { useUpdate } from './state/update';
 
 // Code that is not needed to track a project loads when it is opened: the import wizard (and its
-// worker) and the pattern editor. The service worker precaches these chunks, so they work offline.
+// worker) and the editors. The service worker precaches these chunks, so they work offline.
 const ImportPage = lazy(() =>
   import('./import/ImportPage').then((m) => ({ default: m.ImportPage })),
 );
-const PatternPage = lazy(() =>
-  import('./routes/PatternPage').then((m) => ({ default: m.PatternPage })),
+const ProjectPage = lazy(() =>
+  import('./routes/ProjectPage').then((m) => ({ default: m.ProjectPage })),
 );
-const StagePage = lazy(() => import('./routes/StagePage').then((m) => ({ default: m.StagePage })));
+const PatternEditPage = lazy(() =>
+  import('./routes/PatternEditPage').then((m) => ({ default: m.PatternEditPage })),
+);
 const ChartEditorPage = lazy(() =>
   import('./editor/ChartEditorPage').then((m) => ({ default: m.ChartEditorPage })),
 );
@@ -45,29 +46,29 @@ export function App() {
         <ProjectsPage />
       ) : route.name === 'new' ? (
         <NewProjectPage />
-      ) : route.name === 'project' ? (
-        <TrackerPage projectId={route.id} />
+      ) : route.name === 'tracker' ? (
+        <TrackerPage projectId={route.id} patternId={route.patternId} />
       ) : route.name === 'settings' ? (
         <SettingsPage />
-      ) : route.name === 'patterns' ? (
-        <PatternsPage />
       ) : route.name === 'import' ? (
         <Suspense fallback={loading}>
-          <ImportPage />
+          <ImportPage {...(route.id ? { projectId: route.id } : {})} />
+        </Suspense>
+      ) : route.name === 'project' ? (
+        <Suspense fallback={loading}>
+          <ProjectPage projectId={route.id} />
         </Suspense>
       ) : route.name === 'pattern' ? (
         <Suspense fallback={loading}>
-          <PatternPage patternId={route.id} />
+          <PatternEditPage projectId={route.id} patternId={route.patternId} />
         </Suspense>
-      ) : route.name === 'patternProject' ? (
-        <NewProjectPage patternId={route.id} />
       ) : route.name === 'chart' ? (
         <Suspense fallback={loading}>
-          <ChartEditorPage patternId={route.id} chartId={route.chartId} />
-        </Suspense>
-      ) : route.name === 'stage' ? (
-        <Suspense fallback={loading}>
-          <StagePage patternId={route.id} stageId={route.stageId} />
+          <ChartEditorPage
+            projectId={route.id}
+            patternId={route.patternId}
+            chartId={route.chartId}
+          />
         </Suspense>
       ) : (
         <NotFoundPage />

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { createProjectFromFile, stagesPattern } from './fixtures';
+import { createProjectFromFile, projectIdOf, stagesPattern } from './fixtures';
 import { syntheticPng } from './synthetic';
 
 // Accessibility audit (M6, WCAG 2.2 AA): every screen and dialog in both themes, reflow at 320 CSS
@@ -17,16 +17,16 @@ async function axe(page: Page, where: string) {
   return found;
 }
 
-/** Pages that are not the grid: none of them may scroll sideways at 320 px. */
-const PAGES = [
+/** Pages that are not the grid (for the project `id`): none may scroll sideways at 320 px. */
+const pages = (id: string) => [
   '/',
   '/nowy',
-  '/wzory',
   '/ustawienia',
   '/import',
-  '/wzor/e2e-stages',
-  '/wzor/e2e-stages/etap/front',
-  '/wzor/e2e-stages/nowy-projekt',
+  `/projekt/${id}`,
+  `/projekt/${id}/import`,
+  `/projekt/${id}/wzor/body/edycja`,
+  `/projekt/${id}/wzor/front/edycja`,
 ];
 
 for (const scheme of ['light', 'dark'] as const) {
@@ -43,13 +43,14 @@ for (const scheme of ['light', 'dark'] as const) {
     problems.push(...(await axe(page, 'empty projects')));
 
     await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
+    const id = projectIdOf(page);
     problems.push(...(await axe(page, 'tracker')));
     const toggle = page.getByRole('button', { name: 'Pokaż panel' });
     if (await toggle.isVisible()) await toggle.click();
     problems.push(...(await axe(page, 'tracker panel')));
     for (const [open, name] of [
       ['Ustaw pozycję', 'position dialog'],
-      ['Zakończ etap', 'finish dialog'],
+      ['Zakończ wzór', 'finish dialog'],
       ['Projekt', 'project dialog'],
     ] as const) {
       await page.getByRole('button', { name: open, exact: true }).click();
@@ -58,16 +59,25 @@ for (const scheme of ['light', 'dark'] as const) {
       await page.keyboard.press('Escape');
       await expect(page.getByRole('dialog')).toHaveCount(0);
     }
-    await page.getByRole('combobox', { name: 'Etap' }).selectOption('rib');
+    await page.getByRole('combobox', { name: 'Wzór' }).selectOption('rib');
     await expect(page.getByTestId('row-counter')).toBeVisible();
     problems.push(...(await axe(page, 'row counter')));
 
-    for (const path of PAGES) {
+    for (const path of pages(id)) {
       await page.goto(path);
       await expect(page.locator('main')).toBeVisible();
       problems.push(...(await axe(page, path)));
     }
-    await page.goto('/wzor/e2e-stages/schemat/rope');
+    await page.goto(`/projekt/${id}`);
+    await page.getByRole('button', { name: 'Dodaj wzór' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    problems.push(...(await axe(page, 'new pattern dialog')));
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Usuń wzór Ściągacz' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    problems.push(...(await axe(page, 'remove pattern dialog')));
+    await page.keyboard.press('Escape');
+    await page.goto(`/projekt/${id}/wzor/body/schemat/rope`);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     problems.push(...(await axe(page, 'chart editor')));
 
@@ -78,15 +88,12 @@ for (const scheme of ['light', 'dark'] as const) {
 test('reflow: no sideways scrolling at 320 CSS px (WCAG 1.4.10)', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-android', 'one narrow viewport');
   await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
+  const id = projectIdOf(page);
   await page.setViewportSize({ width: 320, height: 640 });
   const wide: string[] = [];
-  for (const path of [...PAGES, '/wzor/e2e-stages/schemat/rope', '/projekt/x']) {
-    if (path === '/projekt/x') {
-      await page.goto('/');
-      await page
-        .getByRole('link', { name: /Kamizelka/ })
-        .first()
-        .click();
+  for (const path of [...pages(id), `/projekt/${id}/wzor/body/schemat/rope`, 'tracker']) {
+    if (path === 'tracker') {
+      await page.goto(`/projekt/${id}/wzor/body`);
       await expect(page.getByTestId('grid')).toBeVisible();
     } else {
       await page.goto(path);
@@ -107,11 +114,18 @@ test('keyboard only: open a project, mark stitches, set the position', async ({
   await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
   await page.goto('/');
   await expect(page.getByRole('link', { name: /Kamizelka/ })).toBeVisible();
-  // Tab to the project link and open it.
+  // Tab to the project link and open it, then to "Continue knitting".
   for (let i = 0; i < 15; i++) {
     await page.keyboard.press('Tab');
     const name = await page.evaluate(() => document.activeElement?.textContent ?? '');
     if (name.includes('Kamizelka')) break;
+  }
+  await page.keyboard.press('Enter');
+  await expect(page.getByTestId('continue-knitting')).toBeVisible();
+  for (let i = 0; i < 15; i++) {
+    await page.keyboard.press('Tab');
+    const testId = await page.evaluate(() => document.activeElement?.getAttribute('data-testid'));
+    if (testId === 'continue-knitting') break;
   }
   await page.keyboard.press('Enter');
   await expect(page.getByTestId('grid')).toBeVisible();

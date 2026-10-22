@@ -1,5 +1,5 @@
-import { indexOfCol, type ResolvedStage, type RowModel, type TapMode } from '@kt/core';
-import { GridRenderer, progressOverlay, stageSource, type GridSource } from '@kt/grid-renderer';
+import { indexOfCol, type ResolvedPattern, type RowModel, type TapMode } from '@kt/core';
+import { GridRenderer, progressOverlay, patternSource, type GridSource } from '@kt/grid-renderer';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,7 +11,7 @@ export interface ViewRequest {
 }
 
 interface Props {
-  readonly stage: ResolvedStage;
+  readonly grid: ResolvedPattern;
   readonly model: RowModel;
   readonly done: number;
   readonly mode: TapMode;
@@ -31,7 +31,7 @@ const FONT = "'Atkinson Hyperlegible Next Variable', system-ui, sans-serif";
  * a tap marks, two fingers pinch to zoom; wheel pans, ctrl+wheel zooms; keyboard moves a cursor.
  */
 export function GridCanvas(props: Props) {
-  const { stage, model, done, mode, rows, cell, veil, request, onCellChange, onTap } = props;
+  const { grid, model, done, mode, rows, cell, veil, request, onCellChange, onTap } = props;
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<GridRenderer | null>(null);
@@ -57,7 +57,7 @@ export function GridCanvas(props: Props) {
     callbacks.current = { onCellChange, onTap };
   });
 
-  const source: GridSource = useMemo(() => stageSource(stage, rows), [stage, rows]);
+  const source: GridSource = useMemo(() => patternSource(grid, rows), [grid, rows]);
   const overlay = useMemo(
     () => progressOverlay(model, done, { cursor, veilAbove: veil }),
     [model, done, cursor, veil],
@@ -127,16 +127,16 @@ export function GridCanvas(props: Props) {
       if (cell === 0) {
         // First open: fit the whole width if the cells stay comfortable, else a readable 18 px.
         const m = r.geometry?.m;
-        const fit = m ? (r.camera.width - 2 * m.gutter - 8) / stage.stitchCount : 18;
+        const fit = m ? (r.camera.width - 2 * m.gutter - 8) / grid.stitchCount : 18;
         r.zoomTo(Math.max(16, Math.min(30, fit)));
       } else if (Math.abs(r.camera.cell - cell) > 0.5) r.zoomTo(cell);
       // Start where the knitter left off.
       const next =
         overlay.marker ??
-        (overlay.currentRow ? { row: overlay.currentRow, col: stage.stitchCount } : null);
+        (overlay.currentRow ? { row: overlay.currentRow, col: grid.stitchCount } : null);
       requestAnimationFrame(() => {
         if (next) r.reveal(next.row, next.col, 'center');
-        else r.reveal(1, stage.stitchCount, 'center');
+        else r.reveal(1, grid.stitchCount, 'center');
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the grid itself changes
@@ -154,9 +154,9 @@ export function GridCanvas(props: Props) {
     const r = rendererRef.current;
     const target =
       overlay.marker ??
-      (overlay.currentRow ? { row: overlay.currentRow, col: stage.stitchCount } : null);
+      (overlay.currentRow ? { row: overlay.currentRow, col: grid.stitchCount } : null);
     if (r && target) r.reveal(target.row, target.col, 'nearest');
-  }, [done, overlay, stage.stitchCount]);
+  }, [done, overlay, grid.stitchCount]);
 
   // Zoom slider → renderer.
   useEffect(() => {
@@ -170,10 +170,10 @@ export function GridCanvas(props: Props) {
     if (!r || !request) return;
     const row = overlay.currentRow ?? overlay.marker?.row ?? 1;
     if (request.kind === 'fit') {
-      const cols = request.cols ?? { first: 1, last: stage.stitchCount };
+      const cols = request.cols ?? { first: 1, last: grid.stitchCount };
       r.fitColumns(cols.first, cols.last, row);
     } else {
-      const target = overlay.marker ?? { row, col: stage.stitchCount };
+      const target = overlay.marker ?? { row, col: grid.stitchCount };
       r.reveal(target.row, target.col, 'center');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per request
@@ -250,10 +250,10 @@ export function GridCanvas(props: Props) {
       e.preventDefault();
       e.stopPropagation();
       const start = cursor ??
-        overlay.marker ?? { row: overlay.currentRow ?? 1, col: stage.stitchCount };
+        overlay.marker ?? { row: overlay.currentRow ?? 1, col: grid.stitchCount };
       const next = {
         row: Math.min(rows, Math.max(1, start.row + dr)),
-        col: Math.min(stage.stitchCount, Math.max(1, start.col + dc)),
+        col: Math.min(grid.stitchCount, Math.max(1, start.col + dc)),
       };
       setCursor(next);
       r.reveal(next.row, next.col, 'nearest');

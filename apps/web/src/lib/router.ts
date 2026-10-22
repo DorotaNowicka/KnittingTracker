@@ -7,14 +7,22 @@ import { useSyncExternalStore } from 'react';
 export type Route =
   | { readonly name: 'projects' }
   | { readonly name: 'new' }
-  | { readonly name: 'project'; readonly id: string }
   | { readonly name: 'settings' }
-  | { readonly name: 'patterns' }
-  | { readonly name: 'import' }
-  | { readonly name: 'pattern'; readonly id: string }
-  | { readonly name: 'patternProject'; readonly id: string }
-  | { readonly name: 'chart'; readonly id: string; readonly chartId: string }
-  | { readonly name: 'stage'; readonly id: string; readonly stageId: string }
+  /** Import a PDF or picture: into a new project, or as a new pattern of `id`. */
+  | { readonly name: 'import'; readonly id?: string }
+  /** A project: its patterns, sizes and settings. */
+  | { readonly name: 'project'; readonly id: string }
+  /** Tracking one pattern of a project. */
+  | { readonly name: 'tracker'; readonly id: string; readonly patternId: string }
+  /** Editing one pattern: its charts, layout and legend. */
+  | { readonly name: 'pattern'; readonly id: string; readonly patternId: string }
+  /** The chart editor. */
+  | {
+      readonly name: 'chart';
+      readonly id: string;
+      readonly patternId: string;
+      readonly chartId: string;
+    }
   | { readonly name: 'notFound' };
 
 const enc = encodeURIComponent;
@@ -22,14 +30,13 @@ const enc = encodeURIComponent;
 export const paths = {
   projects: () => '/',
   new: () => '/nowy',
-  project: (id: string) => `/projekt/${enc(id)}`,
   settings: () => '/ustawienia',
-  patterns: () => '/wzory',
-  import: () => '/import',
-  pattern: (id: string) => `/wzor/${enc(id)}`,
-  patternProject: (id: string) => `/wzor/${enc(id)}/nowy-projekt`,
-  chart: (id: string, chartId: string) => `/wzor/${enc(id)}/schemat/${enc(chartId)}`,
-  stage: (id: string, stageId: string) => `/wzor/${enc(id)}/etap/${enc(stageId)}`,
+  import: (id?: string) => (id ? `/projekt/${enc(id)}/import` : '/import'),
+  project: (id: string) => `/projekt/${enc(id)}`,
+  tracker: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}`,
+  pattern: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}/edycja`,
+  chart: (id: string, patternId: string, chartId: string) =>
+    `/projekt/${enc(id)}/wzor/${enc(patternId)}/schemat/${enc(chartId)}`,
 };
 
 const decode = (parts: readonly (string | undefined)[]): string[] | null => {
@@ -44,23 +51,21 @@ export function parseRoute(pathname: string): Route {
   if (pathname === '/' || pathname === '') return { name: 'projects' };
   if (pathname === '/nowy') return { name: 'new' };
   if (pathname === '/ustawienia') return { name: 'settings' };
-  if (pathname === '/wzory') return { name: 'patterns' };
   if (pathname === '/import') return { name: 'import' };
-  let m = /^\/projekt\/([^/]+)$/.exec(pathname);
-  if (m) {
-    const [id] = decode([m[1]]) ?? [];
-    return id ? { name: 'project', id } : { name: 'notFound' };
-  }
-  m = /^\/wzor\/([^/]+)(?:\/(nowy-projekt|schemat|etap)(?:\/([^/]+))?)?$/.exec(pathname);
-  if (m) {
-    const [id, sub] = decode([m[1], m[3]]) ?? [];
-    if (!id) return { name: 'notFound' };
-    if (m[2] === undefined) return { name: 'pattern', id };
-    if (m[2] === 'nowy-projekt' && m[3] === undefined) return { name: 'patternProject', id };
-    if (m[2] === 'schemat' && sub) return { name: 'chart', id, chartId: sub };
-    if (m[2] === 'etap' && sub) return { name: 'stage', id, stageId: sub };
-  }
-  return { name: 'notFound' };
+  const m =
+    /^\/projekt\/([^/]+)(?:\/(import)|\/wzor\/([^/]+)(?:\/(edycja)|\/schemat\/([^/]+))?)?$/.exec(
+      pathname,
+    );
+  if (!m) return { name: 'notFound' };
+  const [id, patternId, chartId] = decode([m[1], m[3], m[5]]) ?? [];
+  if (!id) return { name: 'notFound' };
+  if (m[2]) return { name: 'import', id };
+  if (m[3] === undefined) return { name: 'project', id };
+  if (!patternId) return { name: 'notFound' };
+  if (m[4]) return { name: 'pattern', id, patternId };
+  if (m[5] !== undefined)
+    return chartId ? { name: 'chart', id, patternId, chartId } : { name: 'notFound' };
+  return { name: 'tracker', id, patternId };
 }
 
 const listeners = new Set<() => void>();

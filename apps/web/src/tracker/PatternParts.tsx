@@ -4,21 +4,20 @@ import {
   type Gauge,
   type Pattern,
   type ProgressSummary,
-  type ResolvedStage,
+  type ResolvedPattern,
   type RowModel,
-  type Stage,
 } from '@kt/core';
 import { useId, useMemo, useState, type FormEvent, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { StoredProject } from '../lib/storage';
 import { NumberField, TextField } from '../ui/fields';
 import { Icon } from '../ui/Icon';
-import { chartRowsAt, nextStageOf } from './stages';
+import { chartRowsAt, nextPatternOf } from './patterns';
 
-/** "A.1 row 4 · A.2 row 12": which chart row each chart is on in a stage row. */
-export function ChartRows({ stage, row }: { stage: ResolvedStage; row: number }) {
+/** "A.1 row 4 · A.2 row 12": which chart row each chart is on in a pattern row. */
+export function ChartRows({ grid, row }: { grid: ResolvedPattern; row: number }) {
   const { t } = useTranslation();
-  const rows = useMemo(() => chartRowsAt(stage, row), [stage, row]);
+  const rows = useMemo(() => chartRowsAt(grid, row), [grid, row]);
   if (rows.length === 0) return null;
   return (
     <dl className="chart-rows" data-testid="chart-rows">
@@ -26,9 +25,9 @@ export function ChartRows({ stage, row }: { stage: ResolvedStage; row: number })
         <div key={`${r.label}-${r.row}`} className="chart-rows__item">
           <dt>{r.label}</dt>
           <dd className="num">
-            {t('stagePanel.chartRow', { row: r.row, height: r.height })}
+            {t('patternPanel.chartRow', { row: r.row, height: r.height })}
             {!r.known && (
-              <span className="chart-rows__unknown" title={t('stagePanel.phaseUnknown')}>
+              <span className="chart-rows__unknown" title={t('patternPanel.phaseUnknown')}>
                 {' '}
                 ?
               </span>
@@ -40,78 +39,77 @@ export function ChartRows({ stage, row }: { stage: ResolvedStage; row: number })
   );
 }
 
-interface StagePanelProps {
-  readonly pattern: Pattern;
+interface PatternPanelProps {
   readonly project: StoredProject;
-  readonly stage: ResolvedStage;
+  readonly grid: ResolvedPattern;
   readonly summary: ProgressSummary;
   onPosition(): void;
   onFinish(): void;
   onReopen(): void;
-  onNext(stageId: string): void;
+  onNext(patternId: string): void;
   onProject(): void;
 }
 
-/** Stage section of the side panel: chart rows, length estimate, finishing and moving on. */
-export function StagePanel(props: StagePanelProps) {
-  const { pattern, project, stage, summary } = props;
+/** Pattern section of the side panel: chart rows, length estimate, finishing and moving on. */
+export function PatternPanel(props: PatternPanelProps) {
+  const { project, grid, summary } = props;
   const { t } = useTranslation();
   const ids = useId();
-  const finished = project.finishedRows?.[stage.stage.id];
-  const next = nextStageOf(pattern, stage.stage.id);
-  const gauge = effectiveGauge(pattern, project);
-  const estimate = lengthEstimate(stage, summary.rowsCompleted, gauge);
-  const unknown = stage.zones.some((z) => z.continued && !z.continued.known);
-  const round = stage.stage.construction === 'round';
+  const finished = project.finishedRows?.[grid.pattern.id];
+  const next = nextPatternOf(project, grid.pattern.id);
+  const gauge = effectiveGauge(project);
+  const estimate = lengthEstimate(grid, summary.rowsCompleted, gauge);
+  const unknown = grid.zones.some((z) => z.continued && !z.continued.known);
+  const round = grid.pattern.construction === 'round';
   return (
     <section className="panel__section" aria-labelledby={`${ids}-st`}>
       <h2 id={`${ids}-st`} className="panel__title">
-        {t('stagePanel.title', { name: stage.stage.name })}
+        {t('patternPanel.title', { name: grid.pattern.name })}
       </h2>
       <p className="hint">
-        {t(round ? 'stagePanel.round' : 'stagePanel.flat')} ·{' '}
-        {stage.plannedRows === null
-          ? t('stagePanel.openEnded')
-          : t(round ? 'stagePanel.plannedRounds' : 'stagePanel.plannedRows', {
-              count: stage.plannedRows,
+        {t(round ? 'patternPanel.round' : 'patternPanel.flat')} ·{' '}
+        {grid.plannedRows === null
+          ? t('patternPanel.openEnded')
+          : t(round ? 'patternPanel.plannedRounds' : 'patternPanel.plannedRows', {
+              count: grid.plannedRows,
             })}
-        {stage.stage.tracking === 'rows' && <> · {t('stagePanel.counter')}</>}
+        {grid.pattern.tracking === 'rows' && <> · {t('patternPanel.counter')}</>}
       </p>
-      {stage.zones.length > 0 && (
+      {grid.zones.length > 0 && (
         <>
           <h3 className="panel__subtitle">
-            {t(round ? 'stagePanel.chartRowsRound' : 'stagePanel.chartRowsRow', {
+            {t(round ? 'patternPanel.chartRowsRound' : 'patternPanel.chartRowsRow', {
               row: summary.currentRow,
             })}
           </h3>
-          <ChartRows stage={stage} row={summary.currentRow} />
-          {unknown && <p className="hint">{t('stagePanel.phaseUnknown')}</p>}
+          <ChartRows grid={grid} row={summary.currentRow} />
+          {unknown && <p className="hint">{t('patternPanel.phaseUnknown')}</p>}
         </>
       )}
       {estimate && (
         <p className="stage-estimate" data-testid="estimate">
           {estimate.doneCm !== null && estimate.rowsLeft !== null
-            ? t('stagePanel.estimate', {
+            ? t('patternPanel.estimate', {
                 done: formatCm(estimate.doneCm),
                 target: formatCm(estimate.targetCm),
                 count: estimate.rowsLeft,
               })
-            : t('stagePanel.target', { target: formatCm(estimate.targetCm) })}
+            : t('patternPanel.target', { target: formatCm(estimate.targetCm) })}
           {gauge ? (
             <span className="hint">
               {' '}
-              {t(project.gauge ? 'stagePanel.ownGauge' : 'stagePanel.patternGauge', {
+              {t(project.knitterGauge ? 'patternPanel.ownGauge' : 'patternPanel.patternGauge', {
                 rows: formatCm(gauge.rows),
               })}
             </span>
           ) : (
-            <span className="hint"> {t('stagePanel.noGauge')}</span>
+            <span className="hint"> {t('patternPanel.noGauge')}</span>
           )}
         </p>
       )}
       {finished !== undefined && (
         <p className="stage-finished" role="status">
-          {t(round ? 'stagePanel.finishedRounds' : 'stagePanel.finishedRows', {
+          {t(round ? 'patternPanel.finishedRounds' : 'patternPanel.finishedRows', {
             count: finished,
           })}
         </p>
@@ -133,7 +131,7 @@ export function StagePanel(props: StagePanelProps) {
         )}
         {next && (
           <button type="button" className="btn btn--small" onClick={() => props.onNext(next.id)}>
-            {t('stagePanel.next', { name: next.name })}
+            {t('patternPanel.next', { name: next.name })}
           </button>
         )}
         <button type="button" className="btn btn--small" onClick={props.onProject}>
@@ -165,8 +163,8 @@ export function PositionDialog({
   const { t } = useTranslation();
   const ids = useId();
   const counter = model.unit === 'row';
-  const round = model.stage.stage.construction === 'round';
-  const maxRow = model.stage.plannedRows ?? 9999;
+  const round = model.grid.pattern.construction === 'round';
+  const maxRow = model.grid.plannedRows ?? 9999;
   const [row, setRow] = useState(summary.currentRow);
   const [stitches, setStitches] = useState(summary.doneInCurrentRow);
   const [rows, setRows] = useState(summary.done);
@@ -249,20 +247,20 @@ export function PositionDialog({
 }
 
 /**
- * Finish the stage after the rows completed so far (DR-5). Shows the chart rows of that last row,
- * so the knitter can check "end after an even row of A.2" (DR-4) before moving on.
+ * Finish the pattern after the rows completed so far (DR-5). Shows the chart rows of that last
+ * row, so the knitter can check "end after an even row of A.2" (DR-4) before moving on.
  */
 export function FinishDialog({
   dialogRef,
-  stage,
+  grid,
   summary,
   next,
   onFinish,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
-  stage: ResolvedStage;
+  grid: ResolvedPattern;
   summary: ProgressSummary;
-  next: Stage | undefined;
+  next: Pattern | undefined;
   onFinish(rows: number, next: string | undefined): void;
 }) {
   const { t } = useTranslation();
@@ -270,7 +268,7 @@ export function FinishDialog({
   const [goNext, setGoNext] = useState(true);
   const rows = summary.rowsCompleted;
   const partial = summary.next !== null && summary.doneInCurrentRow > 0;
-  const round = stage.stage.construction === 'round';
+  const round = grid.pattern.construction === 'round';
   return (
     <dialog ref={dialogRef} className="dialog" aria-labelledby={`${ids}-t`}>
       <form
@@ -281,7 +279,7 @@ export function FinishDialog({
         }}
       >
         <h2 id={`${ids}-t`} className="dialog__title">
-          {t('finish.title', { name: stage.stage.name })}
+          {t('finish.title', { name: grid.pattern.name })}
         </h2>
         <p>{t(round ? 'finish.bodyRounds' : 'finish.bodyRows', { count: rows })}</p>
         {partial && (
@@ -293,10 +291,10 @@ export function FinishDialog({
             })}
           </p>
         )}
-        {rows > 0 && stage.zones.length > 0 && (
+        {rows > 0 && grid.zones.length > 0 && (
           <>
             <p className="hint">{t('finish.lastChartRows')}</p>
-            <ChartRows stage={stage} row={rows} />
+            <ChartRows grid={grid} row={rows} />
           </>
         )}
         <p className="hint">{t('finish.continueHint')}</p>
@@ -323,19 +321,17 @@ export function FinishDialog({
 export function ProjectDialog({
   dialogRef,
   project,
-  pattern,
   onSave,
 }: {
   dialogRef: RefObject<HTMLDialogElement | null>;
   project: StoredProject;
-  pattern: Pattern;
   onSave(change: { name: string; gauge: Gauge | null }): void;
 }) {
   const { t } = useTranslation();
   const ids = useId();
   const [name, setName] = useState(project.name);
-  const [own, setOwn] = useState(project.gauge !== undefined);
-  const base = project.gauge ?? pattern.gauge ?? { stitches: 22, rows: 30 };
+  const [own, setOwn] = useState(project.knitterGauge !== undefined);
+  const base = project.knitterGauge ?? project.gauge ?? { stitches: 22, rows: 30 };
   const [stitches, setStitches] = useState(base.stitches);
   const [rows, setRows] = useState(base.rows);
   return (
@@ -358,15 +354,15 @@ export function ProjectDialog({
           onCommit={setName}
         />
         <p className="hint">
-          {t('projectSettings.size', { size: pattern.sizes[project.sizeIndex] ?? '' })}
+          {t('projectSettings.size', { size: project.sizes[project.sizeIndex] ?? '' })}
         </p>
         <fieldset className="field">
           <legend>{t('projectSettings.gauge')}</legend>
           <p className="hint">
-            {pattern.gauge
+            {project.gauge
               ? t('projectSettings.patternGauge', {
-                  stitches: pattern.gauge.stitches,
-                  rows: pattern.gauge.rows,
+                  stitches: project.gauge.stitches,
+                  rows: project.gauge.rows,
                 })
               : t('projectSettings.noPatternGauge')}
           </p>
@@ -408,7 +404,7 @@ export function ProjectDialog({
   );
 }
 
-/** Row counter for stages tracked by rows only and drawn without a chart (DR-9). */
+/** Row counter for patterns tracked by rows only and drawn without a chart (DR-9). */
 export function RowCounter({
   summary,
   planned,

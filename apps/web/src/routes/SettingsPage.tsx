@@ -210,11 +210,7 @@ function RestoreSummary({
   const { plan, backup } = preview;
   const count = (list: readonly { action: string }[], action: string) =>
     list.filter((x) => x.action === action).length;
-  const changes =
-    count(plan.patterns, 'add') +
-    count(plan.patterns, 'update') +
-    count(plan.projects, 'add') +
-    count(plan.projects, 'update');
+  const changes = count(plan.projects, 'add') + count(plan.projects, 'update');
   return (
     <div className="notice notice--info restore-summary" data-testid="restore-summary">
       {backup.exportedAt && (
@@ -239,23 +235,18 @@ function RestoreSummary({
             </tr>
           </thead>
           <tbody>
-            {(['patterns', 'projects'] as const).map((kind) => (
-              <tr key={kind}>
-                <th scope="row">{t(`settings.restore_${kind}`)}</th>
-                {(['add', 'update', 'keep', 'same'] as const).map((a) => (
-                  <td key={a} className="num">
-                    {count(plan[kind], a)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            <tr>
+              <th scope="row">{t('settings.restore_projects')}</th>
+              {(['add', 'update', 'keep', 'same'] as const).map((a) => (
+                <td key={a} className="num">
+                  {count(plan.projects, a)}
+                </td>
+              ))}
+            </tr>
           </tbody>
         </table>
       </div>
       <p className="hint">{t('settings.restoreRule')}</p>
-      {plan.orphans.length > 0 && (
-        <p className="hint">{t('settings.restoreOrphans', { count: plan.orphans.length })}</p>
-      )}
       {backup.skipped.length > 0 && (
         <p className="hint">{t('settings.restoreSkipped', { count: backup.skipped.length })}</p>
       )}

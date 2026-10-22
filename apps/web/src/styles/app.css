@@ -1140,3 +1140,34 @@ input[type='range'] {
 .app-version {
   margin-top: var(--sp-6);
 }
+
+/* Project page: patterns in knitting order -------------------------------- */
+.project-continue {
+  margin: var(--sp-4) 0 var(--sp-2);
+}
+
+.badge {
+  display: inline-block;
+  margin-left: var(--sp-2);
+  padding: 0 var(--sp-2);
+  border-radius: 999px;
+  background: var(--done);
+  color: var(--ink);
+  font-size: var(--fs-1);
+  font-weight: 650;
+  vertical-align: middle;
+}
+
+.card__progress {
+  font-size: var(--fs-2);
+  font-weight: 650;
+}
+
+.card__option {
+  padding: 0 var(--sp-4) var(--sp-2);
+  font-size: var(--fs-2);
+}
+
+.empty-line {
+  color: var(--ink-muted);
+}

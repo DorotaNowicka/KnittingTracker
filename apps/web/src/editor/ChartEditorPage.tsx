@@ -38,6 +38,7 @@ import {
 } from '@kt/core';
 import { chartSource, editorOverlay } from '@kt/grid-renderer';
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -56,7 +57,7 @@ import { NumberField, TextField } from '../ui/fields';
 import { Icon, type IconName } from '../ui/Icon';
 import { SymbolGlyph } from '../ui/SymbolGlyph';
 import { CustomSymbolDialog } from './CustomSymbolDialog';
-import { DraftGate, SaveState } from './DraftGate';
+import { PatternGate, SaveState } from './DraftGate';
 import { EditorCanvas, type CanvasTool, type CellPoint } from './EditorCanvas';
 import { SymbolLibraryDialog } from './SymbolLibraryDialog';
 
@@ -66,27 +67,40 @@ const useClipboard = create<{ clip: Clip | null; set(clip: Clip): void }>((set) 
   set: (clip) => set({ clip }),
 }));
 
-const update = (f: (p: Pattern) => Pattern) => useDraft.getState().update(f);
-
-export function ChartEditorPage({ patternId, chartId }: { patternId: string; chartId: string }) {
+export function ChartEditorPage({
+  projectId,
+  patternId,
+  chartId,
+}: {
+  projectId: string;
+  patternId: string;
+  chartId: string;
+}) {
   const { t } = useTranslation();
   return (
-    <DraftGate id={patternId}>
+    <PatternGate projectId={projectId} patternId={patternId}>
       {(pattern) => {
         const chart = pattern.charts.find((c) => c.id === chartId);
         if (!chart) {
           return (
             <main className="page" id="main">
               <h1 className="page__title">{t('chartEditor.missing')}</h1>
-              <Link className="btn" to={paths.pattern(patternId)}>
+              <Link className="btn" to={paths.pattern(projectId, patternId)}>
                 {t('chartEditor.back')}
               </Link>
             </main>
           );
         }
-        return <ChartEditor key={chartId} patternId={patternId} pattern={pattern} chart={chart} />;
+        return (
+          <ChartEditor
+            key={`${patternId}/${chartId}`}
+            back={paths.pattern(projectId, patternId)}
+            pattern={pattern}
+            chart={chart}
+          />
+        );
       }}
-    </DraftGate>
+    </PatternGate>
   );
 }
 
@@ -102,16 +116,13 @@ function safeRegistry(pattern: Pattern): SymbolRegistry | null {
   }
 }
 
-function ChartEditor({
-  patternId,
-  pattern,
-  chart,
-}: {
-  patternId: string;
-  pattern: Pattern;
-  chart: Chart;
-}) {
+function ChartEditor({ back, pattern, chart }: { back: string; pattern: Pattern; chart: Chart }) {
   const { t, i18n } = useTranslation();
+  const patternId = pattern.id;
+  const update = useCallback(
+    (f: (p: Pattern) => Pattern) => useDraft.getState().updatePattern(patternId, f),
+    [patternId],
+  );
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
   const registry = useMemo(() => safeRegistry(pattern), [pattern]);
@@ -148,7 +159,7 @@ function ChartEditor({
       const next = applySymbolRows(current, rows);
       return { ...p, charts: p.charts.map((c) => (c.id === chart.id ? next : c)) };
     });
-  }, [rows, chart.id]);
+  }, [rows, chart.id, update]);
 
   const meta = pattern.charts.find((c) => c.id === chart.id) ?? chart;
   const current = useMemo(() => applySymbolRows(meta, rows), [meta, rows]);
@@ -384,7 +395,7 @@ function ChartEditor({
     <main className="editor" id="main">
       <header className="editor__bar">
         <h1 className="visually-hidden">{t('chartEditor.heading', { name: meta.name })}</h1>
-        <Link to={paths.pattern(patternId)} className="icon-btn" aria-label={t('chartEditor.back')}>
+        <Link to={back} className="icon-btn" aria-label={t('chartEditor.back')}>
           <Icon name="back" />
         </Link>
         <TextField

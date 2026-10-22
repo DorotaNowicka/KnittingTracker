@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { createProjectFromFile, stagesPattern, testPattern, watchCsp } from './fixtures';
+import {
+  createProjectFromFile,
+  projectIdOf,
+  stagesPattern,
+  testPattern,
+  watchCsp,
+} from './fixtures';
 import { syntheticPdf, syntheticPng } from './synthetic';
 
 // Security hardening (M6): the production CSP with Trusted Types is enforced on every page, and
@@ -116,12 +122,13 @@ test('no inline styles anywhere (strict style-src works in Safari too)', async (
   found.push(...(await styled('straighten')));
 
   await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
+  const id = projectIdOf(page);
   found.push(...(await styled('tracker')));
   for (const path of [
     '/',
-    '/wzory',
-    '/wzor/e2e-stages',
-    '/wzor/e2e-stages/etap/front',
+    `/projekt/${id}`,
+    `/projekt/${id}/wzor/body/edycja`,
+    `/projekt/${id}/wzor/front/edycja`,
     '/ustawienia',
   ]) {
     await page.goto(path);
@@ -129,7 +136,7 @@ test('no inline styles anywhere (strict style-src works in Safari too)', async (
     await page.waitForTimeout(200);
     found.push(...(await styled(path)));
   }
-  await page.goto('/wzor/e2e-stages/schemat/rope');
+  await page.goto(`/projekt/${id}/wzor/body/schemat/rope`);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   found.push(...(await styled('chart editor')));
   expect(found).toEqual([]);

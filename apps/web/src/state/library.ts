@@ -1,20 +1,18 @@
 import {
   planRestore,
   readBackupFile,
+  removePattern,
   serializeBackup,
-  type Modification,
-  type Pattern,
+  type Project,
   type ReadBackup,
   type RestorePlan,
 } from '@kt/core';
 import { create } from 'zustand';
-import { newId } from '../lib/files';
 import {
   openStorage,
   requestPersistence,
   type PersistState,
   type StorageAdapter,
-  type StoredPattern,
   type StoredProgress,
   type StoredProject,
 } from '../lib/storage';
@@ -31,31 +29,39 @@ export function setStorageForTests(adapter: StorageAdapter): void {
   storagePromise = Promise.resolve(adapter);
 }
 
-export interface NewProjectInput {
-  readonly pattern: StoredPattern;
-  readonly name: string;
-  readonly sizeIndex: number;
-  readonly stageId: string;
-  readonly modifications: readonly Modification[];
-}
-
+/**
+ * Projects on this device (schema v3: each project holds its patterns and their charts), plus the
+ * progress of each project's active pattern for the lists. Every change to a project goes through
+ * {@link LibraryState.updateProject}, a functional update of the latest copy, so the tracker and
+ * the editor never overwrite each other's changes with a stale copy.
+ */
 interface LibraryState {
   readonly status: 'idle' | 'loading' | 'ready';
   readonly storageKind: StorageAdapter['kind'] | null;
   readonly persist: PersistState | null;
-  readonly patterns: readonly StoredPattern[];
+  /** Newest first. */
   readonly projects: readonly StoredProject[];
-  /** Progress of each project's active stage, for the list. */
+  /** Progress of each project's active pattern, by project id. */
   readonly progress: Readonly<Record<string, StoredProgress | undefined>>;
   load(): Promise<void>;
-  savePattern(pattern: Pattern, source: StoredPattern['source']): Promise<StoredPattern>;
-  /** Write an edited pattern (same stored id). */
-  updatePattern(stored: StoredPattern): Promise<void>;
-  /** Delete a pattern; refused (false) while projects use it. */
-  deletePattern(id: string): Promise<boolean>;
-  createProject(input: NewProjectInput): Promise<StoredProject>;
+  project(id: string): StoredProject | undefined;
+  /** Store a new project (its id must be new). */
+  addProject(project: Project): Promise<StoredProject>;
+  /**
+   * Change a project: `change` gets the latest copy and returns the next one (or the same object
+   * for no change). Resolves to the stored project, or undefined when it does not exist.
+   */
+  updateProject(
+    id: string,
+    change: (project: StoredProject) => StoredProject,
+  ): Promise<StoredProject | undefined>;
+  /** Remove one pattern of a project, with its progress. */
+  deletePattern(projectId: string, patternId: string): Promise<void>;
   deleteProject(id: string): Promise<void>;
-  touchProject(project: StoredProject): void;
+  /** Progress of every pattern of a project, by pattern id. */
+  progressOf(projectId: string): Promise<Record<string, StoredProgress>>;
+  /** Record progress of the active pattern for the lists (the tracker writes it to storage). */
+  noteProgress(record: StoredProgress): void;
   exportBackup(): Promise<string>;
   /** Read a backup file and plan what restoring it would change (nothing is written yet). */
   previewRestore(text: string): Promise<RestorePreview>;
@@ -69,25 +75,43 @@ export type RestorePreview =
 
 const byRecent = (a: StoredProject, b: StoredProject) => b.updatedAt.localeCompare(a.updatedAt);
 
-/** Everything the lists show: patterns, projects (newest first) and each project's progress. */
-async function readAll(storage: StorageAdapter) {
-  const [patterns, projects] = await Promise.all([storage.listPatterns(), storage.listProjects()]);
+async function activeProgress(storage: StorageAdapter, projects: readonly StoredProject[]) {
   const progress: Record<string, StoredProgress | undefined> = {};
   await Promise.all(
     projects.map(async (p) => {
-      progress[p.id] = await storage.getProgress(p.id, p.activeStageId).catch(() => undefined);
+      progress[p.id] = p.activePatternId
+        ? await storage.getProgress(p.id, p.activePatternId).catch(() => undefined)
+        : undefined;
     }),
   );
+  return progress;
+}
+
+/** Everything the lists show: projects (newest first) and each project's progress. */
+async function readAll(storage: StorageAdapter) {
+  const projects = [...(await storage.listProjects())].sort(byRecent);
+  const progress = await activeProgress(storage, projects);
   const persist =
     (await storage.getSetting<PersistState>('persist').catch(() => undefined)) ?? null;
-  return { patterns, projects: [...projects].sort(byRecent), progress, persist };
+  return { projects, progress, persist };
 }
+
+/** Writes to one project are chained, so they reach storage in the order they were made. */
+const projectWrites = new Map<string, Promise<unknown>>();
+function queueWrite(id: string, write: () => Promise<void>): Promise<void> {
+  const next = (projectWrites.get(id) ?? Promise.resolve()).then(write, write);
+  projectWrites.set(id, next);
+  return next;
+}
+
+/** Wait until every queued project write is stored. */
+export const flushProjectWrites = (): Promise<unknown> =>
+  Promise.all([...projectWrites.values()].map((w) => w.catch(() => undefined)));
 
 export const useLibrary = create<LibraryState>((set, get) => ({
   status: 'idle',
   storageKind: null,
   persist: null,
-  patterns: [],
   projects: [],
   progress: {},
 
@@ -103,60 +127,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }
   },
 
-  async savePattern(pattern, source) {
-    const storage = await getStorage();
-    // Same content already stored → reuse it; same id but different content → keep both.
-    const existing = get().patterns.find(
-      (p) => p.pattern.id === pattern.id && JSON.stringify(p.pattern) === JSON.stringify(pattern),
-    );
-    if (existing) return existing;
-    const taken = get().patterns.some((p) => p.id === pattern.id);
-    const stored: StoredPattern = {
-      id: taken ? `${pattern.id}-${newId().slice(0, 8)}` : pattern.id,
-      pattern,
-      source,
-      importedAt: new Date().toISOString(),
-    };
-    await storage.putPattern(stored);
-    set({ patterns: [...get().patterns, stored] });
-    return stored;
+  project(id) {
+    return get().projects.find((p) => p.id === id);
   },
 
-  async updatePattern(stored) {
+  async addProject(project) {
     const storage = await getStorage();
-    await storage.putPattern(stored);
-    const exists = get().patterns.some((p) => p.id === stored.id);
-    set({
-      patterns: exists
-        ? get().patterns.map((p) => (p.id === stored.id ? stored : p))
-        : [...get().patterns, stored],
-    });
-  },
-
-  async deletePattern(id) {
-    if (get().projects.some((p) => p.patternId === id)) return false;
-    const storage = await getStorage();
-    await storage.deletePattern(id);
-    set({ patterns: get().patterns.filter((p) => p.id !== id) });
-    return true;
-  },
-
-  async createProject(input) {
-    const storage = await getStorage();
-    const now = new Date().toISOString();
-    const project: StoredProject = {
-      id: newId(),
-      name: input.name.trim() || input.pattern.pattern.title,
-      patternId: input.pattern.id,
-      patternRevision: input.pattern.pattern.revision,
-      sizeIndex: input.sizeIndex,
-      activeStageId: input.stageId,
-      modifications: [...input.modifications],
-      createdAt: now,
-      updatedAt: now,
-    };
     await storage.putProject(project);
-    set({ projects: [project, ...get().projects] });
+    set({ projects: [project, ...get().projects.filter((p) => p.id !== project.id)] });
     // First project: ask the browser to keep the data (ADR-3).
     if (get().persist !== 'persisted') {
       const persist = await requestPersistence();
@@ -166,50 +144,79 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     return project;
   },
 
+  async updateProject(id, change) {
+    const current = get().project(id);
+    if (!current) return undefined;
+    const next = change(current);
+    if (next === current) return current;
+    set({ projects: [next, ...get().projects.filter((p) => p.id !== id)].sort(byRecent) });
+    const storage = await getStorage();
+    await queueWrite(id, () => storage.putProject(next));
+    return next;
+  },
+
+  async deletePattern(projectId, patternId) {
+    const storage = await getStorage();
+    await get().updateProject(projectId, (p) => ({
+      ...removePattern(p, patternId),
+      updatedAt: new Date().toISOString(),
+    }));
+    await storage.deleteProgress(projectId, patternId).catch(() => undefined);
+    const project = get().project(projectId);
+    if (project) {
+      const record = project.activePatternId
+        ? await storage.getProgress(projectId, project.activePatternId).catch(() => undefined)
+        : undefined;
+      set({ progress: { ...get().progress, [projectId]: record } });
+    }
+  },
+
   async deleteProject(id) {
     const storage = await getStorage();
-    await storage.deleteProject(id);
+    await queueWrite(id, () => storage.deleteProject(id));
     const { [id]: _removed, ...progress } = get().progress;
     set({ projects: get().projects.filter((p) => p.id !== id), progress });
   },
 
-  touchProject(project) {
-    set({
-      projects: [project, ...get().projects.filter((p) => p.id !== project.id)].sort(byRecent),
-    });
+  async progressOf(projectId) {
+    const storage = await getStorage();
+    const list = await storage.listProgress(projectId).catch(() => []);
+    return Object.fromEntries(list.map((r) => [r.patternId, r]));
+  },
+
+  noteProgress(record) {
+    const project = get().project(record.projectId);
+    if (!project || project.activePatternId !== record.patternId) return;
+    set({ progress: { ...get().progress, [record.projectId]: record } });
   },
 
   async exportBackup() {
     const storage = await getStorage();
-    const [patterns, projects, progress] = await Promise.all([
-      storage.listPatterns(),
+    const [projects, progress] = await Promise.all([
       storage.listProjects(),
       storage.listProgress(),
     ]);
-    return serializeBackup({ patterns, projects, progress });
+    return serializeBackup({ projects, progress });
   },
 
   async previewRestore(text) {
     const read = readBackupFile(text);
     if (!read.ok) return read;
     const storage = await getStorage();
-    const [patterns, projects, progress] = await Promise.all([
-      storage.listPatterns(),
+    const [projects, progress] = await Promise.all([
       storage.listProjects(),
       storage.listProgress(),
     ]);
     return {
       ok: true,
       backup: read.value,
-      plan: planRestore({ patterns, projects, progress }, read.value),
+      plan: planRestore({ projects, progress }, read.value),
     };
   },
 
   async applyRestore(plan) {
     const storage = await getStorage();
     const writes = (action: string) => action === 'add' || action === 'update';
-    for (const item of plan.patterns)
-      if (writes(item.action)) await storage.putPattern(item.record);
     for (const item of plan.projects)
       if (writes(item.action)) await storage.putProject(item.record);
     for (const record of plan.progress) await storage.putProgress(record);

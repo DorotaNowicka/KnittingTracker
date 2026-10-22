@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { createProjectFromFile, stagesPattern, tapCell } from './fixtures';
+import { continueKnitting, createProjectFromFile, stagesPattern, tapCell } from './fixtures';
 
 const detail = (page: Page) => page.getByTestId('status-detail');
 
@@ -27,8 +27,8 @@ async function axeClean(page: Page) {
   expect(results.violations.map((v) => `${v.id}: ${v.nodes[0]?.target.join(' ')}`)).toEqual([]);
 }
 
-test.describe('stages (M5)', () => {
-  test('round body → flat front: the rope continues across the boundary, then a row counter', async ({
+test.describe('patterns of a project', () => {
+  test('round body → flat front: the rope continues across patterns, then a row counter', async ({
     page,
   }) => {
     await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
@@ -39,11 +39,11 @@ test.describe('stages (M5)', () => {
     // Body: 4 planned rounds of 20 stitches.
     const roundDone = page.getByTestId('complete-row');
     for (let i = 0; i < 4; i++) await roundDone.click();
-    await expect(detail(page)).toContainText('Etap ukończony');
+    await expect(detail(page)).toContainText('Wzór ukończony');
     await page.getByRole('button', { name: 'Dalej: Przód' }).first().click();
 
     // Front: flat, rope continues with chart row 5 (after rounds 1–4).
-    await expect(page.getByRole('combobox', { name: 'Etap' })).toHaveValue('front');
+    await expect(page.getByRole('combobox', { name: 'Wzór' })).toHaveValue('front');
     await expect(detail(page)).toContainText('Prawa strona');
     await openPanel(page);
     await expect(chartRows(page)).toContainText('rząd 5 z 6');
@@ -62,15 +62,15 @@ test.describe('stages (M5)', () => {
     await expect(page.getByTestId('estimate')).toContainText('27 rzędów');
 
     // Finish the open-ended front after 3 rows: the dialog shows the last chart row (5, 6, 1 → 1).
-    await page.getByRole('button', { name: 'Zakończ etap' }).click();
-    const finish = page.getByRole('dialog', { name: /Zakończyć etap/ });
+    await page.getByRole('button', { name: 'Zakończ wzór' }).click();
+    const finish = page.getByRole('dialog', { name: /Zakończyć wzór/ });
     await expect(finish).toContainText('po 3 rzędach');
     await expect(finish.getByTestId('chart-rows')).toContainText('rząd 1 z 6');
     await axeClean(page);
-    await finish.getByRole('button', { name: 'Zakończ etap' }).click();
+    await finish.getByRole('button', { name: 'Zakończ wzór' }).click();
 
     // Ribbing: row counter only, no grid.
-    await expect(page.getByRole('combobox', { name: 'Etap' })).toHaveValue('rib');
+    await expect(page.getByRole('combobox', { name: 'Wzór' })).toHaveValue('rib');
     await expect(page.getByTestId('row-counter')).toHaveText(/^0\s*\/\s*6$/);
     await page.getByRole('button', { name: 'Dodaj rząd' }).click();
     await page.getByTestId('complete-row').click();
@@ -81,10 +81,10 @@ test.describe('stages (M5)', () => {
     // Everything survives a reload, including the finished front.
     await page.reload();
     await expect(page.getByTestId('row-counter')).toHaveText(/^1\s*\/\s*6$/);
-    await page.getByRole('combobox', { name: 'Etap' }).selectOption('front');
-    await expect(detail(page)).toContainText('Etap zakończony po 3 rzędach');
+    await page.getByRole('combobox', { name: 'Wzór' }).selectOption('front');
+    await expect(detail(page)).toContainText('Wzór zakończony po 3 rzędach');
     await openPanel(page);
-    await page.getByRole('button', { name: 'Wznów etap' }).click();
+    await page.getByRole('button', { name: 'Wznów wzór' }).click();
     await expect(detail(page)).toContainText('rząd 3, oczko');
   });
 
@@ -124,7 +124,7 @@ test.describe('stages (M5)', () => {
     ]);
     const path = await download.path();
     const text = readFileSync(path, 'utf8');
-    expect(JSON.parse(text)).toMatchObject({ format: 'knitting-tracker/backup', schemaVersion: 2 });
+    expect(JSON.parse(text)).toMatchObject({ format: 'knitting-tracker/backup', schemaVersion: 3 });
 
     await page.goto('/');
     await page.getByRole('button', { name: 'Usuń projekt Kamizelka' }).click();
@@ -144,8 +144,7 @@ test.describe('stages (M5)', () => {
     await summary.getByRole('button', { name: 'Przywróć' }).click();
     await expect(page.getByText(/Przywrócono/)).toBeVisible();
 
-    await page.goto('/');
-    await page.getByRole('link', { name: /Kamizelka/ }).click();
+    await continueKnitting(page, 'Kamizelka');
     await expect(detail(page)).toContainText('razem 20');
 
     // Restoring the same file again changes nothing.
@@ -158,19 +157,22 @@ test.describe('stages (M5)', () => {
     await expect(page.getByRole('button', { name: 'Nic do przywrócenia' })).toBeDisabled();
   });
 
-  test('a layout change becomes a new stage that continues the charts', async ({ page }) => {
+  test('a layout change becomes a new pattern that continues the charts', async ({ page }) => {
     await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
-    await page.goto('/wzory');
-    await page
-      .getByRole('link', { name: /Kamizelka etapowa/ })
-      .first()
-      .click();
-    await page.getByRole('button', { name: 'Zmiana układu' }).first().click();
+    await page.getByRole('link', { name: 'Projekt Kamizelka' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Kamizelka' })).toBeVisible();
+    const list = page.getByTestId('pattern-list');
+    await expect(list.getByRole('listitem')).toHaveCount(3);
+    await list.getByRole('button', { name: 'Dalej z tego wzoru' }).first().click();
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Korpus — dalej');
     await expect(
-      page.getByRole('radio', { name: 'Dziergaj dalej jak w poprzednim etapie' }).first(),
+      page.getByRole('radio', { name: 'Dziergaj dalej jak w innym wzorze' }).first(),
     ).toBeChecked();
     await expect(page.getByLabel('Kontynuuj').first()).toHaveValue(/body/);
     await axeClean(page);
+
+    // The new pattern sits right after the body in the project.
+    await page.getByRole('link', { name: 'Wróć do projektu' }).click();
+    await expect(list.getByRole('listitem').nth(1)).toContainText('Korpus — dalej');
   });
 });

@@ -1,6 +1,7 @@
-import { createRegistry, STD, type SymbolRows } from '@kt/core';
+import { createRegistry, insertPattern, STD, type SymbolRows } from '@kt/core';
 import {
   buildPattern,
+  buildProject,
   parseDescription,
   type ImportProgress,
   type ImportResult,
@@ -10,7 +11,7 @@ import {
 } from '@kt/importer';
 import { create } from 'zustand';
 import { newId } from '../lib/files';
-import type { StoredPattern } from '../lib/storage';
+import { useDraft } from '../state/draft';
 import { useLibrary } from '../state/library';
 import { ImportClient, ImportError, type CheckedFile } from './client';
 
@@ -46,12 +47,22 @@ interface ImportState {
   setDescription(text: string, parsed?: ParsedDescription): void;
   addDescriptionPdf(file: CheckedFile): Promise<void>;
   reset(): void;
-  create(input: {
-    title: string;
-    sizes: readonly string[];
-    stageName: string;
-    sections: readonly [string, string];
-  }): Promise<string>;
+  /**
+   * Turn the checked import into a pattern: of a new project (named `title`, with `sizes`), or
+   * added to the existing project `projectId` (whose sizes are used).
+   */
+  create(input: CreateInput): Promise<{ projectId: string; patternId: string } | null>;
+}
+
+export interface CreateInput {
+  /** Add the pattern to this project instead of starting a new one. */
+  readonly projectId?: string;
+  /** Name of the new project. */
+  readonly title: string;
+  /** Sizes of the new project (ignored when adding to a project). */
+  readonly sizes: readonly string[];
+  readonly patternName: string;
+  readonly sections: readonly [string, string];
 }
 
 let client: ImportClient | null = null;
@@ -170,13 +181,16 @@ export const useImport = create<ImportState>((set, get) => ({
     });
   },
 
-  async create({ title, sizes, stageName, sections }) {
+  async create({ projectId, title, sizes: newSizes, patternName, sections }) {
     const { charts, result, legend, description } = get();
+    const library = useLibrary.getState();
+    const target = projectId ? library.project(projectId) : undefined;
+    if (projectId && !target) return null;
+    const sizes = target ? target.sizes : newSizes;
     const registry = createRegistry();
     const d = description.parsed;
     const n = sizes.length;
     const fit = (v: readonly number[] | undefined) => (v && v.length === n ? v : undefined);
-    const id = `import-${newId().slice(0, 8)}`;
     const entries = (result?.legend ?? []).flatMap((item, i) => {
       const symbolId = legend[i];
       if (!symbolId || !registry.has(symbolId)) return [];
@@ -193,27 +207,32 @@ export const useImport = create<ImportState>((set, get) => ({
     });
     const stitchCount = fit(d.stitchCount?.value);
     const marker = fit(d.marker?.value);
-    const pattern = buildPattern({
-      id,
-      title,
+    const draft = {
+      id: patternName,
+      name: patternName,
       sizes,
       charts: charts.filter((c) => c.include).map((c) => ({ name: c.name, rows: c.rows })),
       legend: unique,
-      stageName,
       sequence,
       ...(stitchCount ? { stitchCount } : {}),
       ...(marker ? { marker } : {}),
       sectionNames: sections,
-    });
-    const stored: StoredPattern = {
-      id,
-      pattern,
-      source: 'file',
-      importedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
-    await useLibrary.getState().updatePattern(stored);
-    return id;
+    const now = new Date().toISOString();
+    if (target) {
+      // Pending edits of the open project are written first, so nothing is lost.
+      await useDraft.getState().flush();
+      let patternId = '';
+      await library.updateProject(target.id, (p) => {
+        const r = insertPattern(p, buildPattern(draft));
+        patternId = r.patternId;
+        return { ...r.project, updatedAt: now };
+      });
+      return patternId ? { projectId: target.id, patternId } : null;
+    }
+    const project = buildProject({ ...draft, projectId: newId(), title, now });
+    await library.addProject(project);
+    return { projectId: project.id, patternId: project.patterns[0]?.id ?? '' };
   },
 }));
 
