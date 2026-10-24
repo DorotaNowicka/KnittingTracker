@@ -36,7 +36,12 @@ export interface KindInfo {
   readonly pair?: boolean;
   /** The item a pattern description's main chart layout belongs to (e.g. the body). */
   readonly main: string;
+  /** Items in the usual knitting order (bottom-up, cuff-down…). */
   readonly items: readonly KindItem[];
+  /** The direction `items` follow, e.g. "from the bottom". */
+  readonly usualWay: LocalizedText;
+  /** The other common direction (top-down, toe-up) and the order of the items then. */
+  readonly otherWay?: { readonly label: LocalizedText; readonly order: readonly string[] };
 }
 
 const t = (pl: string, en: string): LocalizedText => ({ pl, en });
@@ -75,6 +80,11 @@ const front = { id: 'front', label: t('Przód', 'Front') };
 export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   sweater: {
     id: 'sweater',
+    usualWay: t('od dołu', 'bottom-up'),
+    otherWay: {
+      label: t('od góry', 'top-down'),
+      order: ['neck', 'yoke', 'body', 'bottom-rib', 'sleeve', 'sleeve-cuff'],
+    },
     main: 'body',
     label: t('Sweter', 'Sweater'),
     items: [
@@ -88,6 +98,20 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   cardigan: {
     id: 'cardigan',
+    usualWay: t('od dołu', 'bottom-up'),
+    otherWay: {
+      label: t('od góry', 'top-down'),
+      order: [
+        'neck',
+        'yoke',
+        'body',
+        'bottom-rib',
+        'sleeve',
+        'sleeve-cuff',
+        'buttonhole-band',
+        'button-band',
+      ],
+    },
     main: 'body',
     label: t('Kardigan', 'Cardigan'),
     items: [
@@ -107,6 +131,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   vest: {
     id: 'vest',
+    usualWay: t('od dołu', 'bottom-up'),
     main: 'body',
     label: t('Kamizelka', 'Vest'),
     items: [
@@ -118,6 +143,8 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   hat: {
     id: 'hat',
+    usualWay: t('od brzegu', 'brim-up'),
+    otherWay: { label: t('od denka', 'crown-down'), order: ['crown', 'body', 'brim'] },
     main: 'body',
     label: t('Czapka', 'Hat'),
     items: [
@@ -128,6 +155,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   scarf: {
     id: 'scarf',
+    usualWay: t('od początku do końca', 'end to end'),
     main: 'main',
     label: t('Szalik', 'Scarf'),
     items: [
@@ -138,6 +166,8 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   cowl: {
     id: 'cowl',
+    usualWay: t('od dołu', 'bottom-up'),
+    otherWay: { label: t('od góry', 'top-down'), order: ['top-rib', 'main', 'bottom-rib'] },
     main: 'main',
     label: t('Komin', 'Cowl'),
     items: [
@@ -148,6 +178,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   mittens: {
     id: 'mittens',
+    usualWay: t('od mankietu', 'cuff-up'),
     main: 'hand',
     label: t('Rękawiczki', 'Mittens and gloves'),
     pair: true,
@@ -182,6 +213,11 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   socks: {
     id: 'socks',
+    usualWay: t('od mankietu', 'cuff-down'),
+    otherWay: {
+      label: t('od palców', 'toe-up'),
+      order: ['toe', 'foot', 'gusset', 'heel', 'leg', 'cuff'],
+    },
     main: 'leg',
     label: t('Skarpetki', 'Socks'),
     pair: true,
@@ -196,6 +232,7 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
   },
   custom: {
     id: 'custom',
+    usualWay: t('po kolei', 'in order'),
     label: t('Własny projekt', 'Custom project'),
     main: 'main',
     items: [],

@@ -55,4 +55,11 @@ describe('project kinds', () => {
     expect(projectSchema.safeParse({ ...p, kind: 'blanket' }).success).toBe(false);
     expect(blankProject({ id: 'q', name: 'x', now: '2026-10-22T10:00:00Z' }).kind).toBeUndefined();
   });
+
+  it('lists every item exactly once in the other knitting direction', () => {
+    for (const info of PROJECT_KIND_LIST) {
+      if (!info.otherWay) continue;
+      expect([...info.otherWay.order].sort(), info.id).toEqual(info.items.map((i) => i.id).sort());
+    }
+  });
 });

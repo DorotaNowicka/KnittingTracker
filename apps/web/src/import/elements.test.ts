@@ -4,6 +4,7 @@ import {
   buildProjectFromElements,
   initialElements,
   kindItems,
+  orderedItems,
   partsOf,
   type BuildInput,
 } from './elements';
@@ -109,5 +110,26 @@ describe('garment elements', () => {
     );
     expect(own.patterns.map((p) => p.name)).toEqual(['Wzór']);
     expect(own.activePatternId).toBe('main');
+  });
+
+  it('creates the patterns in the knitting order of the description', () => {
+    const project = buildProjectFromElements(
+      base({ order: ['neck', 'yoke', 'body', 'bottom-rib', 'sleeve', 'sleeve-cuff'] }),
+    );
+    expect(project.patterns.map((p) => p.id)).toEqual([
+      'neck',
+      'body',
+      'bottom-rib',
+      'sleeve',
+      'sleeve-cuff',
+    ]);
+    expect(orderedItems('socks', ['toe', 'nope']).map((i) => i.id)).toEqual([
+      'toe',
+      'cuff',
+      'leg',
+      'heel',
+      'gusset',
+      'foot',
+    ]);
   });
 });

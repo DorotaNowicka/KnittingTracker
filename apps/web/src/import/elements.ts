@@ -38,6 +38,20 @@ export const kindItems = (kind: ProjectKind): readonly KindItem[] =>
 
 export const mainItemId = (kind: ProjectKind): string => PROJECT_KIND_INFO[kind].main;
 
+/** The kind's items in knitting order (`order`: item ids; unknown ids are ignored, missing items
+ * keep their usual place after the ordered ones). */
+export function orderedItems(
+  kind: ProjectKind,
+  order: readonly string[] = [],
+): readonly KindItem[] {
+  const items = kindItems(kind);
+  const rank = (id: string) => {
+    const i = order.indexOf(id);
+    return i < 0 ? order.length + items.findIndex((it) => it.id === id) : i;
+  };
+  return [...items].sort((a, b) => rank(a.id) - rank(b.id));
+}
+
 /**
  * Starting point: every part that every garment of this kind has is included, optional parts are
  * not, choices take their first option, and all recognised charts go to the main element (the
@@ -85,10 +99,12 @@ export interface BuildInput {
   /** Chart order of a round from the description; used for the main element. */
   readonly layout: MainLayout;
   readonly elements: Elements;
+  /** Knitting order of the items (ids); the usual order when left out. */
+  readonly order?: readonly string[];
 }
 
 /**
- * A new project with one pattern per included part, in knitting order. The main element follows
+ * A new project with one pattern per included part, in knitting order (`order`). The main element follows
  * the description's chart order; other parts place their charts side by side once. A part without
  * charts is tracked with a row counter (ribbing, plain stockinette) until charts are added.
  */
@@ -102,7 +118,7 @@ export function buildProjectFromElements(input: BuildInput): Project {
     now: input.now,
   });
   let mainPatternId: string | undefined;
-  for (const item of kindItems(input.kind)) {
+  for (const item of orderedItems(input.kind, input.order)) {
     const state = input.elements[item.id];
     if (!state?.include) continue;
     const parts = partsOf(item, state);

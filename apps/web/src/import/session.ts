@@ -11,8 +11,10 @@ import {
   buildPattern,
   buildProject,
   detectKind,
+  detectPartOrder,
   parseDescription,
   type KindGuess,
+  type PartOrder,
   type ImportProgress,
   type ImportResult,
   type ParsedDescription,
@@ -74,6 +76,11 @@ interface ImportState {
   readonly projectKind: ProjectKind;
   /** The garment's parts in the check and the charts each one uses. */
   readonly elements: Elements;
+  /** In what order the pattern makes the parts. */
+  readonly order: PartOrder;
+  /** Checking a new project: first which parts to track, then each part's details. */
+  readonly step: 'parts' | 'details';
+  setStep(step: 'parts' | 'details'): void;
   /** Change the kind; the parts start again from that kind's usual ones. */
   setProjectKind(kind: ProjectKind): void;
   updateElement(id: string, change: Partial<ElementState>): void;
@@ -165,12 +172,20 @@ function describedLayout(
   };
 }
 
+/** The parts of `kind`, in the order the text makes them. */
+const partsFor = (kind: ProjectKind, text: string, charts: number) => ({
+  projectKind: kind,
+  elements: initialElements(kind, charts),
+  order: detectPartOrder(text, kind),
+});
+
 /** The kind guessed from the text, with the parts it usually has. */
 function kindOf(result: ImportResult, hints: string) {
   const guess = detectKind(result.text, hints);
-  const projectKind = guess?.kind ?? 'custom';
-  return { guess, projectKind, elements: initialElements(projectKind, result.charts.length) };
+  return { guess, ...partsFor(guess?.kind ?? 'custom', result.text, result.charts.length) };
 }
+
+const noParts = { guess: null, ...partsFor('custom', '', 0), step: 'parts' } as const;
 
 export const useImport = create<ImportState>((set, get) => ({
   status: 'idle',
@@ -183,16 +198,19 @@ export const useImport = create<ImportState>((set, get) => ({
   description: blank,
   error: null,
   projectName: '',
-  guess: null,
-  projectKind: 'custom',
-  elements: initialElements('custom', 0),
+  ...noParts,
 
   setProjectName(projectName) {
     set({ projectName });
   },
 
   setProjectKind(projectKind) {
-    set({ projectKind, elements: initialElements(projectKind, get().charts.length) });
+    const { result, charts } = get();
+    set(partsFor(projectKind, result?.text ?? '', charts.length));
+  },
+
+  setStep(step) {
+    set({ step });
   },
 
   updateElement(id, change) {
@@ -245,6 +263,7 @@ export const useImport = create<ImportState>((set, get) => ({
         legend: result.legend.map((l) => (l.confidence >= 0.6 ? l.symbolId : null)),
         description: { text: result.text, parsed: result.description },
         ...kindOf(result, `${get().projectName}\n${file.name}`),
+        step: 'parts',
       });
     } catch (e) {
       set({ status: 'error', error: codeOf(e) });
@@ -302,9 +321,7 @@ export const useImport = create<ImportState>((set, get) => ({
       legend: [],
       description: blank,
       error: null,
-      guess: null,
-      projectKind: 'custom',
-      elements: initialElements('custom', 0),
+      ...noParts,
     });
   },
 
@@ -358,6 +375,7 @@ export const useImport = create<ImportState>((set, get) => ({
       legend: legendEntries(state),
       layout: describedLayout(state, sizes.length, sections),
       elements: state.elements,
+      order: state.order.order,
     });
     await useLibrary.getState().addProject(project);
     set({ projectName: '' });

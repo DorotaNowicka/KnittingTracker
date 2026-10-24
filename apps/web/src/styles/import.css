@@ -336,7 +336,7 @@
 }
 
 .garment__region {
-  fill: var(--zone);
+  fill: color-mix(in srgb, var(--indigo) 14%, var(--sheet));
   stroke: var(--rule-strong);
   stroke-width: 1.5;
   stroke-linejoin: round;
@@ -352,18 +352,18 @@
   stroke-dasharray: 4 3;
 }
 
-.garment__region.is-hover {
-  fill: var(--done);
+.garment__region.is-hover,
+.garment__region.is-selected {
+  fill: color-mix(in srgb, var(--indigo) 34%, var(--sheet));
 }
 
 .garment__region.is-selected {
-  fill: var(--done);
   stroke: var(--indigo);
 }
 
 .garment__region.is-off.is-hover,
 .garment__region.is-off.is-selected {
-  fill: color-mix(in srgb, var(--done) 45%, transparent);
+  fill: color-mix(in srgb, var(--indigo) 12%, transparent);
 }
 
 .garment__decor {
@@ -482,6 +482,186 @@
 @media (prefers-reduced-motion: reduce) {
   .garment__region,
   .part-button {
+    transition: none;
+  }
+}
+
+/* Step 1 of a PDF → new project: the symbol of the kind, parts to track, knitting order. */
+.kind-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-4);
+}
+
+.kind-line__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--ink);
+  font-size: var(--fs-5);
+  font-weight: 700;
+}
+
+.kind-line__name svg {
+  color: var(--indigo);
+}
+
+.kind-line .field {
+  margin: 0;
+}
+
+.track {
+  display: grid;
+  gap: var(--sp-5);
+  align-items: start;
+  margin-top: var(--sp-4);
+}
+
+@media (min-width: 760px) {
+  .track {
+    grid-template-columns: minmax(280px, 440px) minmax(0, 1fr);
+  }
+}
+
+.garment__drawing--large {
+  max-width: 440px;
+  padding: var(--sp-3);
+}
+
+.track__list {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.track__list > legend {
+  padding: 0;
+  margin-bottom: var(--sp-2);
+}
+
+.track-list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--target);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.track-item.is-hover {
+  background: var(--done);
+}
+
+.track-item__no,
+.part-button__no {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 1.6em;
+  height: 1.6em;
+  padding: 0 0.3em;
+  border-radius: 999px;
+  background: var(--indigo);
+  color: var(--on-indigo);
+  font-size: var(--fs-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.part-button__no {
+  margin-right: var(--sp-2);
+  font-size: var(--fs-1);
+}
+
+.track-item.is-off .track-item__no {
+  background: var(--zone);
+  color: var(--ink-muted);
+}
+
+.track-item__name {
+  flex: 1;
+  font-weight: 650;
+}
+
+.track-item.is-off .track-item__name {
+  color: var(--ink-muted);
+}
+
+.track-item__note {
+  color: var(--ink-muted);
+  font-size: var(--fs-1);
+}
+
+.parts-step > .form-actions {
+  margin-top: var(--sp-5);
+}
+
+.garment__region.is-inert {
+  cursor: default;
+}
+
+.garment__mark {
+  cursor: pointer;
+}
+
+.garment__mark.is-inert {
+  cursor: default;
+}
+
+.garment__mark circle {
+  fill: var(--indigo);
+  stroke: var(--sheet);
+  stroke-width: 1.5;
+}
+
+.garment__mark text {
+  fill: var(--on-indigo);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.garment__mark.is-off circle {
+  fill: var(--sheet);
+  stroke: var(--rule-strong);
+  stroke-dasharray: 2 1.5;
+}
+
+.garment__mark.is-off text {
+  fill: var(--ink-muted);
+}
+
+button.link-back {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--indigo);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track-item {
     transition: none;
   }
 }

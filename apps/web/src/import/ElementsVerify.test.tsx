@@ -76,52 +76,95 @@ beforeEach(() => {
     guess: { kind: 'sweater', confidence: 0.9, evidence: ['Sweter', 'Rękawy'] },
     projectKind: 'sweater',
     elements: initialElements('sweater', 2),
+    order: {
+      order: ['bottom-rib', 'sleeve', 'yoke', 'body', 'sleeve-cuff', 'neck'],
+      source: 'headings',
+      evidence: ['Rękawy', 'Korpus'],
+    },
+    step: 'parts',
     projectName: 'Mój sweter',
   });
   navigate('/import', { replace: true });
 });
 
-describe('new project from a PDF: garment parts', () => {
-  it('shows the recognised kind and the garment split into parts, the body first', async () => {
+const toDetails = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(await screen.findByRole('button', { name: /^Dalej/ }));
+  return screen.findByTestId('part-panel');
+};
+
+describe('new project from a PDF: parts to track', () => {
+  it('shows the recognised kind as a drawing with parts numbered in knitting order', async () => {
     render(<App />);
-    expect(await screen.findByLabelText('Rodzaj projektu')).toHaveValue('sweater');
+    expect(await screen.findByRole('heading', { level: 2, name: 'Sweter' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Zmień rodzaj')).toHaveValue('sweater');
     expect(screen.getByText(/Rozpoznaliśmy po słowach: Sweter, Rękawy/)).toBeInTheDocument();
-    expect(screen.getByTestId('garment-diagram')).toBeInTheDocument();
-    const body = screen.getByRole('button', { name: /Korpus/ });
-    expect(body).toHaveAttribute('aria-pressed', 'true');
-    expect(body).toHaveTextContent(/Na okrągło.* · 2 schematy/);
-    expect(screen.getByRole('button', { name: /Rękaw ×2/ })).toHaveTextContent('licznik rzędów');
-    expect(screen.getByRole('button', { name: /Karczek/ })).toHaveTextContent('pominięta');
-    const panel = screen.getByTestId('part-panel');
-    expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent('Korpus');
-    expect(within(panel).getByRole('heading', { name: 'Opis wzoru' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Kolejność według nagłówków w opisie: Rękawy, Korpus.'),
+    ).toBeInTheDocument();
+    const list = screen.getByRole('group', { name: 'Co chcesz śledzić?' });
+    expect(
+      within(list)
+        .getAllByRole('checkbox')
+        .map((c) => [c.closest('label')?.textContent, (c as HTMLInputElement).checked]),
+    ).toEqual([
+      ['11. Ściągacz dołu', true],
+      ['22. Rękaw ×2', true],
+      ['33. Karczeknie w każdym wzorze', false],
+      ['44. Korpus', true],
+      ['55. Ściągacz rękawa ×2', true],
+      ['66. Dekolt / golf', true],
+    ]);
+    const marks = screen.getByTestId('garment-diagram').querySelectorAll('[data-mark="sleeve"]');
+    expect([...marks].map((m) => m.textContent)).toEqual(['2', '2']);
+    expect(screen.getByRole('button', { name: 'Dalej: 5 części' })).toBeEnabled();
   });
 
-  it('highlights a part in both the drawing and the list when pointing at either', async () => {
+  it('tracks a part by clicking it in the drawing, and highlights it in the list', async () => {
     const user = userEvent.setup();
     render(<App />);
-    const sleeve = await screen.findByRole('button', { name: /Rękaw ×2/ });
-    const region = () =>
-      screen.getByTestId('garment-diagram').querySelector('[data-part="sleeve"]');
-    await user.hover(sleeve);
-    expect(region()).toHaveClass('is-hover');
-    await user.unhover(sleeve);
-    expect(region()).not.toHaveClass('is-hover');
+    const yoke = (await screen.findByTestId('garment-diagram')).querySelector('[data-part="yoke"]');
+    if (!yoke) throw new Error('no yoke');
+    await user.hover(yoke);
+    expect(screen.getByRole('checkbox', { name: /Karczek/ }).closest('label')).toHaveClass(
+      'is-hover',
+    );
+    await user.click(yoke);
+    expect(screen.getByRole('checkbox', { name: /Karczek/ })).toBeChecked();
+    await user.click(screen.getByRole('checkbox', { name: /Dekolt/ }));
+    expect(screen.getByTestId('garment-diagram').querySelector('[data-part="neck"]')).toHaveClass(
+      'is-off',
+    );
+    expect(screen.getByRole('button', { name: 'Dalej: 5 części' })).toBeEnabled();
+    for (const name of [/Ściągacz dołu/, /Rękaw ×2/, /Karczek/, /Korpus/, /Ściągacz rękawa/]) {
+      await user.click(screen.getByRole('checkbox', { name }));
+    }
+    expect(screen.getByRole('button', { name: 'Dalej: 0 części' })).toBeDisabled();
+  });
+
+  it('shows only tracked parts in the details, opening the body first', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole('checkbox', { name: /Dekolt/ }));
+    const panel = await toDetails(user);
+    expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent('4Korpus');
+    expect(within(panel).getByRole('heading', { name: 'Opis wzoru' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Dekolt/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Rękaw ×2/ })).toHaveTextContent('licznik rzędów');
     const neck = screen.getByTestId('garment-diagram').querySelector('[data-part="neck"]');
-    if (!neck) throw new Error('no neck region');
-    await user.hover(neck);
-    expect(screen.getByRole('button', { name: /Dekolt/ })).toHaveClass('is-hover');
-    await user.click(neck);
-    expect(screen.getByRole('button', { name: /Dekolt/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(neck).toHaveClass('is-inert');
+    if (neck) await user.click(neck);
     expect(
       within(screen.getByTestId('part-panel')).getByRole('heading', { level: 2 }),
-    ).toHaveTextContent('Dekolt');
+    ).toHaveTextContent('Korpus');
+    await user.click(screen.getByRole('button', { name: 'Części do śledzenia' }));
+    expect(screen.getByRole('checkbox', { name: /Dekolt/ })).not.toBeChecked();
   });
 
-  it('gives a chart to the sleeve, splits the body and creates the project', async () => {
+  it('gives a chart to the sleeve, splits the body and creates the project in knitting order', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /Rękaw ×2/ }));
+    await toDetails(user);
+    await user.click(screen.getByRole('button', { name: /Rękaw ×2/ }));
     const panel = screen.getByTestId('part-panel');
     await user.click(within(panel).getByRole('checkbox', { name: /A\.2/ }));
     expect(screen.getByRole('button', { name: /Rękaw ×2/ })).toHaveTextContent('1 schemat');
@@ -132,13 +175,7 @@ describe('new project from a PDF: garment parts', () => {
       within(screen.getByTestId('part-panel')).getByRole('radio', { name: /osobnych/ }),
     );
     expect(screen.getByText(/Każda z części \(Tył, Przód\)/)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /Dekolt/ }));
-    await user.click(
-      within(screen.getByTestId('part-panel')).getByRole('checkbox', { name: /w moim projekcie/ }),
-    );
-    expect(screen.getByRole('button', { name: /Dekolt/ })).toHaveTextContent('pominięta');
-    expect(screen.getByText(/Powstanie 5 wzorów/)).toBeInTheDocument();
+    expect(screen.getByText(/Powstanie 6 wzorów/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Utwórz projekt' }));
     expect(
@@ -150,27 +187,27 @@ describe('new project from a PDF: garment parts', () => {
     expect(project?.sizes).toEqual(['S', 'M']);
     expect(project?.patterns.map((p) => [p.name, p.charts.map((c) => c.name)])).toEqual([
       ['Ściągacz dołu', []],
+      ['Rękaw', ['A.2']],
       ['Tył', ['A.1']],
       ['Przód', ['A.1']],
-      ['Rękaw', ['A.2']],
       ['Ściągacz rękawa', []],
+      ['Dekolt / golf', []],
     ]);
   });
 
   it('starts over with the usual parts when the kind is changed', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.selectOptions(await screen.findByLabelText('Rodzaj projektu'), 'socks');
+    await user.selectOptions(await screen.findByLabelText('Zmień rodzaj'), 'socks');
     expect(screen.getByText('Rodzaj zmieniony ręcznie.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Cholewka/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
     expect(screen.getByText(/Robione w parze/)).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Rodzaj projektu'), 'custom');
-    expect(screen.queryByTestId('garment-diagram')).not.toBeInTheDocument();
     expect(
-      within(screen.getByTestId('part-panel')).getByRole('heading', { level: 2 }),
-    ).toHaveTextContent('Wzór');
+      screen.getByText('Typowa kolejność (od mankietu) — opis jej nie podaje.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /^1\.\s?Ściągacz$/ })).toBeChecked();
+    await user.selectOptions(screen.getByLabelText('Zmień rodzaj'), 'custom');
+    expect(screen.queryByTestId('garment-diagram')).not.toBeInTheDocument();
+    const panel = await toDetails(user);
+    expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent('Wzór');
   });
 });
