@@ -82,6 +82,8 @@ beforeEach(() => {
       evidence: ['Rękawy', 'Korpus'],
     },
     step: 'parts',
+    sizes: ['S', 'M'],
+    sizeIndex: 1,
     projectName: 'Mój sweter',
   });
   navigate('/import', { replace: true });
@@ -156,7 +158,9 @@ describe('new project from a PDF: parts to track', () => {
     expect(
       within(screen.getByTestId('part-panel')).getByRole('heading', { level: 2 }),
     ).toHaveTextContent('Korpus');
-    await user.click(screen.getByRole('button', { name: 'Części do śledzenia' }));
+    await user.click(
+      within(screen.getByRole('list', { name: 'Kroki' })).getByRole('button', { name: /Części/ }),
+    );
     expect(screen.getByRole('checkbox', { name: /Dekolt/ })).not.toBeChecked();
   });
 
@@ -185,6 +189,7 @@ describe('new project from a PDF: parts to track', () => {
     const project = useLibrary.getState().projects[0];
     expect(project?.kind).toBe('sweater');
     expect(project?.sizes).toEqual(['S', 'M']);
+    expect(project?.sizeIndex).toBe(1);
     expect(project?.patterns.map((p) => [p.name, p.charts.map((c) => c.name)])).toEqual([
       ['Ściągacz dołu', []],
       ['Rękaw', ['A.2']],
@@ -209,5 +214,78 @@ describe('new project from a PDF: parts to track', () => {
     expect(screen.queryByTestId('garment-diagram')).not.toBeInTheDocument();
     const panel = await toDetails(user);
     expect(within(panel).getByRole('heading', { level: 2 })).toHaveTextContent('Wzór');
+  });
+});
+
+describe('new project from a PDF: size and legend first', () => {
+  beforeEach(() => {
+    useImport.setState({ step: 'size', sizes: ['S', 'M'], sizeIndex: 0 });
+  });
+
+  it('asks for the size, showing where the sizes were read from', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Który rozmiar dziergasz?' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/ROZMIARY: S - M/)).toBeInTheDocument();
+    const steps = screen.getByRole('list', { name: 'Kroki' });
+    expect(
+      within(steps)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['1Rozmiar', '2Legenda', '3Części', '4Szczegóły']);
+    expect(within(steps).getByText('Rozmiar').closest('li')).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    expect(screen.getByRole('radio', { name: 'S' })).toBeChecked();
+    await user.click(screen.getByRole('radio', { name: 'M' }));
+    expect(useImport.getState().sizeIndex).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: 'Popraw listę rozmiarów' }));
+    const field = screen.getByLabelText('Rozmiary');
+    await user.clear(field);
+    await user.type(field, 'S - M - L');
+    expect(screen.getAllByRole('radio').map((r) => r.closest('label')?.textContent)).toEqual([
+      'S',
+      'M',
+      'L',
+    ]);
+    await user.click(screen.getByRole('button', { name: 'Dalej: rozmiar M' }));
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Symbole w schematach' }),
+    ).toBeInTheDocument();
+  });
+
+  it('confirms the legend, then shows the parts; earlier steps can be reopened', async () => {
+    const user = userEvent.setup();
+    useImport.setState({ step: 'legend' });
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Zatwierdź legendę' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Sweter' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Wstecz' }));
+    expect(screen.getByRole('button', { name: 'Zatwierdź legendę' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Rozmiar/ }));
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Który rozmiar dziergasz?' }),
+    ).toBeInTheDocument();
+  });
+
+  it('skips the legend when the file has neither a legend nor charts, and offers one size', async () => {
+    const user = userEvent.setup();
+    useImport.setState({
+      result: { ...result, charts: [] },
+      charts: [],
+      sizes: [],
+      description: { text: 'Czapka', parsed: parseDescription('Czapka') },
+    });
+    render(<App />);
+    expect(await screen.findByText(/nie znaleźliśmy rozmiarów/)).toBeInTheDocument();
+    expect(screen.getByText('Jeden rozmiar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Rozmiary')).toBeInTheDocument();
+    expect(screen.queryByText('Legenda')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Dalej' }));
+    expect(screen.getByRole('group', { name: 'Co chcesz śledzić?' })).toBeInTheDocument();
   });
 });

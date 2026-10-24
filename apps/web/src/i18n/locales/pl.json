@@ -10,7 +10,8 @@
   "common": {
     "cancel": "Anuluj",
     "close": "Zamknij",
-    "save": "Zapisz"
+    "save": "Zapisz",
+    "back": "Wstecz"
   },
   "projects": {
     "title": "Twoje projekty",
@@ -768,6 +769,21 @@
     "nextCount_few": "Dalej: {{count}} części",
     "nextCount_many": "Dalej: {{count}} części",
     "nextCount_other": "Dalej: {{count}} części",
-    "backToParts": "Części do śledzenia"
+    "stepsLabel": "Kroki",
+    "step": {
+      "size": "Rozmiar",
+      "legend": "Legenda",
+      "parts": "Części",
+      "details": "Szczegóły"
+    },
+    "sizeTitle": "Który rozmiar dziergasz?",
+    "sizesFound": "Rozmiary z opisu:",
+    "sizesNone": "W opisie nie znaleźliśmy rozmiarów. Jeśli wzór ma kilka, wpisz je poniżej.",
+    "oneSize": "Jeden rozmiar",
+    "sizesEdit": "Popraw listę rozmiarów",
+    "sizesEditHint": "Oddziel rozmiary myślnikiem lub przecinkiem, np. S - M - L.",
+    "sizeNext": "Dalej: rozmiar {{size}}",
+    "legendConfirm": "Zatwierdź legendę",
+    "sizeSummary": "Rozmiar {{size}} (we wzorze: {{sizes}})."
   }
 }

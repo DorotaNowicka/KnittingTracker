@@ -10,7 +10,8 @@
   "common": {
     "cancel": "Cancel",
     "close": "Close",
-    "save": "Save"
+    "save": "Save",
+    "back": "Back"
   },
   "projects": {
     "title": "Your projects",
@@ -702,6 +703,21 @@
     "next": "Next",
     "nextCount_one": "Next: {{count}} part",
     "nextCount_other": "Next: {{count}} parts",
-    "backToParts": "Parts to track"
+    "stepsLabel": "Steps",
+    "step": {
+      "size": "Size",
+      "legend": "Legend",
+      "parts": "Parts",
+      "details": "Details"
+    },
+    "sizeTitle": "Which size are you knitting?",
+    "sizesFound": "Sizes from the description:",
+    "sizesNone": "We found no sizes in the description. If the pattern has several, type them below.",
+    "oneSize": "One size",
+    "sizesEdit": "Correct the list of sizes",
+    "sizesEditHint": "Separate sizes with a dash or a comma, e.g. S - M - L.",
+    "sizeNext": "Next: size {{size}}",
+    "legendConfirm": "Confirm the legend",
+    "sizeSummary": "Size {{size}} (pattern sizes: {{sizes}})."
   }
 }

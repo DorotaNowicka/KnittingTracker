@@ -665,3 +665,119 @@ button.link-back {
     transition: none;
   }
 }
+
+/* Steps of checking a PDF for a new project. */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0 0 var(--sp-5);
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-2);
+}
+
+.steps__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font: inherit;
+}
+
+button.steps__link {
+  color: var(--indigo);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.steps__item.is-current .steps__link {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.steps__no {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 999px;
+  border: 1.5px solid currentcolor;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps__item.is-current .steps__no {
+  border-color: var(--indigo);
+  background: var(--indigo);
+  color: var(--on-indigo);
+}
+
+.size-step {
+  gap: var(--sp-4);
+}
+
+.size-step > .field,
+.size-step__edit {
+  justify-self: start;
+  margin: 0;
+}
+
+.quote {
+  color: var(--ink);
+  font-style: italic;
+}
+
+.size-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.size-tile {
+  position: relative;
+}
+
+.size-tile input {
+  position: absolute;
+  opacity: 0;
+}
+
+.size-tile span {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--target-big);
+  min-height: var(--target-big);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+  font-size: var(--fs-4);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.size-tile input:checked + span {
+  border-color: var(--indigo);
+  background: var(--indigo);
+  color: var(--on-indigo);
+}
+
+.size-tile input:focus-visible + span {
+  outline: 3px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.legend-step > .form-actions {
+  margin-top: var(--sp-5);
+}
+
+.legend-step > .editor-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}

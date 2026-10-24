@@ -15,26 +15,186 @@ import { ChartReview } from './ChartReview';
 import { kindItems, mainItemId, orderedItems, partsOf, type ElementState } from './elements';
 import { GarmentDiagram } from './GarmentDiagram';
 import { DescriptionReview, LegendReview, SymbolsReview } from './Reviews';
-import { splitSizes, UNCERTAIN, useImport } from './session';
+import { pendingSymbols, splitSizes, UNCERTAIN, useImport, type ImportStep } from './session';
 
 const registry = createRegistry();
 
 /**
- * Checking a PDF for a new project, in two steps. First the garment of the recognised kind,
- * numbered in knitting order, where the knitter picks the parts to track. Then the details: for
- * the chosen part its own piece of the form — which charts it uses, its options, and for the main
- * part the description of a round.
+ * Checking a PDF for a new project, step by step: the size being knitted, the legend, the
+ * garment of the recognised kind (numbered in knitting order) where the knitter picks the parts
+ * to track, and the details of each tracked part.
  */
 export function ElementsVerify() {
   const step = useImport((s) => s.step);
-  const goTo = (next: 'parts' | 'details') => {
+  const result = useImport((s) => s.result);
+  // Nothing to confirm in a legend when the file has neither a legend nor charts.
+  const steps: readonly ImportStep[] =
+    result && (result.legend.length > 0 || result.charts.length > 0)
+      ? ['size', 'legend', 'parts', 'details']
+      : ['size', 'parts', 'details'];
+  const at = Math.max(0, steps.indexOf(step));
+  const goTo = (next: ImportStep | undefined) => {
+    if (!next) return;
     useImport.getState().setStep(next);
     window.scrollTo({ top: 0 });
   };
-  return step === 'parts' ? (
-    <PartsStep onNext={() => goTo('details')} />
-  ) : (
-    <DetailsStep onBack={() => goTo('parts')} />
+  const back = () => goTo(steps[at - 1]);
+  const next = () => goTo(steps[at + 1]);
+  return (
+    <>
+      <Steps steps={steps} at={at} onGo={goTo} />
+      {step === 'size' && <SizeStep onNext={next} />}
+      {step === 'legend' && <LegendStep onBack={back} onNext={next} />}
+      {step === 'parts' && <PartsStep onBack={back} onNext={next} />}
+      {step === 'details' && <DetailsStep onBack={back} />}
+    </>
+  );
+}
+
+/** Where the knitter is in the check; earlier steps can be reopened. */
+function Steps({
+  steps,
+  at,
+  onGo,
+}: {
+  steps: readonly ImportStep[];
+  at: number;
+  onGo(step: ImportStep): void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ol className="steps" aria-label={t('elements.stepsLabel')}>
+      {steps.map((st, i) => (
+        <li
+          key={st}
+          className={`steps__item${i === at ? ' is-current' : ''}${i < at ? ' is-done' : ''}`}
+          aria-current={i === at ? 'step' : undefined}
+        >
+          {i < at ? (
+            <button type="button" className="steps__link" onClick={() => onGo(st)}>
+              <span className="steps__no">{i + 1}</span>
+              {t(`elements.step.${st}`)}
+            </button>
+          ) : (
+            <span className="steps__link">
+              <span className="steps__no">{i + 1}</span>
+              {t(`elements.step.${st}`)}
+            </span>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/** Step 1: which size is knitted; the sizes come from the description and can be corrected. */
+function SizeStep({ onNext }: { onNext(): void }) {
+  const { t } = useTranslation();
+  const ids = useId();
+  const s = useImport();
+  const found = s.description.parsed.sizes;
+  const text = s.description.text;
+  // The line the sizes were read from, so the knitter can compare.
+  const quote = found ? lineAround(text, found.span.start, found.span.end) : null;
+  const [editing, setEditing] = useState(s.sizes.length === 0);
+  // The typed text stays as typed ("S - "); the list of sizes follows it.
+  const [sizesText, setSizesText] = useState(() => s.sizes.join(' - '));
+  return (
+    <section className="verify size-step" aria-labelledby={`${ids}-t`}>
+      <h2 id={`${ids}-t`} className="section-title">
+        {t('elements.sizeTitle')}
+      </h2>
+      {quote ? (
+        <p className="hint">
+          {t('elements.sizesFound')} <q className="quote">{quote}</q>
+        </p>
+      ) : (
+        <p className="hint">{t('elements.sizesNone')}</p>
+      )}
+      {s.sizes.length > 0 ? (
+        <div className="size-tiles" role="radiogroup" aria-labelledby={`${ids}-t`}>
+          {s.sizes.map((size, i) => (
+            <label key={`${size}-${i}`} className="size-tile">
+              <input
+                type="radio"
+                name={`${ids}-size`}
+                checked={s.chosenSize() === i}
+                onChange={() => s.setSizeIndex(i)}
+              />
+              <span>{size}</span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <p className="lead">{t('elements.oneSize')}</p>
+      )}
+      {editing ? (
+        <TextField
+          label={t('editor.sizes')}
+          value={sizesText}
+          maxLength={200}
+          hint={t('elements.sizesEditHint')}
+          onCommit={(v) => {
+            setSizesText(v);
+            s.setSizes(splitSizes(v));
+          }}
+        />
+      ) : (
+        <button type="button" className="btn size-step__edit" onClick={() => setEditing(true)}>
+          {t('elements.sizesEdit')}
+        </button>
+      )}
+      <div className="form-actions">
+        <button type="button" className="btn" onClick={() => s.reset()}>
+          {t('importer.otherFile')}
+        </button>
+        <button type="button" className="btn btn--primary" onClick={onNext}>
+          {s.sizes.length > 0
+            ? t('elements.sizeNext', { size: s.sizes[s.chosenSize()] ?? '' })
+            : t('elements.next')}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** The line of `text` holding [start, end), shortened around it when long. */
+function lineAround(text: string, start: number, end: number): string {
+  const from = text.lastIndexOf('\n', start - 1) + 1;
+  const to = text.indexOf('\n', end);
+  const line = text
+    .slice(from, to < 0 ? undefined : to)
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (line.length <= 80) return line;
+  const at = start - from;
+  return `…${line.slice(Math.max(0, at - 30), at + (end - start) + 30).trim()}…`;
+}
+
+/** Step 2: the legend read from the file (or the symbols used, when it has none). */
+function LegendStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
+  const { t } = useTranslation();
+  const s = useImport();
+  const result = s.result;
+  if (!result) return null;
+  const pending = pendingSymbols(s.legend, result);
+  const confirm = () => {
+    onNext();
+    // A changed legend means the charts are read again with the confirmed symbols.
+    if (pending) void s.rerun(pending);
+  };
+  return (
+    <div className="verify legend-step">
+      {result.legend.length > 0 ? <LegendReview items={result.legend} /> : <SymbolsReview />}
+      <div className="form-actions">
+        <button type="button" className="btn" onClick={onBack}>
+          {t('common.back')}
+        </button>
+        <button type="button" className="btn btn--primary" onClick={confirm}>
+          {t('elements.legendConfirm')}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -50,7 +210,7 @@ function useOrder() {
 }
 
 /** Step 1: the symbol of the kind, split into numbered parts; the knitter picks what to track. */
-function PartsStep({ onNext }: { onNext(): void }) {
+function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
@@ -163,8 +323,8 @@ function PartsStep({ onNext }: { onNext(): void }) {
       )}
 
       <div className="form-actions">
-        <button type="button" className="btn" onClick={() => s.reset()}>
-          {t('importer.otherFile')}
+        <button type="button" className="btn" onClick={onBack}>
+          {t('common.back')}
         </button>
         <button
           type="button"
@@ -216,12 +376,6 @@ function DetailsStep({ onBack }: { onBack(): void }) {
 
   return (
     <div className="verify">
-      <p className="page__back">
-        <button type="button" className="link-back" onClick={onBack}>
-          <Icon name="back" size={18} />
-          {t('elements.backToParts')}
-        </button>
-      </p>
       <p className="lead" role="status">
         {result.charts.length === 0
           ? t('elements.noChartsFound')
@@ -285,10 +439,7 @@ function DetailsStep({ onBack }: { onBack(): void }) {
         </section>
       )}
 
-      {result.legend.length > 0 && <LegendReview items={result.legend} />}
-      {result.legend.length === 0 && result.charts.length > 0 && <SymbolsReview />}
-
-      <ProjectForm />
+      <ProjectForm onBack={onBack} />
     </div>
   );
 }
@@ -486,13 +637,12 @@ function PartPanel({
 }
 
 /** The project's name and sizes, and the button that creates it. */
-function ProjectForm() {
+function ProjectForm({ onBack }: { onBack(): void }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
   const s = useImport();
   const [busy, setBusy] = useState(false);
-  const parsedSizes = s.description.parsed.sizes?.value;
   const defaultTitle = useMemo(
     () =>
       s.projectName.slice(0, 120) ||
@@ -501,9 +651,7 @@ function ProjectForm() {
     [s.projectName, s.file, t],
   );
   const [title, setTitle] = useState(defaultTitle);
-  const [sizesText, setSizesText] = useState<string | null>(null);
-  const sizesValue = sizesText ?? (parsedSizes ?? [t('editor.oneSize')]).join(' - ');
-  const sizes = splitSizes(sizesValue);
+  const sizes = s.sizes.length > 0 ? s.sizes : [t('editor.oneSize')];
 
   const items = orderedItems(s.projectKind, s.order.order);
   const included = items.filter((it) => s.elements[it.id]?.include);
@@ -524,7 +672,7 @@ function ProjectForm() {
     try {
       const id = await s.createProject({
         title: title.trim() || defaultTitle,
-        sizes: sizes.length ? sizes : [t('editor.oneSize')],
+        sizes,
         sections: [t('importer.front'), t('importer.back')],
         lang,
       });
@@ -548,14 +696,15 @@ function ProjectForm() {
           maxLength={120}
           onCommit={setTitle}
         />
-        <TextField
-          label={t('editor.sizes')}
-          value={sizesValue}
-          maxLength={200}
-          hint={t('importer.sizesHint')}
-          onCommit={setSizesText}
-        />
       </div>
+      <p className="hint">
+        {s.sizes.length > 0
+          ? t('elements.sizeSummary', {
+              size: sizes[s.chosenSize()] ?? '',
+              sizes: sizes.join(' – '),
+            })
+          : t('elements.oneSize')}
+      </p>
       <p className="hint">
         {t('elements.willCreate', { count: patterns.length, parts: patterns.join(', ') })}
       </p>
@@ -570,8 +719,8 @@ function ProjectForm() {
         </p>
       )}
       <div className="form-actions">
-        <button type="button" className="btn" onClick={() => useImport.getState().reset()}>
-          {t('importer.otherFile')}
+        <button type="button" className="btn" onClick={onBack}>
+          {t('common.back')}
         </button>
         <button type="submit" className="btn btn--primary" disabled={busy}>
           {t('elements.create')}

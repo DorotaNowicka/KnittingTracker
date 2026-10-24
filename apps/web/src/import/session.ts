@@ -35,6 +35,19 @@ import {
   type MainLayout,
 } from './elements';
 
+/**
+ * The symbols the legend now names, when they differ from those the charts were read with (the
+ * charts should be read again); null when nothing changed.
+ */
+export function pendingSymbols(
+  chosen: readonly (string | null)[],
+  result: ImportResult,
+): string[] | null {
+  const symbols = [...new Set(chosen.filter((x): x is string => !!x))];
+  const changed = symbols.slice().sort().join() !== [...result.symbols].sort().join();
+  return changed && symbols.length > 0 ? symbols : null;
+}
+
 /** Sizes typed as "S - M - L" or "S, M, L". */
 export const splitSizes = (text: string): string[] =>
   text
@@ -78,9 +91,19 @@ interface ImportState {
   readonly elements: Elements;
   /** In what order the pattern makes the parts. */
   readonly order: PartOrder;
-  /** Checking a new project: first which parts to track, then each part's details. */
-  readonly step: 'parts' | 'details';
-  setStep(step: 'parts' | 'details'): void;
+  /**
+   * Checking a new project, step by step: the size being knitted, the legend, which parts to
+   * track, then each part's details.
+   */
+  readonly step: ImportStep;
+  setStep(step: ImportStep): void;
+  /** Sizes of the new project (empty: one size) and the one being knitted. */
+  readonly sizes: readonly string[];
+  readonly sizeIndex: number;
+  setSizes(sizes: readonly string[]): void;
+  setSizeIndex(index: number): void;
+  /** `sizeIndex` within the current list of sizes. */
+  chosenSize(): number;
   /** Change the kind; the parts start again from that kind's usual ones. */
   setProjectKind(kind: ProjectKind): void;
   updateElement(id: string, change: Partial<ElementState>): void;
@@ -101,8 +124,11 @@ interface ImportState {
   createProject(input: CreateProjectInput): Promise<string>;
 }
 
+export type ImportStep = 'size' | 'legend' | 'parts' | 'details';
+
 export interface CreateProjectInput {
   readonly title: string;
+  /** The project's sizes (the session's, or one size when it has none). */
   readonly sizes: readonly string[];
   readonly sections: readonly [string, string];
   readonly lang: Locale;
@@ -185,7 +211,13 @@ function kindOf(result: ImportResult, hints: string) {
   return { guess, ...partsFor(guess?.kind ?? 'custom', result.text, result.charts.length) };
 }
 
-const noParts = { guess: null, ...partsFor('custom', '', 0), step: 'parts' } as const;
+const noParts = {
+  guess: null,
+  ...partsFor('custom', '', 0),
+  step: 'size',
+  sizes: [],
+  sizeIndex: 0,
+} as const;
 
 export const useImport = create<ImportState>((set, get) => ({
   status: 'idle',
@@ -211,6 +243,28 @@ export const useImport = create<ImportState>((set, get) => ({
 
   setStep(step) {
     set({ step });
+  },
+
+  setSizes(sizes) {
+    const clean = sizes
+      .map((x) => x.trim().slice(0, 20))
+      .filter(Boolean)
+      .slice(0, 12);
+    // The chosen size stays chosen when it moves; otherwise its position is kept (read clamped),
+    // so typing a list letter by letter doesn't lose the choice.
+    const { sizes: before, sizeIndex } = get();
+    const label = before[sizeIndex];
+    const moved = label === undefined ? -1 : clean.indexOf(label);
+    set({ sizes: clean, sizeIndex: moved >= 0 ? moved : sizeIndex });
+  },
+
+  setSizeIndex(sizeIndex) {
+    set({ sizeIndex: Math.max(0, Math.min(sizeIndex, get().sizes.length - 1)) });
+  },
+
+  chosenSize() {
+    const { sizes, sizeIndex } = get();
+    return Math.max(0, Math.min(sizeIndex, sizes.length - 1));
   },
 
   updateElement(id, change) {
@@ -263,7 +317,9 @@ export const useImport = create<ImportState>((set, get) => ({
         legend: result.legend.map((l) => (l.confidence >= 0.6 ? l.symbolId : null)),
         description: { text: result.text, parsed: result.description },
         ...kindOf(result, `${get().projectName}\n${file.name}`),
-        step: 'parts',
+        step: 'size',
+        sizes: result.description.sizes?.value ?? [],
+        sizeIndex: 0,
       });
     } catch (e) {
       set({ status: 'error', error: codeOf(e) });
@@ -364,7 +420,7 @@ export const useImport = create<ImportState>((set, get) => ({
 
   async createProject({ title, sizes, sections, lang }) {
     const state = get();
-    const project = buildProjectFromElements({
+    const built = buildProjectFromElements({
       id: newId(),
       name: title,
       kind: state.projectKind,
@@ -377,6 +433,10 @@ export const useImport = create<ImportState>((set, get) => ({
       elements: state.elements,
       order: state.order.order,
     });
+    const project = {
+      ...built,
+      sizeIndex: Math.min(state.chosenSize(), sizes.length - 1),
+    };
     await useLibrary.getState().addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');
