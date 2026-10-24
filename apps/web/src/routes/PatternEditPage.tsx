@@ -19,13 +19,12 @@ import {
   type ResolvedPattern,
   type Segment,
 } from '@kt/core';
-import { editorOverlay, patternSource, visibleRowCount } from '@kt/grid-renderer';
 import type { TFunction } from 'i18next';
 import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChartThumb } from '../editor/ChartThumb';
 import { PatternGate, SaveState } from '../editor/DraftGate';
-import { EditorCanvas } from '../editor/EditorCanvas';
+import { PatternPreview } from '../editor/PatternPreview';
 import { LegendEditor } from '../editor/LegendEditor';
 import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
@@ -433,7 +432,7 @@ function PatternEditor({ project, pattern }: { project: Project; pattern: Patter
               </div>
             )}
           </div>
-          <Preview stage={current} />
+          <PatternPreview stage={current} />
         </section>
 
         <section className="editor-section" aria-labelledby={`${ids}-legend`}>
@@ -695,37 +694,6 @@ function RowStart({
     </fieldset>
   );
 }
-
-function Preview({ stage }: { stage: ResolvedPattern | null }) {
-  const { t } = useTranslation();
-  const rows = stage ? visibleRowCount(stage, 1, 'end') : 1;
-  const shown = stage ? Math.min(rows, Math.max(tallestRows(stage), 12)) : 1;
-  const source = useMemo(
-    () => (stage && stage.stitchCount > 0 ? patternSource(stage, shown) : null),
-    [stage, shown],
-  );
-  const overlay = useMemo(() => editorOverlay({}), []);
-  if (!stage || !source) return <p className="hint">{t('patternEdit.previewEmpty')}</p>;
-  return (
-    <div className="stage-preview">
-      <EditorCanvas
-        source={source}
-        overlay={overlay}
-        tool="view"
-        label={t('patternEdit.previewLabel')}
-        help={t('patternEdit.previewHelp')}
-        fitKey={`${stage.pattern.id}-${stage.sizeIndex}-${stage.stitchCount}`}
-        testId="stage-preview"
-      />
-      <p className="hint">
-        {t('patternEdit.previewRows', { shown, rows: stage.plannedRows ?? '∞' })}
-      </p>
-    </div>
-  );
-}
-
-const tallestRows = (stage: ResolvedPattern) =>
-  Math.max(1, ...stage.zones.map((z) => z.chart.chart.height)) * 2;
 
 /** The knitter's "plain knit instead of this chart" change (DR-1); the chart stays as drawn. */
 const knitOnly = (chartId: string): Modification => ({

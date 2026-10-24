@@ -4,6 +4,7 @@ import {
   STD,
   type LegendEntry,
   type Locale,
+  type Project,
   type ProjectKind,
   type SymbolRows,
 } from '@kt/core';
@@ -93,7 +94,7 @@ interface ImportState {
   readonly order: PartOrder;
   /**
    * Checking a new project, step by step: the size being knitted, the legend, which parts to
-   * track, then each part's details.
+   * track, then a preview of the grid before the project is created.
    */
   readonly step: ImportStep;
   setStep(step: ImportStep): void;
@@ -120,11 +121,16 @@ interface ImportState {
    * added to the existing project `projectId` (whose sizes are used).
    */
   create(input: CreateInput): Promise<{ projectId: string; patternId: string } | null>;
-  /** A new project of `projectKind` with one pattern per chosen garment part; returns its id. */
+  /**
+   * The project the check would create now (not stored): one pattern per chosen garment part, in
+   * knitting order, at the chosen size. Used for the preview and by `createProject`.
+   */
+  draftProject(input: CreateProjectInput, id?: string): Project;
+  /** Store `draftProject`; returns the new project's id. */
   createProject(input: CreateProjectInput): Promise<string>;
 }
 
-export type ImportStep = 'size' | 'legend' | 'parts' | 'details';
+export type ImportStep = 'size' | 'legend' | 'parts' | 'preview';
 
 export interface CreateProjectInput {
   readonly title: string;
@@ -418,10 +424,10 @@ export const useImport = create<ImportState>((set, get) => ({
     return { projectId: project.id, patternId: project.patterns[0]?.id ?? '' };
   },
 
-  async createProject({ title, sizes, sections, lang }) {
+  draftProject({ title, sizes, sections, lang }, id = 'draft') {
     const state = get();
     const built = buildProjectFromElements({
-      id: newId(),
+      id,
       name: title,
       kind: state.projectKind,
       sizes,
@@ -433,10 +439,11 @@ export const useImport = create<ImportState>((set, get) => ({
       elements: state.elements,
       order: state.order.order,
     });
-    const project = {
-      ...built,
-      sizeIndex: Math.min(state.chosenSize(), sizes.length - 1),
-    };
+    return { ...built, sizeIndex: Math.min(state.chosenSize(), sizes.length - 1) };
+  },
+
+  async createProject(input) {
+    const project = get().draftProject(input, newId());
     await useLibrary.getState().addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');

@@ -86,6 +86,16 @@ export interface MainLayout {
   readonly sectionNames: readonly [string, string];
 }
 
+/** The description's round, kept to the given charts; null when it names none of them. */
+export function describedSequence(
+  layout: MainLayout,
+  charts: readonly { readonly name: string }[],
+): MainLayout['sequence'] | null {
+  const names = new Set(charts.map((c) => c.name));
+  const kept = layout.sequence.filter((s) => names.has(s.chart));
+  return kept.length > 0 ? kept : null;
+}
+
 export interface BuildInput {
   readonly id: string;
   readonly name: string;
@@ -125,8 +135,11 @@ export function buildProjectFromElements(input: BuildInput): Project {
     const charts = [...new Set(state.charts)]
       .sort((a, b) => a - b)
       .flatMap((i) => (input.charts[i] ? [input.charts[i]] : []));
-    // The description lays out one round: it fits the main element when that is one piece.
-    const described = item.id === main && parts.length === 1;
+    // The description lays out one round: it fits the main element when that is one piece and
+    // names its charts; otherwise the charts go side by side.
+    const sequence =
+      item.id === main && parts.length === 1 ? describedSequence(input.layout, charts) : null;
+    const described = sequence !== null;
     for (const part of parts) {
       const built: Pattern = buildPattern({
         id: part.id,
@@ -134,7 +147,7 @@ export function buildProjectFromElements(input: BuildInput): Project {
         sizes: input.sizes,
         charts,
         legend: input.legend,
-        sequence: described ? input.layout.sequence : charts.map((c) => ({ chart: c.name })),
+        sequence: sequence ?? charts.map((c) => ({ chart: c.name })),
         ...(described && input.layout.stitchCount ? { stitchCount: input.layout.stitchCount } : {}),
         ...(described && input.layout.marker ? { marker: input.layout.marker } : {}),
         sectionNames: input.layout.sectionNames,

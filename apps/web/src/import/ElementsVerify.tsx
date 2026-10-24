@@ -2,27 +2,45 @@ import {
   createRegistry,
   PROJECT_KIND_INFO,
   PROJECT_KIND_LIST,
+  resolvePattern,
   type KindItem,
+  type Project,
   type ProjectKind,
+  type ResolvedPattern,
 } from '@kt/core';
-import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { navigate, paths } from '../lib/router';
+import { PatternPreview } from '../editor/PatternPreview';
 import { TextField } from '../ui/fields';
 import { Icon } from '../ui/Icon';
 import { KIND_ICONS } from '../ui/kindIcons';
 import { ChartReview } from './ChartReview';
-import { kindItems, mainItemId, orderedItems, partsOf, type ElementState } from './elements';
+import {
+  describedSequence,
+  kindItems,
+  mainItemId,
+  orderedItems,
+  partsOf,
+  type ElementState,
+} from './elements';
 import { GarmentDiagram } from './GarmentDiagram';
 import { DescriptionReview, LegendReview, SymbolsReview } from './Reviews';
-import { pendingSymbols, splitSizes, UNCERTAIN, useImport, type ImportStep } from './session';
+import {
+  pendingSymbols,
+  splitSizes,
+  UNCERTAIN,
+  useImport,
+  type CreateProjectInput,
+  type ImportStep,
+} from './session';
 
 const registry = createRegistry();
 
 /**
  * Checking a PDF for a new project, step by step: the size being knitted, the legend, the
  * garment of the recognised kind (numbered in knitting order) where the knitter picks the parts
- * to track, and the details of each tracked part.
+ * to track, and a preview of their grids. The project is created after the preview.
  */
 export function ElementsVerify() {
   const step = useImport((s) => s.step);
@@ -30,8 +48,8 @@ export function ElementsVerify() {
   // Nothing to confirm in a legend when the file has neither a legend nor charts.
   const steps: readonly ImportStep[] =
     result && (result.legend.length > 0 || result.charts.length > 0)
-      ? ['size', 'legend', 'parts', 'details']
-      : ['size', 'parts', 'details'];
+      ? ['size', 'legend', 'parts', 'preview']
+      : ['size', 'parts', 'preview'];
   const at = Math.max(0, steps.indexOf(step));
   const goTo = (next: ImportStep | undefined) => {
     if (!next) return;
@@ -46,7 +64,7 @@ export function ElementsVerify() {
       {step === 'size' && <SizeStep onNext={next} />}
       {step === 'legend' && <LegendStep onBack={back} onNext={next} />}
       {step === 'parts' && <PartsStep onBack={back} onNext={next} />}
-      {step === 'details' && <DetailsStep onBack={back} />}
+      {step === 'preview' && <PreviewStep onSize={() => goTo('size')} />}
     </>
   );
 }
@@ -209,7 +227,7 @@ function useOrder() {
   }, [kind, order]);
 }
 
-/** Step 1: the symbol of the kind, split into numbered parts; the knitter picks what to track. */
+/** Step 3: the symbol of the kind, split into numbered parts; the knitter picks what to track. */
 function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
@@ -339,238 +357,327 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
   );
 }
 
-/** Step 2: the tracked parts, each with its own piece of the form, and the project's details. */
-function DetailsStep({ onBack }: { onBack(): void }) {
+/** One pattern the project will have: a part of a tracked item, with the item's number. */
+interface PreviewPart {
+  readonly patternId: string;
+  readonly label: string;
+  readonly number: number | undefined;
+  readonly item: KindItem;
+}
+
+/**
+ * Step 4: the grid of each tracked part as it will be knitted, with what it was built from. The
+ * project is created only when the knitter agrees; corrections are optional ("Popraw").
+ */
+function PreviewStep({ onSize }: { onSize(): void }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
   const s = useImport();
-  const kind = s.projectKind;
-  const { items: ordered, numbers } = useOrder();
-  const items = ordered.filter((it) => s.elements[it.id]?.include);
-  const main = mainItemId(kind);
+  const { items, numbers } = useOrder();
+  const defaultTitle = useMemo(
+    () =>
+      s.projectName.slice(0, 120) ||
+      (s.file?.name ?? '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120) ||
+      t('newProject.blankName'),
+    [s.projectName, s.file, t],
+  );
+  const [title, setTitle] = useState(defaultTitle);
+  const [fixing, setFixing] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
-  const panel = useRef<HTMLElement>(null);
-  const selected =
-    (chosen && items.some((i) => i.id === chosen) ? chosen : null) ??
-    (items.some((i) => i.id === main) ? main : items[0]?.id);
-  const item = items.find((i) => i.id === selected);
-  const result = s.result;
-  if (!result) return null;
+  const [busy, setBusy] = useState(false);
+  const sizes = useMemo(() => (s.sizes.length > 0 ? s.sizes : [t('editor.oneSize')]), [s.sizes, t]);
+  const input = useMemo(
+    (): CreateProjectInput => ({
+      title: title.trim() || defaultTitle,
+      sizes,
+      sections: [t('importer.front'), t('importer.back')] as const,
+      lang,
+    }),
+    [title, defaultTitle, sizes, t, lang],
+  );
+  // Rebuilt whenever anything the project is made of changes.
+  const draft = useMemo(
+    () => useImport.getState().draftProject(input),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the session's data the draft reads
+    [input, s.elements, s.charts, s.legend, s.result, s.description, s.sizeIndex, s.order],
+  );
+  const parts: PreviewPart[] = items
+    .filter((it) => s.elements[it.id]?.include)
+    .flatMap((it) =>
+      partsOf(it, s.elements[it.id]).map((p) => ({
+        patternId: p.id,
+        label: p.label[lang],
+        number: s.projectKind === 'custom' ? undefined : numbers[it.id],
+        item: it,
+      })),
+    )
+    .filter((p) => draft.patterns.some((x) => x.id === p.patternId));
+  const main = mainItemId(s.projectKind);
+  const part =
+    parts.find((p) => p.patternId === chosen) ?? parts.find((p) => p.item.id === main) ?? parts[0];
+  if (!s.result || !part) return null;
 
-  const select = (id: string) => {
-    setChosen(id);
-    // The part's form is below the drawing: when it is out of sight, bring its start to the
-    // middle of the screen, so the drawing stays partly in view.
-    const box = panel.current?.getBoundingClientRect();
-    if (box && box.top > window.innerHeight * 0.75) {
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      window.scrollBy({
-        top: box.top - window.innerHeight * 0.45,
-        behavior: reduce ? 'auto' : 'smooth',
-      });
+  const create = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const id = await s.createProject(input);
+      useImport.getState().reset();
+      navigate(paths.tracker(id, part.patternId));
+    } finally {
+      setBusy(false);
     }
   };
-  const kindLabel = PROJECT_KIND_INFO[kind].label[lang];
 
   return (
-    <div className="verify">
-      <p className="lead" role="status">
-        {result.charts.length === 0
-          ? t('elements.noChartsFound')
-          : t('importer.found', { count: result.charts.length })}
-      </p>
-
-      {kind !== 'custom' && (
-        <section className="editor-section" aria-labelledby={`${ids}-parts`}>
-          <h2 id={`${ids}-parts`} className="section-title">
-            {t('elements.partsTitle', { kind: kindLabel })}
-          </h2>
-          <p className="hint">{t('elements.partsHint')}</p>
-          <div className="garment">
-            <GarmentDiagram
-              kind={kind}
-              elements={s.elements}
-              selected={selected ?? null}
-              hovered={hovered}
-              onSelect={select}
-              onHover={setHovered}
-              numbers={numbers}
-              inert={(id) => !s.elements[id]?.include}
-            />
-            <ul
-              className="garment__parts"
-              aria-label={t('elements.partsTitle', { kind: kindLabel })}
+    <div className="verify preview-step">
+      {parts.length > 1 && (
+        <div className="preview-tabs" role="group" aria-label={t('preview.partsLabel')}>
+          {parts.map((p) => (
+            <button
+              key={p.patternId}
+              type="button"
+              className="preview-tab"
+              aria-pressed={p.patternId === part.patternId}
+              onClick={() => setChosen(p.patternId)}
             >
-              {items.map((it) => (
-                <li key={it.id}>
-                  <PartButton
-                    item={it}
-                    number={numbers[it.id]}
-                    state={s.elements[it.id]}
-                    selected={it.id === selected}
-                    hovered={it.id === hovered}
-                    onSelect={() => select(it.id)}
-                    onHover={(on) => setHovered(on ? it.id : null)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+              {p.number !== undefined && <span className="part-button__no">{p.number}</span>}
+              {p.label}
+            </button>
+          ))}
+        </div>
       )}
-
-      {item && (
-        <section
-          ref={panel}
-          className="part-panel"
-          aria-labelledby={`${ids}-panel`}
-          data-testid="part-panel"
-        >
-          <PartPanel
-            key={`${kind}-${item.id}`}
-            titleId={`${ids}-panel`}
-            item={item}
-            number={kind === 'custom' ? undefined : numbers[item.id]}
-            isMain={item.id === main}
-            kind={kind}
-          />
-        </section>
+      {fixing ? (
+        <FixPart
+          key={part.patternId}
+          part={part}
+          title={title}
+          onTitle={setTitle}
+          draft={draft}
+          onSize={onSize}
+          headingId={`${ids}-h`}
+        />
+      ) : (
+        <PartPreview key={part.patternId} part={part} draft={draft} headingId={`${ids}-h`} />
       )}
-
-      <ProjectForm onBack={onBack} />
+      <ProjectNotes draft={draft} />
+      <div className="form-actions preview-step__actions">
+        {fixing ? (
+          <button type="button" className="btn btn--primary" onClick={() => setFixing(false)}>
+            {t('preview.backToPreview')}
+          </button>
+        ) : (
+          <>
+            <button type="button" className="btn" onClick={() => setFixing(true)}>
+              {t('preview.fix')}
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={busy}
+              onClick={() => void create()}
+            >
+              {t('preview.start')}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-/** How a part will be made, in a few words: skipped, its charts, or a row counter. */
-function useStatus(item: KindItem, state: ElementState | undefined) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
-  if (!state?.include) return t('elements.skipped');
-  const option =
-    item.type === 'choice' ? item.options.find((o) => o.id === state.option)?.label[lang] : null;
-  const charts =
-    state.charts.length > 0
-      ? t('elements.charts', { count: state.charts.length })
-      : t('elements.rowCounter');
-  return option ? `${option} · ${charts}` : charts;
+/** The part's pattern resolved at the chosen size, or null when it can't be built. */
+function useResolved(draft: Project, patternId: string): ResolvedPattern | null {
+  return useMemo(() => {
+    try {
+      return resolvePattern(draft, patternId, { sizeIndex: draft.sizeIndex, registry });
+    } catch {
+      return null;
+    }
+  }, [draft, patternId]);
 }
 
-function PartButton({
-  item,
-  number,
-  state,
-  selected,
-  hovered,
-  onSelect,
-  onHover,
+const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+const lcm = (a: number, b: number) => (a > 0 && b > 0 ? (a / gcd(a, b)) * b : Math.max(a, b));
+
+/** What the part's grid is built from, in a few lines. */
+function useFacts(part: PreviewPart, stage: ResolvedPattern | null) {
+  const { t } = useTranslation();
+  const s = useImport();
+  const state = s.elements[part.item.id];
+  const charts = state?.charts ?? [];
+  const uncertain = charts.reduce(
+    (n, i) => n + (s.charts[i]?.confidence.flat().filter((v) => v < UNCERTAIN).length ?? 0),
+    0,
+  );
+  const described =
+    part.item.id === mainItemId(s.projectKind) &&
+    partsOf(part.item, state).length === 1 &&
+    describedSequence(
+      { sequence: s.description.parsed.sequence?.value ?? [], sectionNames: ['', ''] },
+      charts.flatMap((i) => (s.charts[i] ? [s.charts[i]] : [])),
+    ) !== null;
+  const layout = stage
+    ? [...stage.zones]
+        .sort((a, b) => a.firstStitch - b.firstStitch)
+        .map((z) => z.label)
+        .join(' · ')
+    : '';
+  const round = stage?.pattern.construction !== 'flat';
+  // Charts of different heights line up again after the least common multiple of their heights.
+  const repeat = stage ? stage.zones.reduce((m, z) => lcm(m, z.chart.chart.height), 1) : 0;
+  return {
+    charts,
+    uncertain,
+    described,
+    stitches: stage
+      ? t(round ? 'preview.stitchesRound' : 'preview.stitchesFlat', { count: stage.stitchCount })
+      : '',
+    layout: layout
+      ? t(described ? 'preview.layoutDescribed' : 'preview.layoutSideBySide', { charts: layout })
+      : '',
+    repeat:
+      repeat > 0 ? t(round ? 'preview.repeatRound' : 'preview.repeatFlat', { count: repeat }) : '',
+  };
+}
+
+function PartPreview({
+  part,
+  draft,
+  headingId,
 }: {
-  item: KindItem;
-  number: number | undefined;
-  state: ElementState | undefined;
-  selected: boolean;
-  hovered: boolean;
-  onSelect(): void;
-  onHover(on: boolean): void;
+  part: PreviewPart;
+  draft: Project;
+  headingId: string;
 }) {
-  const { i18n } = useTranslation();
-  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
-  const status = useStatus(item, state);
-  const count = item.type === 'part' && item.count && item.count > 1 ? ` ×${item.count}` : '';
+  const { t } = useTranslation();
+  const s = useImport();
+  const stage = useResolved(draft, part.patternId);
+  const facts = useFacts(part, stage);
+  const size = s.sizes[s.chosenSize()];
+  const tracked = Object.values(s.elements).filter((e) => e.include).length;
   return (
-    <button
-      type="button"
-      className={`part-button${hovered ? ' is-hover' : ''}${state?.include ? '' : ' is-off'}`}
-      aria-pressed={selected}
-      data-part={item.id}
-      onClick={onSelect}
-      onPointerEnter={() => onHover(true)}
-      onPointerLeave={() => onHover(false)}
-      onFocus={() => onHover(true)}
-      onBlur={() => onHover(false)}
-    >
-      <span className="part-button__name">
-        {number !== undefined && <span className="part-button__no">{number}</span>}
-        {item.label[lang]}
-        {count}
-      </span>
-      <span className="part-button__status">{status}</span>
-    </button>
+    <section className="part-preview" aria-labelledby={headingId}>
+      <h2 id={headingId} className="section-title part-panel__title">
+        {part.number !== undefined && <span className="part-button__no">{part.number}</span>}
+        {size ? t('preview.title', { part: part.label, size }) : part.label}
+      </h2>
+      {facts.charts.length === 0 ? (
+        <div className="notice notice--warning">
+          <p>{t('preview.noCharts')}</p>
+          {tracked > 1 && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => s.updateElement(part.item.id, { include: false })}
+            >
+              {t('preview.skipPart')}
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <ul className="facts-list">
+            {[facts.stitches, facts.layout, facts.repeat].filter(Boolean).map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+          {facts.uncertain > 0 && (
+            <p className="chip-warn">{t('preview.uncertain', { count: facts.uncertain })}</p>
+          )}
+          {stage ? (
+            <PatternPreview stage={stage} />
+          ) : (
+            <p className="notice notice--danger">{t('preview.cannotBuild')}</p>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
-/** The piece of the form that belongs to one part of the garment. */
-function PartPanel({
-  titleId,
-  item,
-  number,
-  isMain,
-  kind,
+/** Corrections for one part, each folded until needed. */
+function FixPart({
+  part,
+  title,
+  onTitle,
+  draft,
+  onSize,
+  headingId,
 }: {
-  titleId: string;
-  item: KindItem;
-  number: number | undefined;
-  isMain: boolean;
-  kind: ProjectKind;
+  part: PreviewPart;
+  title: string;
+  onTitle(title: string): void;
+  draft: Project;
+  onSize(): void;
+  headingId: string;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
   const s = useImport();
-  const state = s.elements[item.id];
   const result = s.result;
+  const item = part.item;
+  const state = s.elements[item.id];
+  const stage = useResolved(draft, part.patternId);
+  const facts = useFacts(part, stage);
   if (!state || !result) return null;
   const update = (change: Partial<ElementState>) => s.updateElement(item.id, change);
-  const parts = partsOf(item, state);
-  const described = isMain && parts.length === 1;
   const owner = (chart: number) =>
-    kindItems(kind).find(
+    kindItems(s.projectKind).find(
       (it) =>
         it.id !== item.id &&
         s.elements[it.id]?.include &&
         s.elements[it.id]?.charts.includes(chart),
     );
-  const hint = item.type === 'part' ? item.hint?.[lang] : undefined;
-  const count = item.type === 'part' && item.count && item.count > 1 ? item.count : 0;
-
+  const names = state.charts
+    .map((i) => s.charts[i]?.name)
+    .filter(Boolean)
+    .join(', ');
+  const size = s.sizes[s.chosenSize()] ?? t('elements.oneSize');
   return (
-    <>
-      <h2 id={titleId} className="section-title part-panel__title">
-        {number !== undefined && <span className="part-button__no">{number}</span>}
-        {item.label[lang]}
-        {count > 0 && <span className="badge">{t('elements.times', { count })}</span>}
+    <section className="fix-part" aria-labelledby={headingId}>
+      <h2 id={headingId} className="section-title part-panel__title">
+        {t('preview.fixTitle', { part: part.label })}
       </h2>
-      {hint && <p className="hint">{hint}</p>}
 
-      {item.type === 'choice' && (
-        <fieldset className="field">
-          <legend>{t('elements.how')}</legend>
-          <div className="segmented">
-            {item.options.map((o) => (
-              <label key={o.id} className="segmented__item">
-                <input
-                  type="radio"
-                  name={`${ids}-opt`}
-                  checked={state.option === o.id}
-                  onChange={() => update({ option: o.id })}
-                />
-                <span>{o.label[lang]}</span>
-              </label>
-            ))}
-          </div>
-          {parts.length > 1 && (
-            <p className="hint">
-              {t('elements.pieces', { parts: parts.map((p) => p.label[lang]).join(', ') })}
-            </p>
-          )}
-        </fieldset>
-      )}
+      <details className="fix" open={facts.uncertain > 0}>
+        <summary>
+          <b>{t('preview.fixCells')}</b>
+          <span>
+            {facts.charts.length === 0
+              ? t('preview.none')
+              : facts.uncertain > 0
+                ? t('preview.uncertain', { count: facts.uncertain })
+                : t('preview.allSure')}
+          </span>
+        </summary>
+        {[...state.charts]
+          .sort((a, b) => a - b)
+          .map((i) => {
+            const found = result.charts[i];
+            const draftChart = s.charts[i];
+            return found && draftChart ? (
+              <ChartReview
+                key={i}
+                index={i}
+                found={found}
+                draft={draftChart}
+                result={result}
+                registry={registry}
+                selectable={false}
+              />
+            ) : null;
+          })}
+      </details>
 
       {s.charts.length > 0 && (
-        <fieldset className="field">
-          <legend>{t('elements.chartsTitle')}</legend>
+        <details className="fix">
+          <summary>
+            <b>{t('preview.fixCharts')}</b>
+            <span>{names || t('preview.none')}</span>
+          </summary>
           <ul className="chart-picks">
             {s.charts.map((c, i) => {
               const other = owner(i);
@@ -605,127 +712,92 @@ function PartPanel({
               );
             })}
           </ul>
-        </fieldset>
+        </details>
       )}
-      {state.charts.length === 0 && <p className="hint">{t('elements.noCharts')}</p>}
-      {[...state.charts]
-        .sort((a, b) => a - b)
-        .map((i) => {
-          const found = result.charts[i];
-          const draft = s.charts[i];
-          return found && draft ? (
-            <ChartReview
-              key={i}
-              index={i}
-              found={found}
-              draft={draft}
-              result={result}
-              registry={registry}
-              selectable={false}
-            />
-          ) : null;
-        })}
-      {described && (
-        <>
-          <p className="hint">{t('elements.mainHint')}</p>
+
+      {item.type === 'choice' && (
+        <details className="fix">
+          <summary>
+            <b>{t('elements.how')}</b>
+            <span>{item.options.find((o) => o.id === state.option)?.label[lang]}</span>
+          </summary>
+          <div className="segmented" role="radiogroup" aria-label={t('elements.how')}>
+            {item.options.map((o) => (
+              <label key={o.id} className="segmented__item">
+                <input
+                  type="radio"
+                  name={`${ids}-opt`}
+                  checked={state.option === o.id}
+                  onChange={() => update({ option: o.id })}
+                />
+                <span>{o.label[lang]}</span>
+              </label>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {facts.described && (
+        <details className="fix">
+          <summary>
+            <b>{t('preview.fixLayout')}</b>
+            <span>{facts.layout}</span>
+          </summary>
           <DescriptionReview headingLevel={3} />
-        </>
+        </details>
       )}
-      {isMain && !described && <p className="hint">{t('elements.piecesNoRound')}</p>}
-    </>
-  );
-}
 
-/** The project's name and sizes, and the button that creates it. */
-function ProjectForm({ onBack }: { onBack(): void }) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
-  const ids = useId();
-  const s = useImport();
-  const [busy, setBusy] = useState(false);
-  const defaultTitle = useMemo(
-    () =>
-      s.projectName.slice(0, 120) ||
-      (s.file?.name ?? '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120) ||
-      t('newProject.blankName'),
-    [s.projectName, s.file, t],
-  );
-  const [title, setTitle] = useState(defaultTitle);
-  const sizes = s.sizes.length > 0 ? s.sizes : [t('editor.oneSize')];
+      <details className="fix">
+        <summary>
+          <b>{t('preview.fixSize')}</b>
+          <span>{[t('preview.sizeIs', { size }), facts.stitches].filter(Boolean).join(' · ')}</span>
+        </summary>
+        <p className="hint">{t('preview.stitchesFrom')}</p>
+        <button type="button" className="btn" onClick={onSize}>
+          {t('preview.changeSize')}
+        </button>
+      </details>
 
-  const items = orderedItems(s.projectKind, s.order.order);
-  const included = items.filter((it) => s.elements[it.id]?.include);
-  const patterns = included.flatMap((it) =>
-    partsOf(it, s.elements[it.id]).map((p) => p.label[lang]),
-  );
-  const used = new Set(included.flatMap((it) => s.elements[it.id]?.charts ?? []));
-  const uncertain = s.charts.reduce(
-    (n, c, i) => n + (used.has(i) ? c.confidence.flat().filter((v) => v < UNCERTAIN).length : 0),
-    0,
-  );
-  const unused = s.charts.length - used.size;
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    try {
-      const id = await s.createProject({
-        title: title.trim() || defaultTitle,
-        sizes,
-        sections: [t('importer.front'), t('importer.back')],
-        lang,
-      });
-      useImport.getState().reset();
-      navigate(paths.project(id));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <form className="editor-section" aria-labelledby={`${ids}-c`} onSubmit={(e) => void submit(e)}>
-      <h2 id={`${ids}-c`} className="section-title">
-        {t('importer.create')}
-      </h2>
-      <div className="form-grid">
+      <details className="fix">
+        <summary>
+          <b>{t('project.name')}</b>
+          <span>{title}</span>
+        </summary>
         <TextField
           label={t('project.name')}
           value={title}
           required
           maxLength={120}
-          onCommit={setTitle}
+          onCommit={onTitle}
         />
-      </div>
+      </details>
+    </section>
+  );
+}
+
+/** What else the project will hold, and charts that went to no part. */
+function ProjectNotes({ draft }: { draft: Project }) {
+  const { t } = useTranslation();
+  const s = useImport();
+  const used = new Set(
+    Object.values(s.elements)
+      .filter((e) => e.include)
+      .flatMap((e) => e.charts),
+  );
+  const unused = s.charts.length - used.size;
+  return (
+    <>
       <p className="hint">
-        {s.sizes.length > 0
-          ? t('elements.sizeSummary', {
-              size: sizes[s.chosenSize()] ?? '',
-              sizes: sizes.join(' – '),
-            })
-          : t('elements.oneSize')}
-      </p>
-      <p className="hint">
-        {t('elements.willCreate', { count: patterns.length, parts: patterns.join(', ') })}
+        {t('elements.willCreate', {
+          count: draft.patterns.length,
+          parts: draft.patterns.map((p) => p.name).join(', '),
+        })}
       </p>
       {unused > 0 && (
         <p className="notice notice--warning" role="status">
           {t('elements.unused', { count: unused })}
         </p>
       )}
-      {uncertain > 0 && (
-        <p className="notice notice--warning" role="status">
-          {t('importer.stillUncertain', { count: uncertain })}
-        </p>
-      )}
-      <div className="form-actions">
-        <button type="button" className="btn" onClick={onBack}>
-          {t('common.back')}
-        </button>
-        <button type="submit" className="btn btn--primary" disabled={busy}>
-          {t('elements.create')}
-        </button>
-      </div>
-    </form>
+    </>
   );
 }
