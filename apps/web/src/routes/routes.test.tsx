@@ -153,7 +153,7 @@ describe('screens', () => {
     // The body asks how it is made; pieces make a back and a front.
     await user.click(screen.getByRole('button', { name: /Korpus/ }));
     await user.click(screen.getByRole('button', { name: 'Z osobnych części' }));
-    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/back/edycja`));
+    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/back/kreator`));
 
     navigate(`/projekt/${id}/czesci`);
     const body = await screen.findByRole('button', { name: /Korpus/ });
@@ -162,7 +162,7 @@ describe('screens', () => {
     const sleeve = screen.getByTestId('garment-diagram').querySelector('[data-part="sleeve"]');
     if (!sleeve) throw new Error('no sleeve');
     await user.click(sleeve);
-    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/sleeve/edycja`));
+    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/sleeve/kreator`));
     await waitFor(() =>
       expect(
         useLibrary
@@ -174,7 +174,7 @@ describe('screens', () => {
     // A part with a pattern opens it.
     navigate(`/projekt/${id}/czesci`);
     await user.click(await screen.findByRole('button', { name: /Korpus/ }));
-    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/back/edycja`));
+    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/back/kreator`));
   });
 
   it('the PDF tile refuses other files and keeps the typed name for the import', async () => {

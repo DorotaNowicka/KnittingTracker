@@ -10,6 +10,11 @@ describe('router', () => {
     expect(parseRoute('/ustawienia')).toEqual({ name: 'settings' });
     expect(parseRoute(paths.project('a b/ć'))).toEqual({ name: 'project', id: 'a b/ć' });
     expect(parseRoute(paths.parts('p1'))).toEqual({ name: 'parts', id: 'p1' });
+    expect(parseRoute(paths.designer('p1', 'body'))).toEqual({
+      name: 'designer',
+      id: 'p1',
+      patternId: 'body',
+    });
     expect(parseRoute('/projekt/%E0%A4%A')).toEqual({ name: 'notFound' });
     expect(parseRoute('/other')).toEqual({ name: 'notFound' });
   });

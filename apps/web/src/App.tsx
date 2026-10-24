@@ -21,6 +21,9 @@ const PartsPage = lazy(() => import('./routes/PartsPage').then((m) => ({ default
 const PatternEditPage = lazy(() =>
   import('./routes/PatternEditPage').then((m) => ({ default: m.PatternEditPage })),
 );
+const DesignerPage = lazy(() =>
+  import('./designer/DesignerPage').then((m) => ({ default: m.DesignerPage })),
+);
 const ChartEditorPage = lazy(() =>
   import('./editor/ChartEditorPage').then((m) => ({ default: m.ChartEditorPage })),
 );
@@ -68,6 +71,10 @@ export function App() {
       ) : route.name === 'pattern' ? (
         <Suspense fallback={loading}>
           <PatternEditPage projectId={route.id} patternId={route.patternId} />
+        </Suspense>
+      ) : route.name === 'designer' ? (
+        <Suspense fallback={loading}>
+          <DesignerPage projectId={route.id} patternId={route.patternId} />
         </Suspense>
       ) : route.name === 'chart' ? (
         <Suspense fallback={loading}>

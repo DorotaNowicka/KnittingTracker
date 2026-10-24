@@ -150,6 +150,36 @@ export const modificationSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
+/**
+ * A piece of pattern placed on the pattern creator's grid. Positions count like a knitter: `col`
+ * is the stitch from the right edge where the piece's right edge goes, `row` the row from the
+ * bottom. The piece repeats to the left and upwards a number of times or to the grid's edge
+ * (`fill`), each piece by its own width and height.
+ */
+export const placementSchema = z.object({
+  id,
+  motifId: id,
+  col: posInt.max(1000),
+  row: posInt.max(1000),
+  repeatX: z.union([posInt.max(1000), z.literal('fill')]),
+  repeatY: z.union([posInt.max(1000), z.literal('fill')]),
+});
+
+/**
+ * A pattern drawn in the creator: a grid of `width` stitches × `height` rows, knit where nothing
+ * is placed, with pieces placed in order (later on top) and brush cells on top of everything.
+ * The pattern's chart is composed from it (see `composeDesign`).
+ */
+export const designSchema = z.object({
+  width: posInt.max(1000),
+  height: posInt.max(1000),
+  /** The pieces used, copied into the pattern so it stays as drawn. */
+  motifs: z.array(chartSchema),
+  placements: z.array(placementSchema),
+  /** Symbols painted with the brush: anchor stitch from the right edge, row from the bottom. */
+  cells: z.array(z.object({ row: posInt.max(1000), col: posInt.max(1000), symbolId: id })),
+});
+
 /** A pattern (wzór): one grid of charts worked side by side, with its own progress. */
 export const patternSchema = z.object({
   id,
@@ -176,6 +206,8 @@ export const patternSchema = z.object({
   targetCm: sizeMeasureSchema.optional(),
   /** The knitter's own changes to charts of this pattern (DR-1). */
   modifications: z.array(modificationSchema).optional(),
+  /** How the pattern was drawn in the creator; its chart is composed from this. */
+  design: designSchema.optional(),
 });
 
 /** What a project is (the "what are you knitting" choice); `custom` = anything else. */
@@ -232,6 +264,8 @@ export type Segment = z.infer<typeof segmentSchema>;
 export type ChartSegment = Extract<Segment, { kind: 'chart' }>;
 export type MarkerSegment = Extract<Segment, { kind: 'marker' }>;
 export type Pattern = z.infer<typeof patternSchema>;
+export type Design = z.infer<typeof designSchema>;
+export type Placement = z.infer<typeof placementSchema>;
 export type LegendEntry = z.infer<typeof legendEntrySchema>;
 export type CustomSymbol = z.infer<typeof customSymbolSchema>;
 export type Modification = z.infer<typeof modificationSchema>;

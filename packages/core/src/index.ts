@@ -70,6 +70,8 @@ export {
 
 export * from './authoring/pattern';
 export * from './authoring/kinds';
+export * from './design/compose';
+export * from './design/motifs';
 
 export {
   customToSymbolDef,

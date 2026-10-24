@@ -47,7 +47,11 @@ function Garment({ project, kind }: { project: Project; kind: Exclude<ProjectKin
     if (busy) return;
     const existing = itemPatterns(project, item)[0];
     if (existing) {
-      navigate(paths.pattern(project.id, existing.id));
+      // Patterns read from a PDF keep their charts: they open in the pattern editor.
+      const drawn = existing.design || existing.charts.length === 0;
+      navigate(
+        drawn ? paths.designer(project.id, existing.id) : paths.pattern(project.id, existing.id),
+      );
       return;
     }
     if (item.type === 'choice' && optionId === null) {
@@ -63,7 +67,7 @@ function Garment({ project, kind }: { project: Project; kind: Exclude<ProjectKin
         return { ...r.project, updatedAt: new Date().toISOString() };
       });
       await useDraft.getState().flush();
-      if (created) navigate(paths.pattern(project.id, created));
+      if (created) navigate(paths.designer(project.id, created));
     } finally {
       setBusy(false);
     }
