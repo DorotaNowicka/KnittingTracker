@@ -736,5 +736,14 @@
     "sizeIs": "size {{size}}",
     "stitchesFrom": "The stitch count follows from the charts' arrangement in the description and the chosen size.",
     "changeSize": "Change size"
+  },
+  "parts": {
+    "toProject": "Go to the project",
+    "title": "Parts",
+    "hint": "Click a part to create its pattern or open it. The numbers are the usual knitting order ({{way}}).",
+    "open": "pattern: {{names}}",
+    "create": "+ create pattern",
+    "how": "{{part}} — choose a variant",
+    "link": "Parts on the drawing"
   }
 }

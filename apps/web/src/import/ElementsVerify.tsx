@@ -24,7 +24,7 @@ import {
   partsOf,
   type ElementState,
 } from './elements';
-import { GarmentDiagram } from './GarmentDiagram';
+import { GarmentDiagram } from '../garment/GarmentDiagram';
 import { DescriptionReview, LegendReview, SymbolsReview } from './Reviews';
 import {
   pendingSymbols,

@@ -84,6 +84,9 @@ function ProjectEditor({ project }: { project: Project }) {
           <p className="project-kind">
             <Icon name={KIND_ICONS[project.kind]} size={20} />
             {PROJECT_KIND_INFO[project.kind].label[lang]}
+            <Link to={paths.parts(project.id)} className="project-kind__parts">
+              {t('parts.link')}
+            </Link>
           </p>
         )}
         {project.designer && <p className="lead">{project.designer}</p>}

@@ -103,9 +103,10 @@ describe('screens', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Sweter testowy' }),
     ).toBeInTheDocument();
-    expect(location.pathname).toMatch(/^\/projekt\/[^/]+$/);
+    // A garment opens split into its parts.
+    expect(location.pathname).toMatch(/^\/projekt\/[^/]+\/czesci$/);
     expect(screen.getByText('Kardigan')).toBeInTheDocument();
-    expect(screen.getByText('Projekt nie ma jeszcze wzorów. Dodaj pierwszy.')).toBeInTheDocument();
+    expect(screen.getByTestId('garment-diagram')).toBeInTheDocument();
     expect(useLibrary.getState().projects[0]).toMatchObject({
       name: 'Sweter testowy',
       kind: 'cardigan',
@@ -128,6 +129,52 @@ describe('screens', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Mój projekt' }),
     ).toBeInTheDocument();
+    // An own project has no fixed parts: it opens on the project page.
+    expect(location.pathname).toMatch(/^\/projekt\/[^/]+$/);
+  });
+
+  it('a part of the garment creates its pattern and opens the pattern creator', async () => {
+    const user = userEvent.setup();
+    navigate('/nowy/rodzaj', { replace: true });
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Sweter' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Części' })).toBeInTheDocument();
+    const parts = screen.getAllByRole('button', { name: /\+ stwórz wzór/ });
+    expect(parts.map((b) => b.textContent)).toEqual([
+      '11. Ściągacz dołu+ stwórz wzór',
+      '22. Korpus+ stwórz wzór',
+      '33. Karczek+ stwórz wzór',
+      '44. Rękaw ×2+ stwórz wzór',
+      '55. Ściągacz rękawa ×2+ stwórz wzór',
+      '66. Dekolt / golf+ stwórz wzór',
+    ]);
+    const id = useLibrary.getState().projects[0]?.id ?? '';
+
+    // The body asks how it is made; pieces make a back and a front.
+    await user.click(screen.getByRole('button', { name: /Korpus/ }));
+    await user.click(screen.getByRole('button', { name: 'Z osobnych części' }));
+    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/back/edycja`));
+
+    navigate(`/projekt/${id}/czesci`);
+    const body = await screen.findByRole('button', { name: /Korpus/ });
+    expect(body).toHaveTextContent('wzór: Tył, Przód');
+    // Clicking the sleeve in the drawing creates its pattern.
+    const sleeve = screen.getByTestId('garment-diagram').querySelector('[data-part="sleeve"]');
+    if (!sleeve) throw new Error('no sleeve');
+    await user.click(sleeve);
+    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/sleeve/edycja`));
+    await waitFor(() =>
+      expect(
+        useLibrary
+          .getState()
+          .project(id)
+          ?.patterns.map((p) => p.name),
+      ).toEqual(['Tył', 'Przód', 'Rękaw']),
+    );
+    // A part with a pattern opens it.
+    navigate(`/projekt/${id}/czesci`);
+    await user.click(await screen.findByRole('button', { name: /Korpus/ }));
+    await waitFor(() => expect(location.pathname).toBe(`/projekt/${id}/wzor/back/edycja`));
   });
 
   it('the PDF tile refuses other files and keeps the typed name for the import', async () => {

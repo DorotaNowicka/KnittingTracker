@@ -17,6 +17,7 @@ const ImportPage = lazy(() =>
 const ProjectPage = lazy(() =>
   import('./routes/ProjectPage').then((m) => ({ default: m.ProjectPage })),
 );
+const PartsPage = lazy(() => import('./routes/PartsPage').then((m) => ({ default: m.PartsPage })));
 const PatternEditPage = lazy(() =>
   import('./routes/PatternEditPage').then((m) => ({ default: m.PatternEditPage })),
 );
@@ -55,6 +56,10 @@ export function App() {
       ) : route.name === 'import' ? (
         <Suspense fallback={loading}>
           <ImportPage {...(route.id ? { projectId: route.id } : {})} />
+        </Suspense>
+      ) : route.name === 'parts' ? (
+        <Suspense fallback={loading}>
+          <PartsPage projectId={route.id} />
         </Suspense>
       ) : route.name === 'project' ? (
         <Suspense fallback={loading}>

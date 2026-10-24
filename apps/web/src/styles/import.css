@@ -828,3 +828,53 @@ button.steps__link {
   border-top: 1px solid var(--rule);
   background: var(--paper);
 }
+
+/* A project's garment: parts open or create their patterns. */
+.part-link {
+  width: 100%;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+}
+
+.part-link:focus-visible {
+  outline: 3px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.part-link .track-item__note {
+  margin-left: auto;
+  color: var(--indigo);
+  font-size: var(--fs-2);
+  font-weight: 600;
+}
+
+.part-link.is-off .track-item__name {
+  color: var(--ink);
+}
+
+.part-choice {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-1);
+  padding: var(--sp-3);
+  border: 2px solid var(--indigo);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+}
+
+.part-choice legend {
+  padding: 0 var(--sp-1);
+  font-weight: 650;
+}
+
+.part-choice__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.project-kind__parts {
+  margin-left: var(--sp-3);
+  font-weight: 600;
+}

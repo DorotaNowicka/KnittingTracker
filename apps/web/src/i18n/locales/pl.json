@@ -810,5 +810,14 @@
     "sizeIs": "rozmiar {{size}}",
     "stitchesFrom": "Liczba oczek wynika z ułożenia schematów w opisie i z wybranego rozmiaru.",
     "changeSize": "Zmień rozmiar"
+  },
+  "parts": {
+    "toProject": "Przejdź do projektu",
+    "title": "Części",
+    "hint": "Kliknij część, żeby stworzyć jej wzór albo otworzyć gotowy. Numery to typowa kolejność robienia ({{way}}).",
+    "open": "wzór: {{names}}",
+    "create": "+ stwórz wzór",
+    "how": "{{part}} — wybierz wariant",
+    "link": "Części na rysunku"
   }
 }

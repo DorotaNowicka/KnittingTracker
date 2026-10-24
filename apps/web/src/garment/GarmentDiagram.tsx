@@ -1,6 +1,5 @@
 import type { ProjectKind } from '@kt/core';
 import { DIAGRAM_VIEWBOX, DIAGRAMS } from './diagrams';
-import type { Elements } from './elements';
 
 /**
  * The drawing of a garment split into its parts (body, sleeves, neckline…), each with its number
@@ -20,7 +19,8 @@ export function GarmentDiagram({
   size = 'normal',
 }: {
   kind: Exclude<ProjectKind, 'custom'>;
-  elements: Elements;
+  /** Parts that are in the project; `include: false` draws a part as left out. */
+  elements: Readonly<Record<string, { readonly include: boolean } | undefined>>;
   /** The part outlined as chosen; null for none. */
   selected: string | null;
   hovered: string | null;

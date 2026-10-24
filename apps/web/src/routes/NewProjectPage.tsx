@@ -126,7 +126,8 @@ export function NewProjectKindPage() {
       });
       await useLibrary.getState().addProject(project);
       useNewProject.getState().setName('');
-      navigate(paths.project(project.id));
+      // A garment opens split into its parts; an own project has none.
+      navigate(kind === 'custom' ? paths.project(project.id) : paths.parts(project.id));
     } finally {
       setBusy(false);
     }
