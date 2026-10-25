@@ -817,7 +817,10 @@
     "placedSummary_other": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitches",
     "layHere": "Click to lay the tile from stitch {{col}}.",
     "fromFile": "From the pattern file",
-    "fromFileHint": "Charts from your PDF, for any part of the project."
+    "fromFileHint": "Charts from your PDF, for any part of the project.",
+    "halves": "Split into front and back",
+    "halfCut_one": "The pattern crosses the side in round {{rows}}: a cable cut between front and back becomes knit stitches there. Move the tile or turn the split off.",
+    "halfCut_other": "The pattern crosses the side in {{count}} rounds ({{rows}}): cables cut between front and back become knit stitches there. Move the tile or turn the split off."
   },
   "rows": {
     "label": "Pattern length",
@@ -836,5 +839,9 @@
     "moreRounds": "One round more",
     "lessRows": "One row less",
     "moreRows": "One row more"
+  },
+  "guides": {
+    "label": "Lines every ¼",
+    "hint": "Show or hide lines at ¼, ½ and ¾ of the grid width"
   }
 }

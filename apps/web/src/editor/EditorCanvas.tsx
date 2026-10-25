@@ -298,7 +298,9 @@ function fitView(r: GridRenderer, source: GridSource): boolean {
   const m = r.geometry?.m;
   const cam = r.camera;
   if (!m || cam.width === 0 || cam.height === 0) return false;
-  const byW = (cam.width - 2 * m.gutter - 8) / source.cols;
+  // Sections are drawn apart, each gap about 1.25 cells wide.
+  const gaps = Math.max(0, source.sections.length - 1);
+  const byW = (cam.width - 2 * m.gutter - 8) / (source.cols + gaps * 1.25);
   const byH = (cam.height - m.header - m.footer - 8) / source.rows;
   r.zoomTo(Math.max(12, Math.min(44, byW, byH)));
   r.reveal(Math.ceil(source.rows / 2), Math.ceil(source.cols / 2), 'center');

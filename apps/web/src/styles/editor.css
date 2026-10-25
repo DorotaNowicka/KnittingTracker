@@ -572,6 +572,7 @@ textarea {
 }
 
 .editor__canvas {
+  position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   /* Leaves the first row of the palette in view on phones. */
@@ -1146,4 +1147,13 @@ textarea {
 .editor__where--refused {
   color: var(--danger);
   font-weight: 600;
+}
+
+.designer__halves {
+  align-self: end;
+  min-height: var(--target);
+}
+
+.designer__cuts {
+  margin: var(--sp-2) var(--sp-3) 0;
 }

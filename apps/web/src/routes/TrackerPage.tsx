@@ -18,6 +18,7 @@ import {
   RowCounter,
 } from '../tracker/PatternParts';
 import { nextPatternOf } from '../tracker/patterns';
+import { GuidesToggle } from '../ui/GuidesToggle';
 import { Icon } from '../ui/Icon';
 
 /** View settings are kept per pattern (patterns differ in width); 1.0 kept them per project. */
@@ -343,6 +344,7 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
               onTap={onTap}
             />
           )}
+          {showGrid && <GuidesToggle />}
           <p id="grid-help" className="visually-hidden">
             {t('grid.help')}
           </p>

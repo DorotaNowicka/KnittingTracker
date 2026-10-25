@@ -1,4 +1,12 @@
-import { applySymbolRows, blankChart, blankProject, chartToSymbolRows, fileMotifs } from '@kt/core';
+import {
+  applySymbolRows,
+  blankChart,
+  blankPattern,
+  blankProject,
+  chartToSymbolRows,
+  fileMotifs,
+  insertPattern,
+} from '@kt/core';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,37 +16,49 @@ import { navigate, paths } from '../lib/router';
 import { createMemoryStorage } from '../lib/storage';
 import { useDraft } from '../state/draft';
 import { setStorageForTests, useLibrary } from '../state/library';
+import { useGuides } from '../state/guides';
 import { useMotifs } from '../state/motifs';
 
 /**
  * jsdom has no canvas: the grid is stood in by a button per stitch column (row 1), which starts
  * and ends a stroke on that cell, as a click on the real canvas does.
  */
-const canvas = vi.hoisted(() => ({ width: 0 }));
+const canvas = vi.hoisted(() => ({
+  width: 0,
+  /** The last grid handed to the canvas. */
+  source: null as null | {
+    sections: readonly { label: string; firstCol: number; lastCol: number }[];
+    guides?: readonly { atCol: number; kind: string }[];
+  },
+}));
 vi.mock('../editor/EditorCanvas', () => ({
   EditorCanvas: (props: {
+    source: NonNullable<typeof canvas.source>;
     testId?: string;
     onStrokeStart?(cell: { row: number; col: number }): void;
     onStrokeEnd?(): void;
     onHover?(cell: { row: number; col: number } | null): void;
-  }) => (
-    <div data-testid={props.testId}>
-      {Array.from({ length: canvas.width }, (_, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={() => {
-            props.onStrokeStart?.({ row: 1, col: i + 1 });
-            props.onStrokeEnd?.();
-          }}
-          onMouseEnter={() => props.onHover?.({ row: 1, col: i + 1 })}
-          onMouseLeave={() => props.onHover?.(null)}
-        >
-          {`kolumna ${canvas.width - i}`}
-        </button>
-      ))}
-    </div>
-  ),
+  }) => {
+    canvas.source = props.source;
+    return (
+      <div data-testid={props.testId}>
+        {Array.from({ length: canvas.width }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => {
+              props.onStrokeStart?.({ row: 1, col: i + 1 });
+              props.onStrokeEnd?.();
+            }}
+            onMouseEnter={() => props.onHover?.({ row: 1, col: i + 1 })}
+            onMouseLeave={() => props.onHover?.(null)}
+          >
+            {`kolumna ${canvas.width - i}`}
+          </button>
+        ))}
+      </div>
+    );
+  },
 }));
 
 const column = (n: number) =>
@@ -217,5 +237,59 @@ describe('pattern creator', () => {
     await waitFor(() => expect(pattern()?.design?.placements).toHaveLength(1));
     const grid = chartToSymbolRows(pattern()?.charts[0] ?? a1);
     expect(grid[0]).toEqual(Array.from({ length: 4 }, () => ['std:p', 'std:k', 'std:k']).flat());
+  });
+
+  it('shows a body in the round as front | back, with guide lines that can be turned off', async () => {
+    const user = userEvent.setup();
+    canvas.width = 0;
+    localStorage.removeItem('kt.guides');
+    useGuides.setState({ on: true });
+    await useLibrary.getState().addProject(
+      insertPattern(
+        blankProject({
+          id: 'p3',
+          name: 'Sweter',
+          kind: 'sweater',
+          sizes: ['M'],
+          now: '2026-10-25T10:00:00.000Z',
+        }),
+        blankPattern('body', 'Korpus'),
+      ).project,
+    );
+    navigate(paths.designer('p3', 'body'), { replace: true });
+    render(<App />);
+    await user.type(await screen.findByLabelText('Szerokość (oczka)'), '9');
+    await user.type(screen.getByLabelText('Wysokość (rzędy)'), '4');
+    await user.click(screen.getByRole('button', { name: 'Utwórz siatkę' }));
+
+    // The front (stitches 1-5) on the right, the back on the left, apart.
+    const halves = await screen.findByRole('checkbox', { name: 'Podziel na przód i tył' });
+    expect(halves).toBeChecked();
+    expect(canvas.source?.sections).toEqual([
+      { label: 'Tył', firstCol: 1, lastCol: 4 },
+      { label: 'Przód', firstCol: 5, lastCol: 9 },
+    ]);
+    // Quarter lines; the half is the gap between front and back.
+    expect(canvas.source?.guides).toEqual([
+      { atCol: 8, kind: 'quarter' },
+      { atCol: 3, kind: 'quarter' },
+    ]);
+    await waitFor(() =>
+      expect(
+        pattern()?.layout.flatMap((x) => (x.kind === 'marker' ? [x.sectionName] : [])),
+      ).toEqual(['Przód', 'Tył']),
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Linie co ¼' }));
+    expect(screen.getByRole('button', { name: 'Linie co ¼' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    expect(canvas.source?.guides).toBeUndefined();
+    expect(localStorage.getItem('kt.guides')).toBe('off');
+
+    await user.click(halves);
+    expect(canvas.source?.sections).toEqual([]);
+    await waitFor(() => expect(pattern()?.charts.map((c) => c.id)).toEqual(['design']));
   });
 });

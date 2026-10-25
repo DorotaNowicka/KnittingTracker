@@ -198,6 +198,20 @@ a {
   margin-bottom: var(--sp-3);
 }
 
+/* Page title with its main action beside it (wraps under it on narrow screens). */
+.page__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.page__head .page__title {
+  margin-bottom: 0;
+}
+
 .page__actions {
   margin-top: var(--sp-5);
 }
@@ -1356,4 +1370,31 @@ input[type='range'] {
 
 .status__item--rows {
   align-self: center;
+}
+
+/* Guide lines on/off, in the grid's empty top-left corner (tracker and creator). */
+.grid-toggle {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--sheet);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.grid-toggle.is-on {
+  border-color: var(--guide);
+  color: var(--guide);
+}
+
+.grid-toggle:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 2px;
 }

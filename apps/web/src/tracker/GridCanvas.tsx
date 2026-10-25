@@ -1,7 +1,14 @@
 import { indexOfCol, type ResolvedPattern, type RowModel, type TapMode } from '@kt/core';
-import { GridRenderer, progressOverlay, patternSource, type GridSource } from '@kt/grid-renderer';
+import {
+  GridRenderer,
+  patternSource,
+  progressOverlay,
+  quarterGuides,
+  type GridSource,
+} from '@kt/grid-renderer';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useGuides } from '../state/guides';
 
 export interface ViewRequest {
   readonly kind: 'reveal' | 'fit';
@@ -57,7 +64,11 @@ export function GridCanvas(props: Props) {
     callbacks.current = { onCellChange, onTap };
   });
 
-  const source: GridSource = useMemo(() => patternSource(grid, rows), [grid, rows]);
+  const guides = useGuides((s) => s.on);
+  const source: GridSource = useMemo(() => {
+    const base = patternSource(grid, rows);
+    return guides ? { ...base, guides: quarterGuides(base) } : base;
+  }, [grid, rows, guides]);
   const overlay = useMemo(
     () => progressOverlay(model, done, { cursor, veilAbove: veil }),
     [model, done, cursor, veil],

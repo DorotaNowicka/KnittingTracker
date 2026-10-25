@@ -897,7 +897,12 @@
     "placedSummary_other": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczka",
     "layHere": "Kliknij, żeby położyć kafelek od oczka {{col}}.",
     "fromFile": "Z pliku wzoru",
-    "fromFileHint": "Schematy z Twojego PDF, do wzięcia w każdej części projektu."
+    "fromFileHint": "Schematy z Twojego PDF, do wzięcia w każdej części projektu.",
+    "halves": "Podziel na przód i tył",
+    "halfCut_one": "Wzór przechodzi przez bok w okrążeniu {{rows}}: warkocz przecięty między przodem a tyłem zamienia się tam w prawe oczka. Przesuń kafelek albo wyłącz podział.",
+    "halfCut_few": "Wzór przechodzi przez bok w {{count}} okrążeniach ({{rows}}): warkocze przecięte między przodem a tyłem zamieniają się tam w prawe oczka. Przesuń kafelek albo wyłącz podział.",
+    "halfCut_many": "Wzór przechodzi przez bok w {{count}} okrążeniach ({{rows}}): warkocze przecięte między przodem a tyłem zamieniają się tam w prawe oczka. Przesuń kafelek albo wyłącz podział.",
+    "halfCut_other": "Wzór przechodzi przez bok w {{count}} okrążeniach ({{rows}}): warkocze przecięte między przodem a tyłem zamieniają się tam w prawe oczka. Przesuń kafelek albo wyłącz podział."
   },
   "rows": {
     "label": "Długość wzoru",
@@ -924,5 +929,9 @@
     "moreRounds": "O jedno okrążenie więcej",
     "lessRows": "O jeden rząd mniej",
     "moreRows": "O jeden rząd więcej"
+  },
+  "guides": {
+    "label": "Linie co ¼",
+    "hint": "Pokaż lub ukryj linie w ¼, ½ i ¾ szerokości siatki"
   }
 }

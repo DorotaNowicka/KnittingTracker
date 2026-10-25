@@ -1,6 +1,7 @@
 import {
   createRegistry,
   insertPattern,
+  splitsFrontBack,
   STD,
   type LegendEntry,
   type Locale,
@@ -448,7 +449,14 @@ export const useImport = create<ImportState>((set, get) => ({
 
   async createProject(input, designPart) {
     const draft = get().draftProject(input, newId());
-    const project = designPart ? withDesignFromLayout(draft, designPart, createRegistry()) : draft;
+    const project = designPart
+      ? withDesignFromLayout(
+          draft,
+          designPart,
+          createRegistry(),
+          splitsFrontBack(draft.kind, designPart) ? input.sections : undefined,
+        )
+      : draft;
     await useLibrary.getState().addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');

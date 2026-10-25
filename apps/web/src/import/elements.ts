@@ -188,6 +188,8 @@ export function withDesignFromLayout(
   project: Project,
   patternId: string,
   registry: SymbolRegistry,
+  /** Names of the halves (front, back) when the part is split in two. */
+  halves?: readonly [string, string],
 ): Project {
   let design;
   try {
@@ -198,5 +200,8 @@ export function withDesignFromLayout(
     return project;
   }
   if (!design) return project;
-  return mapPattern(project, patternId, (p) => applyDesign({ ...p, design }, patternRegistry(p)));
+  const split = halves ? { ...design, halves: [halves[0], halves[1]] as [string, string] } : design;
+  return mapPattern(project, patternId, (p) =>
+    applyDesign({ ...p, design: split }, patternRegistry(p)),
+  );
 }

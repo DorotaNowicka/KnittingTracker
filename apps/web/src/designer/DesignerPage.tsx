@@ -1,16 +1,20 @@
 import {
   applyDesign,
   blankDesign,
+  designChart,
+  firstHalf,
+  halfCuts,
   MOTIF_LIBRARY,
   parseChart,
   patternRegistry,
+  splitsFrontBack,
   type Chart,
   type Design,
   type Pattern,
   type Project,
   type SymbolRegistry,
 } from '@kt/core';
-import { chartSource, editorOverlay } from '@kt/grid-renderer';
+import { chartSource, editorOverlay, quarterGuides, type GridSource } from '@kt/grid-renderer';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PatternGate, SaveState } from '../editor/DraftGate';
@@ -18,8 +22,10 @@ import { EditorCanvas, type CanvasTool, type CellPoint } from '../editor/EditorC
 import { Link } from '../lib/Link';
 import { paths } from '../lib/router';
 import { useDraft } from '../state/draft';
+import { useGuides } from '../state/guides';
 import { useMotifs } from '../state/motifs';
 import { NumberField } from '../ui/fields';
+import { GuidesToggle } from '../ui/GuidesToggle';
 import { Icon } from '../ui/Icon';
 import { AppHeader } from '../routes/AppHeader';
 import {
@@ -57,6 +63,7 @@ export function DesignerPage({ projectId, patternId }: { projectId: string; patt
 type Tool = 'tiles' | 'brush' | 'eraser' | 'pan';
 
 function Designer({ project, pattern }: { project: Project; pattern: Pattern }) {
+  const { t } = useTranslation();
   const registry = useMemo(() => patternRegistry(pattern), [pattern]);
   const design = pattern.design;
   const setDesign = (next: Design) =>
@@ -75,7 +82,19 @@ function Designer({ project, pattern }: { project: Project; pattern: Pattern }) 
       back={back}
     />
   ) : (
-    <GridSize pattern={pattern} back={back} onCreate={(w, h) => setDesign(blankDesign(w, h))} />
+    <GridSize
+      pattern={pattern}
+      back={back}
+      onCreate={(w, h) =>
+        setDesign({
+          ...blankDesign(w, h),
+          // A body in the round has a front and a back: shown apart from the start.
+          ...(splitsFrontBack(project.kind, pattern.id)
+            ? { halves: [t('importer.front'), t('importer.back')] as [string, string] }
+            : {}),
+        })
+      }
+    />
   );
 }
 
@@ -225,14 +244,27 @@ function Workbench({
   }, [holding, hover, tool, drag, design]);
 
   const chart = useMemo(
-    () =>
-      ghost?.preview
-        ? applyDesign({ ...pattern, design: ghost.preview }, registry).charts[0]
-        : pattern.charts[0],
-    [ghost, pattern, registry],
+    () => designChart(ghost?.preview ?? design, registry, pattern.name),
+    [ghost, design, registry, pattern.name],
   );
-  const parsed = useMemo(() => (chart ? parseChart(chart, registry) : null), [chart, registry]);
-  const source = useMemo(() => (parsed ? chartSource(parsed, registry) : null), [parsed, registry]);
+  const parsed = useMemo(() => parseChart(chart, registry), [chart, registry]);
+  const guides = useGuides((s) => s.on);
+  // Rows where the front | back split cuts a symbol (a cable) in two.
+  const cuts = useMemo(() => halfCuts(design, registry), [design, registry]);
+  const source = useMemo((): GridSource => {
+    const base = chartSource(parsed, registry);
+    // Halves are drawn apart: the second (back) on the left, the first (front) on the right.
+    const cut = design.width - firstHalf(design.width);
+    const sections =
+      design.halves && cut > 0
+        ? [
+            { label: design.halves[1], firstCol: 1, lastCol: cut },
+            { label: design.halves[0], firstCol: cut + 1, lastCol: design.width },
+          ]
+        : [];
+    const shown = { ...base, sections };
+    return guides ? { ...shown, guides: quarterGuides(shown) } : shown;
+  }, [parsed, registry, design.width, design.halves, guides]);
   const selection =
     ghost?.rect ??
     (selected && shown && selectedMotif
@@ -373,6 +405,23 @@ function Workbench({
             onCommit={(h) => setDesign(resizeDesign(design, design.width, h))}
           />
         </div>
+        {(pattern.construction === 'round' || design.halves) && (
+          <label className="check designer__halves">
+            <input
+              type="checkbox"
+              checked={!!design.halves}
+              onChange={(e) => {
+                const { halves: _off, ...rest } = design;
+                setDesign(
+                  e.target.checked
+                    ? { ...rest, halves: [t('importer.front'), t('importer.back')] }
+                    : rest,
+                );
+              }}
+            />
+            <span>{t('designer.halves')}</span>
+          </label>
+        )}
       </div>
 
       <div ref={barRef} className="designer__bar">
@@ -391,10 +440,19 @@ function Workbench({
           setDesign={setDesign}
           onConflict={explain}
         />
+        {cuts.length > 0 && (
+          <p className="notice notice--warning designer__cuts" role="status">
+            {t('designer.halfCut', {
+              count: cuts.length,
+              rows: cuts.slice(0, 6).join(', ') + (cuts.length > 6 ? '…' : ''),
+            })}
+          </p>
+        )}
       </div>
 
       <div className="editor__body">
         <div className="editor__canvas">
+          <GuidesToggle />
           {source && (
             <EditorCanvas
               source={source}
@@ -402,7 +460,7 @@ function Workbench({
               tool={canvasTool}
               label={t('designer.canvasLabel', { name: pattern.name })}
               help={t('designer.help')}
-              fitKey={`${design.width}x${design.height}`}
+              fitKey={`${design.width}x${design.height}${design.halves ? '/2' : ''}`}
               testId="designer-canvas"
               onHover={setHover}
               onStrokeStart={(cell) => {

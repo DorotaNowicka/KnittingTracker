@@ -31,7 +31,15 @@ export function ProjectsPage() {
     <>
       <AppHeader />
       <main className="page" id="main">
-        <h1 className="page__title">{t('projects.title')}</h1>
+        <div className="page__head">
+          <h1 className="page__title">{t('projects.title')}</h1>
+          {projects.length > 0 && (
+            <Link className="btn btn--primary" to={paths.new()}>
+              <Icon name="plus" />
+              {t('projects.new')}
+            </Link>
+          )}
+        </div>
         {projects.length === 0 ? (
           <section className="empty" aria-labelledby="empty-title">
             <h2 id="empty-title" className="empty__title">
@@ -54,19 +62,11 @@ export function ProjectsPage() {
             </div>
           </section>
         ) : (
-          <>
-            <ul className="project-list">
-              {projects.map((p) => (
-                <ProjectRow key={p.id} project={p} />
-              ))}
-            </ul>
-            <div className="page__actions">
-              <Link className="btn btn--primary" to={paths.new()}>
-                <Icon name="plus" />
-                {t('projects.new')}
-              </Link>
-            </div>
-          </>
+          <ul className="project-list">
+            {projects.map((p) => (
+              <ProjectRow key={p.id} project={p} />
+            ))}
+          </ul>
         )}
       </main>
     </>

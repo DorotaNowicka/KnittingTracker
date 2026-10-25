@@ -43,6 +43,9 @@
   --done: #cfdaee;
   --done-hatch: #4f69a0;
   --marker: #d8961a;
+  /* Guide lines on the grid: quarters (green) and the half (plum). */
+  --guide: #2f8a55;
+  --guide-half: #8e4aa8;
   --no-stitch: #c9ccc4;
   --danger: #a3322a;
   --on-danger: #ffffff;
@@ -65,6 +68,8 @@
     --done: #2e3c58;
     --done-hatch: #7f98c8;
     --marker: #f0b840;
+    --guide: #5cc68a;
+    --guide-half: #c08ae0;
     --no-stitch: #343a42;
     --danger: #f08a80;
     --on-danger: #14181d;
@@ -87,6 +92,8 @@
   --done: #2e3c58;
   --done-hatch: #7f98c8;
   --marker: #f0b840;
+  --guide: #5cc68a;
+  --guide-half: #c08ae0;
   --no-stitch: #343a42;
   --danger: #f08a80;
   --on-danger: #14181d;
