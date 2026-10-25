@@ -813,5 +813,23 @@
     "placedSummary_one": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitch",
     "placedSummary_other": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitches",
     "layHere": "Click to lay the tile from stitch {{col}}."
+  },
+  "rows": {
+    "label": "Pattern length",
+    "rounds": "Rounds",
+    "rows": "Rows",
+    "warnTitle": "Shorten below what you've knitted?",
+    "warnRounds_one": "You have marked {{count}} round. Shortening the pattern to {{target}} rounds removes the marks above.",
+    "warnRounds_other": "You have marked {{count}} rounds. Shortening the pattern to {{target}} rounds removes the marks above.",
+    "warnRows_one": "You have marked {{count}} row. Shortening the pattern to {{target}} rows removes the marks above.",
+    "warnRows_other": "You have marked {{count}} rows. Shortening the pattern to {{target}} rows removes the marks above.",
+    "shortenRounds_one": "Shorten to {{count}} round",
+    "shortenRounds_other": "Shorten to {{count}} rounds",
+    "shortenRows_one": "Shorten to {{count}} row",
+    "shortenRows_other": "Shorten to {{count}} rows",
+    "lessRounds": "One round less",
+    "moreRounds": "One round more",
+    "lessRows": "One row less",
+    "moreRows": "One row more"
   }
 }

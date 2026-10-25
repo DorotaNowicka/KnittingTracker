@@ -7,6 +7,7 @@ import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
 import { useWakeLock } from '../lib/wakeLock';
 import { useSession } from '../state/session';
+import { RowsControl } from '../tracker/RowsControl';
 import { GridCanvas, type ViewRequest } from '../tracker/GridCanvas';
 import { Legend, RowText, ViewControls, type ViewSettings } from '../tracker/PanelParts';
 import {
@@ -247,6 +248,15 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
                 {next === null ? '—' : next.work}
                 <span className="status__of"> / {s.model.rowLength(summary.currentRow)}</span>
               </span>
+            </span>
+          )}
+          {grid.pattern.design && (
+            <span className="status__item status__item--rows">
+              <RowsControl
+                grid={grid}
+                summary={summary}
+                onChange={(n) => useSession.getState().setDesignRows(n)}
+              />
             </span>
           )}
           {summary.percent !== null && (

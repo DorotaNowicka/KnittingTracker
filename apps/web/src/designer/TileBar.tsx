@@ -1,6 +1,6 @@
 import { placementArea, type Chart, type Design, type Placement } from '@kt/core';
-import { useId, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CommitNumber } from '../ui/CommitNumber';
 import { Icon } from '../ui/Icon';
 import {
   conflictOf,
@@ -205,55 +205,5 @@ function Message({ text }: { text: string | null }) {
     <p className="tile-bar__message" role="status">
       {text}
     </p>
-  );
-}
-
-/**
- * A whole number taken when typing ends (Enter or leaving the field): "6" on the way to "60"
- * must not resize the tile, and stitches are rounded to whole repeats only once typed.
- */
-function CommitNumber({
-  label,
-  value,
-  unit,
-  onCommit,
-}: {
-  label: string;
-  value: number;
-  unit?: string;
-  onCommit(value: number): void;
-}) {
-  const id = useId();
-  const [text, setText] = useState(String(value));
-  const commit = () => {
-    const n = Number(text);
-    if (Number.isInteger(n) && n > 0 && n !== value) onCommit(n);
-    // An accepted number remounts the field with the new value; a refused or rounded one
-    // shows the tile's actual width again.
-    setText(String(value));
-  };
-  return (
-    <div className="field field--compact">
-      <label htmlFor={id}>{label}</label>
-      <span className="tile-width__unit">
-        <input
-          id={id}
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          className="input--number"
-          value={text}
-          onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ''))}
-          onBlur={commit}
-          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              commit();
-            }
-          }}
-        />
-        {unit}
-      </span>
-    </div>
   );
 }

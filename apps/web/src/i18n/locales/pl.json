@@ -893,5 +893,31 @@
     "placedSummary_many": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczek",
     "placedSummary_other": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczka",
     "layHere": "Kliknij, żeby położyć kafelek od oczka {{col}}."
+  },
+  "rows": {
+    "label": "Długość wzoru",
+    "rounds": "Okrążeń",
+    "rows": "Rzędów",
+    "warnTitle": "Skrócić poniżej zrobionego?",
+    "warnRounds_one": "Masz już zaznaczone {{count}} okrążenie. Po skróceniu wzoru do {{target}} okrążeń zaznaczenia powyżej znikną.",
+    "warnRounds_few": "Masz już zaznaczone {{count}} okrążenia. Po skróceniu wzoru do {{target}} okrążeń zaznaczenia powyżej znikną.",
+    "warnRounds_many": "Masz już zaznaczonych {{count}} okrążeń. Po skróceniu wzoru do {{target}} okrążeń zaznaczenia powyżej znikną.",
+    "warnRounds_other": "Masz już zaznaczone {{count}} okrążenia. Po skróceniu wzoru do {{target}} okrążeń zaznaczenia powyżej znikną.",
+    "warnRows_one": "Masz już zaznaczony {{count}} rząd. Po skróceniu wzoru do {{target}} rzędów zaznaczenia powyżej znikną.",
+    "warnRows_few": "Masz już zaznaczone {{count}} rzędy. Po skróceniu wzoru do {{target}} rzędów zaznaczenia powyżej znikną.",
+    "warnRows_many": "Masz już zaznaczonych {{count}} rzędów. Po skróceniu wzoru do {{target}} rzędów zaznaczenia powyżej znikną.",
+    "warnRows_other": "Masz już zaznaczone {{count}} rzędu. Po skróceniu wzoru do {{target}} rzędów zaznaczenia powyżej znikną.",
+    "shortenRounds_one": "Skróć do {{count}} okrążenia",
+    "shortenRounds_few": "Skróć do {{count}} okrążeń",
+    "shortenRounds_many": "Skróć do {{count}} okrążeń",
+    "shortenRounds_other": "Skróć do {{count}} okrążenia",
+    "shortenRows_one": "Skróć do {{count}} rzędu",
+    "shortenRows_few": "Skróć do {{count}} rzędów",
+    "shortenRows_many": "Skróć do {{count}} rzędów",
+    "shortenRows_other": "Skróć do {{count}} rzędu",
+    "lessRounds": "O jedno okrążenie mniej",
+    "moreRounds": "O jedno okrążenie więcej",
+    "lessRows": "O jeden rząd mniej",
+    "moreRows": "O jeden rząd więcej"
   }
 }

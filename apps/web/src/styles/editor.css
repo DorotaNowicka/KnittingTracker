@@ -1122,7 +1122,7 @@ textarea {
   white-space: nowrap;
 }
 
-.tile-width__unit {
+.commit-number {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);

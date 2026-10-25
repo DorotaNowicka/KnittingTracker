@@ -1314,3 +1314,46 @@ input[type='range'] {
 .project-kind > svg {
   color: var(--indigo);
 }
+
+/* Length of a drawn pattern in the tracker's status line. */
+.rows-control {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.rows-control .status__label {
+  margin-right: var(--sp-1);
+}
+
+.rows-control .field {
+  margin: 0;
+}
+
+.rows-control .field label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.rows-control .field input {
+  width: 4.5rem;
+  min-height: 40px;
+}
+
+/* The length control takes its own line when the status line is narrow. */
+.status__main {
+  flex-wrap: wrap;
+  row-gap: var(--sp-2);
+}
+
+.status__item {
+  white-space: nowrap;
+}
+
+.status__item--rows {
+  align-self: center;
+}

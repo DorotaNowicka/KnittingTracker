@@ -1,5 +1,8 @@
 import {
+  applyDesign,
   createProgressModel,
+  mapPattern,
+  patternRegistry,
   initialProgress,
   reduceProgress,
   resolvePattern,
@@ -11,6 +14,7 @@ import {
 } from '@kt/core';
 import { create } from 'zustand';
 import type { StoredProject } from '../lib/storage';
+import { resizeDesign } from '../designer/designOps';
 import { useDraft } from './draft';
 import { flushProjectWrites, getStorage, useLibrary } from './library';
 
@@ -44,6 +48,11 @@ interface SessionState {
   finishPattern(rows: number): Promise<void>;
   /** Undo a finish: the pattern is open again and its row count unknown. */
   reopenPattern(patternId: string): Promise<void>;
+  /**
+   * Make a pattern drawn in the creator `rows` rows long: its tiles repeat up to the new top.
+   * Progress past the new last row is dropped.
+   */
+  setDesignRows(rows: number): Promise<void>;
   /** Rename the project or set the knitter's own gauge (null removes it). */
   updateProject(change: { name?: string; gauge?: Gauge | null }): Promise<void>;
 }
@@ -187,6 +196,28 @@ export const useSession = create<SessionState>((set, get) => {
           updatedAt: new Date().toISOString(),
         };
       });
+    },
+
+    async setDesignRows(rows) {
+      const { patternId, model, progress } = get();
+      if (!patternId) return;
+      // Stitches in the rows that stay: the rows below the new top don't change.
+      const kept = model ? model.rowStart(rows + 1) : progress.done;
+      await change((p) => ({
+        ...mapPattern(p, patternId, (pattern) =>
+          pattern.design
+            ? applyDesign(
+                {
+                  ...pattern,
+                  design: resizeDesign(pattern.design, pattern.design.width, rows),
+                },
+                patternRegistry(pattern),
+              )
+            : pattern,
+        ),
+        updatedAt: new Date().toISOString(),
+      }));
+      if (get().progress.done > kept) get().dispatch({ type: 'set', done: kept });
     },
 
     async updateProject(update) {
