@@ -1,21 +1,20 @@
 import { placementArea, type Chart, type Design, type Placement } from '@kt/core';
-import { useId, useState } from 'react';
+import { useId, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NumberField } from '../ui/fields';
 import { Icon } from '../ui/Icon';
 import {
   conflictOf,
+  maxRepeats,
+  onBottom,
   removePlacement,
-  roomFor,
   updatePlacement,
   type Conflict,
-  type PlaceInput,
 } from './designOps';
 
 /**
- * The bar above the grid: the piece about to be laid, or the selected tile with its width and
- * height (in whole repeats of the piece) and position. Tiles never overlap, so a change that would
- * cover another tile is refused with a message.
+ * The bar above the grid: the piece about to be laid, or the selected tile and its width as
+ * "repeats × the piece's width = the tile's width". Either number can be typed; the other follows.
+ * Tiles never overlap, so a width that would cover another tile is refused with a message.
  */
 export function TileBar({
   design,
@@ -24,7 +23,7 @@ export function TileBar({
   motifOf,
   message,
   onCancel,
-  onPlace,
+  onLay,
   onDeselect,
   setDesign,
   onConflict,
@@ -36,8 +35,8 @@ export function TileBar({
   /** Why the last change was refused, shown until the next one. */
   message: string | null;
   onCancel(): void;
-  /** Lay the held piece with its bottom right corner at this stitch and row. */
-  onPlace(at: { col: number; row: number }): void;
+  /** Lay the held piece in the first free place from the right. */
+  onLay(): void;
   onDeselect(): void;
   setDesign(design: Design): void;
   onConflict(conflict: Conflict | null): void;
@@ -46,7 +45,21 @@ export function TileBar({
   if (holding) {
     return (
       <div className="tile-bar" role="region" aria-label={t('designer.tile')}>
-        <Holding piece={holding} design={design} onPlace={onPlace} onCancel={onCancel} />
+        <p className="tile-bar__lead">
+          <b>{t('designer.holding', { name: holding.name })}</b>{' '}
+          <span className="num">
+            {t('editor.chartSize', { w: holding.width, h: holding.height })}
+          </span>
+        </p>
+        <p className="hint tile-bar__hint">{t('designer.holdingHint')}</p>
+        <div className="tile-bar__actions">
+          <button type="button" className="btn btn--small btn--primary" onClick={onLay}>
+            {t('designer.layFree')}
+          </button>
+          <button type="button" className="btn btn--small" onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+        </div>
         <Message text={message} />
       </div>
     );
@@ -60,64 +73,72 @@ export function TileBar({
       </div>
     );
   }
-  const input: PlaceInput = {
-    col: selected.col,
-    row: selected.row,
-    repeatX: selected.repeatX,
-    repeatY: selected.repeatY,
-  };
-  const apply = (change: Partial<PlaceInput>) => {
-    const next = { ...input, ...change };
+  const area = placementArea(design, selected, motif);
+  const times = area ? Math.floor(area.timesX) : 1;
+  const most = maxRepeats(design, motif, selected.col, selected.id);
+  const setTimes = (n: number) => {
+    const next = onBottom(selected.col, Math.max(1, n));
     const conflict = conflictOf(design, motif, next, selected.id);
     onConflict(conflict);
     if (!conflict) setDesign(updatePlacement(design, selected.id, next));
   };
-  const area = placementArea(design, selected, motif);
-  const room = roomFor(design, motif, input);
   return (
     <div className="tile-bar" role="region" aria-label={t('designer.tile')}>
       <p className="tile-bar__lead">
         <b>{motif.name}</b>{' '}
-        <span className="num">{t('editor.chartSize', { w: motif.width, h: motif.height })}</span>
+        <span className="hint">{t('designer.repeatsUp', { count: motif.height })}</span>
       </p>
-      <Repeats
-        label={t('designer.tileWidth')}
-        value={input.repeatX}
-        size={motif.width}
-        times={area?.timesX ?? 0}
-        total={area ? area.right - area.left + 1 : 0}
-        max={room.across}
-        unit="stitches"
-        onChange={(repeatX) => apply({ repeatX })}
-      />
-      <Repeats
-        label={t('designer.tileHeight')}
-        value={input.repeatY}
-        size={motif.height}
-        times={area?.timesY ?? 0}
-        total={area ? area.top - area.bottom + 1 : 0}
-        max={room.up}
-        unit="rows"
-        onChange={(repeatY) => apply({ repeatY })}
-      />
-      <div className="tile-bar__where">
-        <NumberField
-          compact
-          label={t('designer.tileCol')}
-          value={input.col}
-          min={1}
-          max={design.width}
-          onCommit={(col) => apply({ col })}
+      <fieldset className="tile-width">
+        <legend>{t('designer.tileWidth')}</legend>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={t('designer.less')}
+          disabled={times <= 1}
+          onClick={() => setTimes(times - 1)}
+        >
+          <Icon name="minus" size={18} />
+        </button>
+        <CommitNumber
+          key={`${selected.id}-t-${times}`}
+          label={t('designer.times')}
+          value={times}
+          onCommit={setTimes}
         />
-        <NumberField
-          compact
-          label={t('designer.tileRow')}
-          value={input.row}
-          min={1}
-          max={design.height}
-          onCommit={(row) => apply({ row })}
+        <span className="tile-width__op" aria-hidden="true">
+          ×
+        </span>
+        <span className="tile-width__piece num">
+          {t('designer.pieceWidth', { count: motif.width })}
+        </span>
+        <span className="tile-width__op" aria-hidden="true">
+          =
+        </span>
+        <CommitNumber
+          key={`${selected.id}-s-${times}`}
+          label={t('designer.tileStitches')}
+          value={times * motif.width}
+          unit={t('designer.stitchesUnit')}
+          onCommit={(stitches) => setTimes(Math.floor(stitches / motif.width))}
         />
-      </div>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={t('designer.more')}
+          disabled={times >= most}
+          onClick={() => setTimes(times + 1)}
+        >
+          <Icon name="plus" size={18} />
+        </button>
+        <button
+          type="button"
+          className="btn btn--small"
+          disabled={times >= most}
+          onClick={() => setTimes(most)}
+        >
+          {t('designer.toEnd')}
+        </button>
+      </fieldset>
       <div className="tile-bar__actions">
         <button
           type="button"
@@ -144,57 +165,6 @@ export function TileBar({
   );
 }
 
-/** The piece about to be laid: click the grid, or type where and lay it. */
-function Holding({
-  piece,
-  design,
-  onPlace,
-  onCancel,
-}: {
-  piece: Chart;
-  design: Design;
-  onPlace(at: { col: number; row: number }): void;
-  onCancel(): void;
-}) {
-  const { t } = useTranslation();
-  const [at, setAt] = useState({ col: 1, row: 1 });
-  return (
-    <>
-      <p className="tile-bar__lead">
-        <b>{t('designer.holding', { name: piece.name })}</b>{' '}
-        <span className="num">{t('editor.chartSize', { w: piece.width, h: piece.height })}</span>
-      </p>
-      <p className="hint tile-bar__hint">{t('designer.holdingHint')}</p>
-      <div className="tile-bar__where">
-        <NumberField
-          compact
-          label={t('designer.tileCol')}
-          value={at.col}
-          min={1}
-          max={design.width}
-          onCommit={(col) => setAt({ ...at, col })}
-        />
-        <NumberField
-          compact
-          label={t('designer.tileRow')}
-          value={at.row}
-          min={1}
-          max={design.height}
-          onCommit={(row) => setAt({ ...at, row })}
-        />
-      </div>
-      <div className="tile-bar__actions">
-        <button type="button" className="btn btn--small btn--primary" onClick={() => onPlace(at)}>
-          {t('designer.lay')}
-        </button>
-        <button type="button" className="btn btn--small" onClick={onCancel}>
-          {t('common.cancel')}
-        </button>
-      </div>
-    </>
-  );
-}
-
 function Message({ text }: { text: string | null }) {
   return (
     <p className="tile-bar__message" role="status">
@@ -203,81 +173,52 @@ function Message({ text }: { text: string | null }) {
   );
 }
 
-/** Width or height of a tile: whole repeats of the piece, or to the grid's edge. */
-function Repeats({
+/**
+ * A whole number taken when typing ends (Enter or leaving the field): "6" on the way to "60"
+ * must not resize the tile, and stitches are rounded to whole repeats only once typed.
+ */
+function CommitNumber({
   label,
   value,
-  size,
-  times,
-  total,
-  max,
   unit,
-  onChange,
+  onCommit,
 }: {
   label: string;
-  value: number | 'fill';
-  size: number;
-  times: number;
-  total: number;
-  max: number;
-  unit: 'stitches' | 'rows';
-  onChange(value: number | 'fill'): void;
+  value: number;
+  unit?: string;
+  onCommit(value: number): void;
 }) {
-  const { t } = useTranslation();
   const id = useId();
-  const count = value === 'fill' ? Math.max(1, Math.floor(times)) : value;
-  const shown = Number.isInteger(times)
-    ? String(times)
-    : times.toFixed(2).replace(/0+$/, '').replace('.', ',');
+  const [text, setText] = useState(String(value));
+  const commit = () => {
+    const n = Number(text);
+    if (Number.isInteger(n) && n > 0 && n !== value) onCommit(n);
+    // An accepted number remounts the field with the new value; a refused or rounded one
+    // shows the tile's actual width again.
+    setText(String(value));
+  };
   return (
-    <fieldset className="repeats">
-      <legend>{label}</legend>
-      <div className="repeats__row">
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={t('designer.less', { label })}
-          disabled={count <= 1}
-          onClick={() => onChange(Math.max(1, count - 1))}
-        >
-          <Icon name="minus" size={18} />
-        </button>
-        <NumberField
-          compact
+    <div className="field field--compact">
+      <label htmlFor={id}>{label}</label>
+      <span className="tile-width__unit">
+        <input
           id={id}
-          label={t('designer.timesCount')}
-          // "To the edge" shows the whole repeats that fit; typing a number replaces it.
-          value={count}
-          min={1}
-          max={1000}
-          onCommit={onChange}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          className="input--number"
+          value={text}
+          onChange={(e) => setText(e.target.value.replace(/[^\d]/g, ''))}
+          onBlur={commit}
+          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commit();
+            }
+          }}
         />
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={t('designer.more', { label })}
-          disabled={count >= max}
-          onClick={() => onChange(Math.min(max, count + 1))}
-        >
-          <Icon name="plus" size={18} />
-        </button>
-        <span className="repeats__sum num">
-          {t(unit === 'stitches' ? 'designer.sumAcross' : 'designer.sumUp', {
-            times: shown,
-            w: size,
-            h: size,
-            count: total,
-          })}
-        </span>
-        <label className="check repeats__fill">
-          <input
-            type="checkbox"
-            checked={value === 'fill'}
-            onChange={(e) => onChange(e.target.checked ? 'fill' : count)}
-          />
-          {t(unit === 'stitches' ? 'designer.toEdgeLeft' : 'designer.toEdgeTop')}
-        </label>
-      </div>
-    </fieldset>
+        {unit}
+      </span>
+    </div>
   );
 }

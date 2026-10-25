@@ -114,18 +114,52 @@ export function conflictOf(
   return null;
 }
 
-/** Whole repeats that fit from a tile's start to the grid's edge (at least 1). */
-export function roomFor(
-  design: Pick<Design, 'width' | 'height'>,
-  motif: Pick<Chart, 'width' | 'height'>,
-  input: Pick<PlaceInput, 'col' | 'row'>,
-): { readonly across: number; readonly up: number } {
-  const right = design.width - input.col + 1;
-  const above = design.height - input.row + 1;
-  return {
-    across: Math.max(1, Math.floor(right / motif.width)),
-    up: Math.max(1, Math.floor(above / motif.height)),
-  };
+/**
+ * Tiles stand on the grid's bottom row and repeat upwards by their own height to the top: the
+ * knitter designs the lowest rows of a part. Only the start column and the width are theirs.
+ */
+export const onBottom = (col: number, repeatX: number | 'fill'): PlaceInput => ({
+  col,
+  row: 1,
+  repeatX,
+  repeatY: 'fill',
+});
+
+/** Stitches (from the right edge) each tile covers, other than `ignore`. */
+function spans(design: Design, ignore: string | null) {
+  return design.placements.flatMap((p) => {
+    if (p.id === ignore) return [];
+    const m = motifOf(design, p);
+    const r = m ? areaRect(design, p, m) : null;
+    return r ? [{ from: fromRight(design, r.col2), to: fromRight(design, r.col1) }] : [];
+  });
+}
+
+/**
+ * Most whole repeats of a piece that fit from stitch `col` (from the right) to the left, before
+ * the next tile or the grid's edge; 0 when not even one fits.
+ */
+export function maxRepeats(
+  design: Design,
+  motif: Pick<Chart, 'width'>,
+  col: number,
+  ignore: string | null = null,
+): number {
+  let end = design.width;
+  for (const s of spans(design, ignore)) {
+    if (s.to < col) continue;
+    if (s.from <= col) return 0;
+    end = Math.min(end, s.from - 1);
+  }
+  return Math.max(0, Math.floor((end - col + 1) / motif.width));
+}
+
+/** The first stitch from the right where one repeat of a piece fits, or null. */
+export function firstFree(design: Design, motif: Pick<Chart, 'width'>): number | null {
+  for (let col = 1; col <= design.width - motif.width + 1; col++) {
+    if (maxRepeats(design, motif, col) > 0) return col;
+  }
+  return null;
 }
 
 /** Columns (display) a brush cell covers. */

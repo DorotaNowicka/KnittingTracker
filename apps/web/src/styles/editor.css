@@ -1068,16 +1068,6 @@ textarea {
   min-width: 12rem;
 }
 
-.tile-bar__where {
-  display: flex;
-  gap: var(--sp-2);
-}
-
-.tile-bar__where .field {
-  width: 10rem;
-  margin: 0;
-}
-
 .tile-bar__actions {
   display: flex;
   align-items: center;
@@ -1095,32 +1085,52 @@ textarea {
   display: none;
 }
 
-.repeats {
+/* Width of the selected tile: repeats × the piece's width = stitches. */
+.tile-width {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
   margin: 0;
   padding: 0;
   border: 0;
 }
 
-.repeats legend {
+.tile-width legend {
   padding: 0;
+  margin-bottom: var(--sp-1);
   font-size: var(--fs-1);
   font-weight: 650;
   color: var(--ink-muted);
 }
 
-.repeats__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-1) var(--sp-2);
-}
-
-.repeats__row .field {
-  width: 5.5rem;
+.tile-width .field {
   margin: 0;
 }
 
-.repeats__row .field label {
+.tile-width .field input {
+  width: 5.5rem;
+}
+
+.tile-width__op {
+  color: var(--ink-muted);
+  font-size: var(--fs-4);
+}
+
+.tile-width__piece {
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.tile-width__unit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 600;
+}
+
+/* The equation reads on its own; the field names stay for screen readers. */
+.tile-width .field label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1129,12 +1139,6 @@ textarea {
   white-space: nowrap;
 }
 
-.repeats__sum {
-  min-width: 9rem;
-  font-weight: 600;
-}
-
-.repeats__fill {
-  min-height: 40px;
-  font-size: var(--fs-2);
+.designer__bar {
+  scroll-margin-top: var(--sp-2);
 }

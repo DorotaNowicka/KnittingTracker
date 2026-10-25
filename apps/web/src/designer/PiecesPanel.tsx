@@ -1,4 +1,4 @@
-import type { Chart, Design, Pattern } from '@kt/core';
+import { placementArea, type Chart, type Design, type Pattern } from '@kt/core';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChartThumb } from '../editor/ChartThumb';
@@ -98,14 +98,16 @@ export function PiecesPanel({
                   >
                     <b>{motif?.name ?? p.motifId}</b>
                     <span className="hint">
-                      {t('designer.placedAt', { col: p.col, row: p.row })} ·{' '}
-                      {p.repeatX === 'fill'
-                        ? t('designer.acrossFill')
-                        : t('designer.acrossTimes', { count: p.repeatX })}{' '}
-                      ·{' '}
-                      {p.repeatY === 'fill'
-                        ? t('designer.upFill')
-                        : t('designer.upTimes', { count: p.repeatY })}
+                      {(() => {
+                        const area = motif ? placementArea(design, p, motif) : null;
+                        const wide = area ? area.right - area.left + 1 : 0;
+                        return t('designer.placedSummary', {
+                          col: p.col,
+                          times: area ? Math.floor(area.timesX) : 0,
+                          w: motif?.width ?? 0,
+                          count: wide,
+                        });
+                      })()}
                     </span>
                   </button>
                   <button

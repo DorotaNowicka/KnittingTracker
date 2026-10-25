@@ -27,6 +27,8 @@ import {
   brushCell,
   conflictOf,
   eraseCell,
+  firstFree,
+  onBottom,
   fromRight,
   placeMotif,
   resizeDesign,
@@ -169,6 +171,12 @@ function Workbench({
   const [drag, setDrag] = useState<Drag | null>(null);
   const [newPiece, setNewPiece] = useState(false);
   const stroke = useRef<Design | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  /** On a phone the library is below the grid: bring the bar (and the grid) back into view. */
+  const showBar = () => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    barRef.current?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  };
 
   const chart = pattern.charts[0];
   const parsed = useMemo(() => (chart ? parseChart(chart, registry) : null), [chart, registry]);
@@ -202,19 +210,24 @@ function Workbench({
     setSelectedId(id);
     setHolding(null);
     setMessage(null);
-    if (id) setTool('tiles');
+    if (id) {
+      setTool('tiles');
+      showBar();
+    }
   };
   const pick = (motif: Chart) => {
     setHolding(motif);
     setSelectedId(null);
     setMessage(null);
     setTool('tiles');
+    showBar();
   };
 
-  /** Lay the held piece as a tile of one repeat with its bottom right corner at `at`. */
-  const lay = (at: { col: number; row: number }) => {
+  /** Lay the held piece as a tile of one repeat standing on the bottom row at stitch `col`. */
+  const lay = (col: number | null) => {
     if (!holding) return;
-    const input = { ...at, repeatX: 1, repeatY: 1 };
+    if (col === null) return setMessage(t('designer.noRoom'));
+    const input = onBottom(col, 1);
     const conflict = conflictOf(design, holding, input);
     explain(conflict);
     if (conflict) return;
@@ -224,7 +237,7 @@ function Workbench({
     setSelectedId(placed.id);
   };
   const tilesStart = (cell: CellPoint) => {
-    if (holding) return lay({ col: fromRight(design, cell.col), row: cell.row });
+    if (holding) return lay(fromRight(design, cell.col));
     const tile = tileAt(design, cell.row, cell.col);
     setSelectedId(tile?.id ?? null);
     setMessage(null);
@@ -235,10 +248,10 @@ function Workbench({
   };
   const tilesMove = (cell: CellPoint) => {
     if (!drag) return;
+    // Tiles stand on the bottom row: a drag moves them sideways only.
     const col = drag.orig.col - (cell.col - drag.start.col);
-    const row = drag.orig.row + (cell.row - drag.start.row);
-    if (col === drag.orig.col && row === drag.orig.row) return setDrag({ ...drag, preview: null });
-    setDrag({ ...drag, preview: { ...drag.orig, col, row } });
+    if (col === drag.orig.col) return setDrag({ ...drag, preview: null });
+    setDrag({ ...drag, preview: onBottom(col, drag.orig.repeatX) });
   };
   const tilesEnd = () => {
     const moved = drag?.preview;
@@ -321,21 +334,23 @@ function Workbench({
         </div>
       </div>
 
-      <TileBar
-        design={design}
-        holding={holding}
-        selected={selected}
-        motifOf={motifOf}
-        message={message}
-        onCancel={() => {
-          setHolding(null);
-          setMessage(null);
-        }}
-        onPlace={lay}
-        onDeselect={() => select(null)}
-        setDesign={setDesign}
-        onConflict={explain}
-      />
+      <div ref={barRef} className="designer__bar">
+        <TileBar
+          design={design}
+          holding={holding}
+          selected={selected}
+          motifOf={motifOf}
+          message={message}
+          onCancel={() => {
+            setHolding(null);
+            setMessage(null);
+          }}
+          onLay={() => holding && lay(firstFree(design, holding))}
+          onDeselect={() => select(null)}
+          setDesign={setDesign}
+          onConflict={explain}
+        />
+      </div>
 
       <div className="editor__body">
         <div className="editor__canvas">

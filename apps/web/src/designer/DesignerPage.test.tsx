@@ -39,94 +39,89 @@ beforeEach(async () => {
 const pattern = () => useDraft.getState().project?.patterns[0];
 
 const bar = () => screen.getByRole('region', { name: 'Kafelek' });
-const group = (name: string) => within(bar()).getByRole('group', { name });
+const width = () => within(bar()).getByRole('group', { name: 'Szerokość kafelka' });
 
 describe('pattern creator', () => {
-  it('lays pieces as tiles that never overlap and stretches them in whole repeats', async () => {
+  it('lays tiles on the bottom row and sets their width as repeats × piece = stitches', async () => {
     const user = userEvent.setup();
     navigate(paths.designer('p1', 'pattern-1'), { replace: true });
     render(<App />);
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Kreator wzoru: Korpus' }),
     ).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Szerokość (oczka)'), '226');
+    await user.type(screen.getByLabelText('Szerokość (oczka)'), '240');
     await user.type(screen.getByLabelText('Wysokość (rzędy)'), '20');
     await user.click(screen.getByRole('button', { name: 'Utwórz siatkę' }));
 
-    // Lay the rib in the bottom right corner, then make it 113 repeats wide and 2 rows high.
+    // A rib laid in the first free place: one repeat, standing on the bottom row.
     await user.click(await screen.findByRole('button', { name: /Ściągacz 1\/1/ }));
     expect(within(bar()).getByText('Kładziesz: Ściągacz 1/1')).toBeInTheDocument();
-    await user.click(within(bar()).getByRole('button', { name: 'Połóż' }));
-    expect(within(bar()).getByText('Ściągacz 1/1')).toBeInTheDocument();
-    expect(within(group('Szerokość')).getByText('1 × 2 = 2 oczka')).toBeInTheDocument();
-    const times = within(group('Szerokość')).getByLabelText('Ile razy');
+    await user.click(
+      within(bar()).getByRole('button', { name: 'Połóż w pierwszym wolnym miejscu' }),
+    );
+    expect(within(bar()).getByText('powtarza się w górę co 1 rząd')).toBeInTheDocument();
+    expect(within(width()).getByLabelText('Ile razy')).toHaveValue('1');
+    expect(within(width()).getByText('2 oczka')).toBeInTheDocument();
+    expect(within(width()).getByLabelText('Szerokość w oczkach')).toHaveValue('2');
+
+    // Typing the repeats recalculates the stitches…
+    const times = within(width()).getByLabelText('Ile razy');
     await user.clear(times);
-    await user.type(times, '113');
-    expect(within(group('Szerokość')).getByText('113 × 2 = 226 oczek')).toBeInTheDocument();
-    // The width can't grow past the grid's edge.
-    expect(
-      within(group('Szerokość')).getByRole('button', {
-        name: 'Szerokość: o jedno powtórzenie więcej',
-      }),
-    ).toBeDisabled();
-    await user.click(
-      within(group('Wysokość')).getByRole('button', {
-        name: 'Wysokość: o jedno powtórzenie więcej',
-      }),
-    );
-    expect(within(group('Wysokość')).getByText('2 × 1 = 2 rzędy')).toBeInTheDocument();
+    await user.type(times, '113{Enter}');
+    expect(within(width()).getByLabelText('Szerokość w oczkach')).toHaveValue('226');
+    // …and typing the stitches recalculates the repeats, down to whole ones.
+    const stitches = within(width()).getByLabelText('Szerokość w oczkach');
+    await user.clear(stitches);
+    await user.type(stitches, '101{Enter}');
+    expect(within(width()).getByLabelText('Ile razy')).toHaveValue('50');
+    expect(within(width()).getByLabelText('Szerokość w oczkach')).toHaveValue('100');
+    await user.click(within(width()).getByRole('button', { name: 'O jedno powtórzenie więcej' }));
+    expect(within(width()).getByLabelText('Szerokość w oczkach')).toHaveValue('102');
 
-    // A cable can't lie on the rib; above it, it can, and it stretches to the edge.
+    // A cable next to it: the first free place is stitch 103; it repeats up by its own height.
     await user.click(screen.getByRole('button', { name: /Warkocz 2\/2 w lewo/ }));
-    await user.click(within(bar()).getByRole('button', { name: 'Połóż' }));
-    expect(within(bar()).getByRole('status')).toHaveTextContent(
-      'Tu się nie zmieści — kafelek wszedłby na „Ściągacz 1/1”.',
-    );
-    const row = within(bar()).getByLabelText('Rząd od dołu');
-    await user.clear(row);
-    await user.type(row, '3');
-    await user.click(within(bar()).getByRole('button', { name: 'Połóż' }));
-    expect(within(bar()).getByText('Warkocz 2/2 w lewo')).toBeInTheDocument();
     await user.click(
-      within(group('Szerokość')).getByRole('checkbox', { name: 'Do końca szerokości' }),
+      within(bar()).getByRole('button', { name: 'Połóż w pierwszym wolnym miejscu' }),
     );
-    expect(within(group('Szerokość')).getByText('37,67 × 6 = 226 oczek')).toBeInTheDocument();
-    await user.click(
-      within(group('Wysokość')).getByRole('checkbox', { name: 'Do końca wysokości' }),
-    );
-    expect(within(group('Wysokość')).getByText('4,5 × 4 = 18 rzędów')).toBeInTheDocument();
+    expect(within(bar()).getByText('powtarza się w górę co 4 rzędy')).toBeInTheDocument();
+    await user.click(within(width()).getByRole('button', { name: 'Do końca' }));
+    expect(within(width()).getByLabelText('Ile razy')).toHaveValue('23');
+    expect(within(width()).getByLabelText('Szerokość w oczkach')).toHaveValue('138');
+    expect(
+      within(width()).getByRole('button', { name: 'O jedno powtórzenie więcej' }),
+    ).toBeDisabled();
 
-    // Moving it down onto the rib is refused; the tile stays where it was.
-    const at = within(bar()).getByLabelText('Rząd od dołu');
-    await user.clear(at);
-    await user.type(at, '2');
-    expect(within(bar()).getByRole('status')).toHaveTextContent(
-      'kafelek wszedłby na „Ściągacz 1/1”',
-    );
-    await waitFor(() => expect(pattern()?.design?.placements[1]).toMatchObject({ row: 3 }));
-
+    // The rib can't grow into the cable.
     const placed = screen.getByRole('region', { name: 'Na siatce' });
+    await user.click(within(placed).getByRole('button', { name: /^Ściągacz 1\/1/ }));
+    const ribTimes = within(width()).getByLabelText('Ile razy');
+    await user.clear(ribTimes);
+    await user.type(ribTimes, '60{Enter}');
+    expect(within(bar()).getByRole('status')).toHaveTextContent(
+      'Tu się nie zmieści — kafelek wszedłby na „Warkocz 2/2 w lewo”.',
+    );
+    expect(within(width()).getByLabelText('Ile razy')).toHaveValue('51');
     expect(
       within(placed)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
     ).toEqual([
-      expect.stringContaining(
-        'Ściągacz 1/1od oczka 1, rzędu 1 · w poziomie 113 razy · w górę 2 razy',
-      ),
-      expect.stringContaining(
-        'Warkocz 2/2 w lewood oczka 1, rzędu 3 · w poziomie do końca · w górę do końca',
-      ),
+      expect.stringContaining('Ściągacz 1/1od oczka 1 · 51 × 2 = 102 oczka'),
+      expect.stringContaining('Warkocz 2/2 w lewood oczka 103 · 23 × 6 = 138 oczek'),
     ]);
+    await waitFor(() => expect(pattern()?.design?.placements).toHaveLength(2));
     const p = pattern();
-    expect(p?.rows).toBe(20);
+    expect(p?.design?.placements.every((x) => x.row === 1 && x.repeatY === 'fill')).toBe(true);
     const grid = p?.charts[0] ? chartToSymbolRows(p.charts[0]) : [];
-    expect(grid[0]?.filter((id) => id === 'std:p')).toHaveLength(113);
-    expect(grid[4]?.filter((id) => id === 'cable:2-2-lc')).toHaveLength(37);
+    expect(grid).toHaveLength(20);
+    // The rib is purl in every row; the cable crosses on every 4th row (rows 3, 7, 11…).
+    expect(grid.map((r) => r.filter((id) => id === 'std:p').length >= 51)).toEqual(
+      Array(20).fill(true),
+    );
+    expect(grid.map((r) => r.filter((id) => id === 'cable:2-2-lc').length)).toEqual([
+      0, 0, 23, 0, 0, 0, 23, 0, 0, 0, 23, 0, 0, 0, 23, 0, 0, 0, 23, 0,
+    ]);
 
-    // Picking a tile from the list selects it in the bar; it can be removed there.
-    await user.click(within(placed).getByRole('button', { name: /^Ściągacz 1\/1/ }));
-    expect(within(bar()).getByText('Ściągacz 1/1')).toBeInTheDocument();
     await user.click(within(bar()).getByRole('button', { name: 'Usuń kafelek' }));
     await waitFor(() => expect(pattern()?.design?.placements).toHaveLength(1));
     expect(screen.getByRole('link', { name: 'Dziergaj' })).toHaveAttribute(
