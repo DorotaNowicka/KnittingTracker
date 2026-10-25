@@ -221,6 +221,8 @@ export const patternSchema = z.object({
   modifications: z.array(modificationSchema).optional(),
   /** How the pattern was drawn in the creator; its chart is composed from this. */
   design: designSchema.optional(),
+  /** The knitter has set this pattern up and said so ("Gotowe"): it is ready to knit. */
+  ready: z.boolean().optional(),
 });
 
 /** What a project is (the "what are you knitting" choice); `custom` = anything else. */

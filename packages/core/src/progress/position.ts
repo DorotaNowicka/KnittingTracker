@@ -96,9 +96,14 @@ export function createCounterModel(grid: ResolvedPattern): RowModel {
   };
 }
 
-/** The progress model a pattern asks for: per stitch (default) or a row counter. */
+/**
+ * The progress model a pattern asks for: per stitch (default) or a row counter. A pattern with no
+ * stitches yet (a part set up without a grid) can only count rows.
+ */
 export const createProgressModel = (grid: ResolvedPattern): RowModel =>
-  grid.pattern.tracking === 'rows' ? createCounterModel(grid) : createRowModel(grid);
+  grid.pattern.tracking === 'rows' || grid.stitchCount === 0
+    ? createCounterModel(grid)
+    : createRowModel(grid);
 
 function location(model: RowModel, row: number, work: number): StitchLocation {
   const stitch = model.workOrder(row)[work - 1];

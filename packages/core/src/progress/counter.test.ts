@@ -16,6 +16,15 @@ const rib: PatternInput = {
 };
 
 describe('row-counter patterns (DR-9)', () => {
+  it('count rows for a pattern with no stitches yet, whatever it asks for', () => {
+    const blank: PatternInput = { ...rib, id: 'blank', tracking: 'stitches' };
+    const stage = resolvePattern(makeProject({ patterns: [blank] }), 'blank', { sizeIndex: 0 });
+    expect(stage.stitchCount).toBe(0);
+    const model = createProgressModel(stage);
+    expect(model.unit).toBe('row');
+    expect(summarize(model, 0)).toMatchObject({ done: 0, currentRow: 1 });
+  });
+
   it('count whole rows with the same actions as stitch tracking', () => {
     const p = makeProject({ patterns: [rib] });
     const stage = resolvePattern(p, 'rib', { sizeIndex: 0 });
