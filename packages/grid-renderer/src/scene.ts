@@ -1,6 +1,6 @@
 import type { Glyph } from '@kt/core';
 import type { CameraState } from './camera';
-import type { GridGeometry, GridSource } from './geometry';
+import type { GridGeometry, GridSource, Guide } from './geometry';
 
 /** Colour roles; the backend maps them to theme colours (CSS custom properties). */
 export type ColorRole =
@@ -17,7 +17,9 @@ export type ColorRole =
   | 'doneHatch'
   | 'marker'
   | 'noStitch'
-  | 'danger';
+  | 'danger'
+  | 'guide'
+  | 'guideHalf';
 
 /** Progress state shown on top of the chart. Rows/cols are grid coordinates. */
 export interface Overlay {
@@ -260,6 +262,9 @@ export function buildScene(
       out.push({ t: 'glyphs', cell: c, stroke: 'ink', lineWidth: Math.max(1.2, c * 0.1), items });
     }
     if (doStatic) out.push(zoneBorders(source, geo, cam, rows));
+    if (doStatic && source.guides && source.guides.length > 0) {
+      out.push(...guideLines(source.guides, geo, cam, rows));
+    }
 
     // Veil above the current row, keeper frame and strip, marker, cursor.
     if (doOverlay && overlay.currentRow !== null) {
@@ -438,6 +443,29 @@ function zoneBorders(
     stroke: 'ruleStrong',
     width: Math.max(1.5, geo.m.cell / 12),
   };
+}
+
+/** Guide lines through the visible rows, quarters and the half in their own colours. */
+function guideLines(
+  guides: readonly Guide[],
+  geo: GridGeometry,
+  cam: CameraState,
+  rows: { first: number; last: number },
+): DrawCommand[] {
+  const top = geo.rowY(rows.last) - cam.scrollY;
+  const bottom = geo.rowY(rows.first) + geo.m.cell - cam.scrollY;
+  const of = (kind: Guide['kind']) =>
+    guides
+      .filter((g) => g.kind === kind && g.atCol > 1 && g.atCol <= geo.source.cols)
+      .flatMap((g) => {
+        const x = geo.colX(g.atCol) - cam.scrollX;
+        return [x, top, x, bottom];
+      });
+  const width = Math.max(2, geo.m.cell / 7);
+  return [
+    { t: 'lines', segments: of('quarter'), stroke: 'guide', width },
+    { t: 'lines', segments: of('half'), stroke: 'guideHalf', width: width * 1.25 },
+  ];
 }
 
 function gutters(

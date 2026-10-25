@@ -16,7 +16,14 @@ import {
   patternSource,
   visibleRowCount,
 } from './fromPattern';
-import { CELL_PX_MAX, CELL_PX_MIN, clampCellPx, GridGeometry, type GridSource } from './geometry';
+import {
+  CELL_PX_MAX,
+  CELL_PX_MIN,
+  clampCellPx,
+  GridGeometry,
+  quarterGuides,
+  type GridSource,
+} from './geometry';
 import { alignmentStep } from './renderer';
 import { buildScene, LOD, type DrawCommand } from './scene';
 
@@ -223,6 +230,43 @@ describe('scene', () => {
     expect(overlay.done(2)).toEqual({ fromCol: 8, toCol: 10 });
     expect(overlay.done(3)).toBeNull();
     expect(overlay.marker).toEqual({ row: 2, col: 8 });
+  });
+
+  it('draws guide lines at the quarters, leaving out a half that a gap already marks', () => {
+    // 10 stitches: a quarter is after stitch 3 (col 8), the half after 5, three quarters after 8.
+    expect(quarterGuides(source)).toEqual([
+      { atCol: 8, kind: 'quarter' },
+      { atCol: 6, kind: 'half' },
+      { atCol: 3, kind: 'quarter' },
+    ]);
+    const halves = [
+      { label: 'Tył', firstCol: 1, lastCol: 4 },
+      { label: 'Przód', firstCol: 5, lastCol: 8 },
+    ];
+    expect(quarterGuides({ cols: 8, sections: halves })).toEqual([
+      { atCol: 7, kind: 'quarter' },
+      { atCol: 3, kind: 'quarter' },
+    ]);
+    expect(quarterGuides({ cols: 3, sections: [] }).map((g) => g.atCol)).toEqual([3, 2]);
+
+    const guided: GridSource = { ...source, guides: quarterGuides(source) };
+    const geo = new GridGeometry(guided, 20);
+    const cmds = buildScene(
+      guided,
+      geo,
+      clampCamera(cam({ width: 800, height: 400 }), geo),
+      progressOverlay(model, 0),
+    );
+    const lines = (stroke: string) =>
+      cmds.flatMap((c) => (c.t === 'lines' && c.stroke === stroke ? [c.segments] : []));
+    expect(lines('guide')[0]).toHaveLength(8);
+    expect(lines('guideHalf')[0]).toHaveLength(4);
+    // Without guides in the source, none are drawn.
+    expect(
+      buildScene(source, geo, clampCamera(cam(), geo), progressOverlay(model, 0)).some(
+        (c) => c.t === 'lines' && (c.stroke === 'guide' || c.stroke === 'guideHalf'),
+      ),
+    ).toBe(false);
   });
 
   it('drops glyphs and rules when zoomed far out (level of detail)', () => {

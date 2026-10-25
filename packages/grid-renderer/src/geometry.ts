@@ -26,6 +26,32 @@ export interface Band {
   readonly lastCol: number;
 }
 
+/** A vertical guide line along the left edge of display column `atCol`. */
+export interface Guide {
+  readonly atCol: number;
+  readonly kind: 'quarter' | 'half';
+}
+
+/**
+ * Lines at a quarter, half and three quarters of the stitches, counted from stitch 1 (the right
+ * edge). The half is left out where a gap already separates two sections there (front | back).
+ */
+export function quarterGuides(source: Pick<GridSource, 'cols' | 'sections'>): Guide[] {
+  const n = source.cols;
+  const gaps = new Set(source.sections.map((s) => s.firstCol).filter((c) => c > 1));
+  const out: Guide[] = [];
+  for (const i of [1, 2, 3]) {
+    const stitches = Math.round((n * i) / 4);
+    if (stitches <= 0 || stitches >= n) continue;
+    const atCol = n - stitches + 1;
+    if (out.some((g) => g.atCol === atCol)) continue;
+    const kind = i === 2 ? 'half' : 'quarter';
+    if (gaps.has(atCol)) continue;
+    out.push({ atCol, kind });
+  }
+  return out;
+}
+
 /**
  * What the grid shows. The app adapts a resolved pattern from `@kt/core` to this interface, so the
  * renderer stays independent of how patterns are modelled.
@@ -38,6 +64,8 @@ export interface GridSource {
   readonly zones: readonly Band[];
   /** Named sections (Front/Back); a visual gap separates neighbouring sections. */
   readonly sections: readonly Band[];
+  /** Coloured vertical lines that help count stitches (quarters and the half of a round). */
+  readonly guides?: readonly Guide[];
   cell(row: number, col: number): GridCell;
   /** Stitch number printed above a column. */
   stitchNumber(col: number): number;

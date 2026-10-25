@@ -19,6 +19,8 @@ export const PALETTE_VARS: Readonly<Record<ColorRole, string>> = {
   marker: '--marker',
   noStitch: '--no-stitch',
   danger: '--danger',
+  guide: '--guide',
+  guideHalf: '--guide-half',
 };
 
 /** Read the palette from computed CSS custom properties of an element. */

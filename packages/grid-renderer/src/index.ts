@@ -11,9 +11,11 @@ export {
   clampCellPx,
   GridGeometry,
   metricsFor,
+  quarterGuides,
   type Band,
   type GridCell,
   type GridSource,
+  type Guide,
   type Metrics,
 } from './geometry';
 export { clampCamera, hitTest, panBy, revealCell, zoomAt, type CameraState } from './camera';
