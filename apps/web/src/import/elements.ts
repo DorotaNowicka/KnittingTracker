@@ -1,7 +1,13 @@
 import {
+  applyDesign,
   blankProject,
+  designFromLayout,
+  fileMotifs,
   insertPattern,
+  mapPattern,
+  patternRegistry,
   PROJECT_KIND_INFO,
+  resolvePattern,
   type KindItem,
   type KindPart,
   type LegendEntry,
@@ -9,6 +15,7 @@ import {
   type Pattern,
   type Project,
   type ProjectKind,
+  type SymbolRegistry,
 } from '@kt/core';
 import { buildPattern, type DraftChart } from '@kt/importer';
 
@@ -158,5 +165,38 @@ export function buildProjectFromElements(input: BuildInput): Project {
       if (item.id === main) mainPatternId ??= r.patternId;
     }
   }
+  // Every chart of the file, for the creator's library in any part.
+  const all = buildPattern({
+    id: 'file',
+    name: 'file',
+    sizes: input.sizes,
+    charts: input.charts,
+    legend: [],
+    sequence: [],
+    sectionNames: input.layout.sectionNames,
+  }).charts;
+  if (all.length > 0) project = { ...project, motifs: fileMotifs(all) };
   return mainPatternId ? { ...project, activePatternId: mainPatternId } : project;
+}
+
+/**
+ * The project with one part's pattern turned into a creator design: its charts laid as tiles the
+ * way the file's layout works them at the chosen size. Unchanged when the layout can't be built
+ * or has no charts (the creator then asks for the grid size).
+ */
+export function withDesignFromLayout(
+  project: Project,
+  patternId: string,
+  registry: SymbolRegistry,
+): Project {
+  let design;
+  try {
+    design = designFromLayout(
+      resolvePattern(project, patternId, { sizeIndex: project.sizeIndex, registry }),
+    );
+  } catch {
+    return project;
+  }
+  if (!design) return project;
+  return mapPattern(project, patternId, (p) => applyDesign({ ...p, design }, patternRegistry(p)));
 }

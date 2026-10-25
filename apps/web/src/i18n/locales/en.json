@@ -735,7 +735,10 @@
     "fixSize": "Size and stitch count",
     "sizeIs": "size {{size}}",
     "stitchesFrom": "The stitch count follows from the charts' arrangement in the description and the chosen size.",
-    "changeSize": "Change size"
+    "changeSize": "Change size",
+    "openDesigner": "Open in the creator",
+    "designerLead": "Fix the pattern in the creator: the PDF charts lie on the grid as tiles you can move, widen and remove, and they wait in the library next to the ready-made pieces. The project will be created.",
+    "designerLeadEmpty": "Draw this part in the creator: the PDF charts wait in the library next to the ready-made pieces. The project will be created."
   },
   "parts": {
     "toProject": "Go to the project",
@@ -812,7 +815,9 @@
     "toEnd": "To the end",
     "placedSummary_one": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitch",
     "placedSummary_other": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitches",
-    "layHere": "Click to lay the tile from stitch {{col}}."
+    "layHere": "Click to lay the tile from stitch {{col}}.",
+    "fromFile": "From the pattern file",
+    "fromFileHint": "Charts from your PDF, for any part of the project."
   },
   "rows": {
     "label": "Pattern length",

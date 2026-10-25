@@ -878,3 +878,19 @@ button.steps__link {
   margin-left: var(--sp-3);
   font-weight: 600;
 }
+
+/* "Popraw": correcting the part in the pattern creator comes first. */
+.fix-designer {
+  display: grid;
+  gap: var(--sp-3);
+  justify-items: start;
+  padding: var(--sp-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+}
+
+.fix-designer p {
+  margin: 0;
+  max-width: 60ch;
+}

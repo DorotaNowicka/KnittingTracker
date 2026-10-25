@@ -1,4 +1,4 @@
-import { blankProject, chartToSymbolRows } from '@kt/core';
+import { applySymbolRows, blankChart, blankProject, chartToSymbolRows, fileMotifs } from '@kt/core';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -174,5 +174,48 @@ describe('pattern creator', () => {
       'href',
       '/projekt/p1/wzor/pattern-1',
     );
+  });
+
+  it('offers the charts of the pattern file in their own part of the library', async () => {
+    const user = userEvent.setup();
+    canvas.width = 12;
+    const a1 = applySymbolRows(blankChart({ id: 'a-1', name: 'A.1' }, 1, 1), [
+      ['std:p', 'std:k', 'std:k'],
+    ]);
+    await useLibrary.getState().addProject({
+      ...blankProject({
+        id: 'p2',
+        name: 'Sweter z PDF',
+        kind: 'sweater',
+        sizes: ['M'],
+        patternName: 'Rękaw',
+        now: '2026-10-25T10:00:00.000Z',
+      }),
+      motifs: fileMotifs([a1]),
+    });
+    navigate(paths.designer('p2', 'pattern-1'), { replace: true });
+    render(<App />);
+    await user.type(await screen.findByLabelText('Szerokość (oczka)'), '12');
+    await user.type(screen.getByLabelText('Wysokość (rzędy)'), '4');
+    await user.click(screen.getByRole('button', { name: 'Utwórz siatkę' }));
+
+    const file = screen.getByRole('region', { name: 'Z pliku wzoru' });
+    expect(
+      within(file)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual([expect.stringContaining('A.1')]);
+    // The ready-made pieces stay in the library below.
+    expect(
+      within(screen.getByRole('region', { name: 'Biblioteka wzorów' })).queryByText('A.1'),
+    ).toBeNull();
+    await user.click(within(file).getByRole('button', { name: /A\.1/ }));
+    const times = within(width()).getByLabelText('Ile razy');
+    await user.clear(times);
+    await user.type(times, '4{Enter}');
+    await clickStitch(user, 1);
+    await waitFor(() => expect(pattern()?.design?.placements).toHaveLength(1));
+    const grid = chartToSymbolRows(pattern()?.charts[0] ?? a1);
+    expect(grid[0]).toEqual(Array.from({ length: 4 }, () => ['std:p', 'std:k', 'std:k']).flat());
   });
 });

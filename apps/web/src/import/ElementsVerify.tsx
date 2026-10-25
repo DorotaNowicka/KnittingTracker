@@ -418,13 +418,14 @@ function PreviewStep({ onSize }: { onSize(): void }) {
     parts.find((p) => p.patternId === chosen) ?? parts.find((p) => p.item.id === main) ?? parts[0];
   if (!s.result || !part) return null;
 
-  const create = async () => {
+  /** Create the project; then knit the part, or correct it in the creator (`design`). */
+  const create = async (design = false) => {
     if (busy) return;
     setBusy(true);
     try {
-      const id = await s.createProject(input);
+      const id = await s.createProject(input, design ? part.patternId : undefined);
       useImport.getState().reset();
-      navigate(paths.tracker(id, part.patternId));
+      navigate(design ? paths.designer(id, part.patternId) : paths.tracker(id, part.patternId));
     } finally {
       setBusy(false);
     }
@@ -456,6 +457,8 @@ function PreviewStep({ onSize }: { onSize(): void }) {
           onTitle={setTitle}
           draft={draft}
           onSize={onSize}
+          onDesign={() => void create(true)}
+          busy={busy}
           headingId={`${ids}-h`}
         />
       ) : (
@@ -604,6 +607,8 @@ function FixPart({
   onTitle,
   draft,
   onSize,
+  onDesign,
+  busy,
   headingId,
 }: {
   part: PreviewPart;
@@ -611,6 +616,9 @@ function FixPart({
   onTitle(title: string): void;
   draft: Project;
   onSize(): void;
+  /** Create the project and open this part in the pattern creator. */
+  onDesign(): void;
+  busy: boolean;
   headingId: string;
 }) {
   const { t, i18n } = useTranslation();
@@ -641,6 +649,14 @@ function FixPart({
       <h2 id={headingId} className="section-title part-panel__title">
         {t('preview.fixTitle', { part: part.label })}
       </h2>
+
+      <div className="fix-designer">
+        <p>{t(facts.charts.length > 0 ? 'preview.designerLead' : 'preview.designerLeadEmpty')}</p>
+        <button type="button" className="btn btn--primary" disabled={busy} onClick={onDesign}>
+          <Icon name="brush" size={18} />
+          {t('preview.openDesigner')}
+        </button>
+      </div>
 
       <details className="fix" open={facts.uncertain > 0}>
         <summary>

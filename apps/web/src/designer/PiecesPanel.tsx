@@ -10,6 +10,7 @@ import { removePlacement } from './designOps';
 export function PiecesPanel({
   design,
   library,
+  fromFile,
   own,
   holding,
   selected,
@@ -20,7 +21,10 @@ export function PiecesPanel({
   pattern,
 }: {
   design: Design;
+  /** Every piece on offer: the file's, the ready-made ones and the knitter's own. */
   library: readonly Chart[];
+  /** Charts of the imported pattern file. */
+  fromFile: readonly Chart[];
   own: readonly Chart[];
   /** The piece about to be laid on the grid. */
   holding: Chart | null;
@@ -37,41 +41,55 @@ export function PiecesPanel({
   const motifOf = (id: string) =>
     design.motifs.find((m) => m.id === id) ?? library.find((m) => m.id === id);
 
+  const file = new Set(fromFile.map((m) => m.id));
+  const pieces = (list: readonly Chart[]) => (
+    <ul className="piece-list">
+      {list.map((m) => (
+        <li key={m.id} className="piece-list__item">
+          <button
+            type="button"
+            className="piece"
+            aria-pressed={holding?.id === m.id}
+            onClick={() => onPick(m)}
+          >
+            <ChartThumb pattern={pattern} chart={m} maxWidth={72} maxHeight={48} />
+            <span className="piece__name">{m.name}</span>
+            <span className="piece__size num">
+              {t('editor.chartSize', { w: m.width, h: m.height })}
+            </span>
+          </button>
+          {own.some((o) => o.id === m.id) && (
+            <button
+              type="button"
+              className="icon-btn piece__remove"
+              aria-label={t('designer.removePiece', { name: m.name })}
+              onClick={() => void useMotifs.getState().remove(m.id)}
+            >
+              <Icon name="trash" size={18} />
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <>
+      {fromFile.length > 0 && (
+        <section aria-labelledby={`${ids}-file`}>
+          <h2 id={`${ids}-file`} className="panel__title">
+            {t('designer.fromFile')}
+          </h2>
+          <p className="hint">{t('designer.fromFileHint')}</p>
+          {pieces(fromFile)}
+        </section>
+      )}
       <section aria-labelledby={`${ids}-lib`}>
         <h2 id={`${ids}-lib`} className="panel__title">
           {t('designer.library')}
         </h2>
         <p className="hint">{t('designer.libraryHint')}</p>
-        <ul className="piece-list">
-          {library.map((m) => (
-            <li key={m.id} className="piece-list__item">
-              <button
-                type="button"
-                className="piece"
-                aria-pressed={holding?.id === m.id}
-                onClick={() => onPick(m)}
-              >
-                <ChartThumb pattern={pattern} chart={m} maxWidth={72} maxHeight={48} />
-                <span className="piece__name">{m.name}</span>
-                <span className="piece__size num">
-                  {t('editor.chartSize', { w: m.width, h: m.height })}
-                </span>
-              </button>
-              {own.some((o) => o.id === m.id) && (
-                <button
-                  type="button"
-                  className="icon-btn piece__remove"
-                  aria-label={t('designer.removePiece', { name: m.name })}
-                  onClick={() => void useMotifs.getState().remove(m.id)}
-                >
-                  <Icon name="trash" size={18} />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+        {pieces(library.filter((m) => !file.has(m.id)))}
         <button type="button" className="btn" onClick={onNewPiece}>
           <Icon name="plus" size={18} />
           {t('designer.newPiece')}

@@ -809,7 +809,10 @@
     "fixSize": "Rozmiar i liczba oczek",
     "sizeIs": "rozmiar {{size}}",
     "stitchesFrom": "Liczba oczek wynika z ułożenia schematów w opisie i z wybranego rozmiaru.",
-    "changeSize": "Zmień rozmiar"
+    "changeSize": "Zmień rozmiar",
+    "openDesigner": "Otwórz w kreatorze",
+    "designerLead": "Popraw wzór w kreatorze: schematy z PDF leżą na siatce jako kafelki, które możesz przesuwać, poszerzać i usuwać, a w bibliotece są obok gotowych wzorów. Projekt zostanie założony.",
+    "designerLeadEmpty": "Narysuj tę część w kreatorze: schematy z PDF będą w bibliotece obok gotowych wzorów. Projekt zostanie założony."
   },
   "parts": {
     "toProject": "Przejdź do projektu",
@@ -892,7 +895,9 @@
     "placedSummary_few": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczka",
     "placedSummary_many": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczek",
     "placedSummary_other": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczka",
-    "layHere": "Kliknij, żeby położyć kafelek od oczka {{col}}."
+    "layHere": "Kliknij, żeby położyć kafelek od oczka {{col}}.",
+    "fromFile": "Z pliku wzoru",
+    "fromFileHint": "Schematy z Twojego PDF, do wzięcia w każdej części projektu."
   },
   "rows": {
     "label": "Długość wzoru",

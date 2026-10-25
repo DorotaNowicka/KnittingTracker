@@ -1,4 +1,4 @@
-import { projectSchema, validateProject } from '@kt/core';
+import { createRegistry, projectSchema, validateProject } from '@kt/core';
 import { describe, expect, it } from 'vitest';
 import {
   buildProjectFromElements,
@@ -6,6 +6,7 @@ import {
   kindItems,
   orderedItems,
   partsOf,
+  withDesignFromLayout,
   type BuildInput,
 } from './elements';
 
@@ -131,5 +132,29 @@ describe('garment elements', () => {
       'gusset',
       'foot',
     ]);
+  });
+
+  it('keep every chart of the file for the creator, and lay a part out as tiles', () => {
+    const project = buildProjectFromElements(base());
+    const body = project.patterns.find((p) => p.id === 'body');
+    expect(project.motifs?.map((m) => [m.id, m.name])).toEqual(
+      body?.charts.map((c) => [`pdf:${c.id}`, c.name]),
+    );
+
+    // Size S: 10 stitches of A.1 (2 wide) and A.2 (4 wide) once, 14 in all.
+    const designed = withDesignFromLayout(project, 'body', createRegistry());
+    const pattern = designed.patterns.find((p) => p.id === 'body');
+    expect(pattern?.design).toMatchObject({ width: 14, height: 2 });
+    expect(
+      pattern?.design?.placements.map((p) => [p.motifId, p.col, p.row, p.repeatX, p.repeatY]),
+    ).toEqual([
+      [`pdf:${body?.charts[0]?.id}`, 1, 1, 5, 'fill'],
+      [`pdf:${body?.charts[1]?.id}`, 11, 1, 1, 'fill'],
+    ]);
+    expect(pattern?.charts.map((c) => c.id)).toEqual(['design']);
+    expect(projectSchema.safeParse(designed).success).toBe(true);
+    expect(validateProject(designed).ok).toBe(true);
+    // A part without charts is left to the creator's grid size step.
+    expect(withDesignFromLayout(project, 'sleeve', createRegistry())).toBe(project);
   });
 });

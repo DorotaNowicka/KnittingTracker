@@ -31,6 +31,7 @@ import { ImportClient, ImportError, type CheckedFile } from './client';
 import {
   buildProjectFromElements,
   initialElements,
+  withDesignFromLayout,
   type ElementState,
   type Elements,
   type MainLayout,
@@ -126,8 +127,11 @@ interface ImportState {
    * knitting order, at the chosen size. Used for the preview and by `createProject`.
    */
   draftProject(input: CreateProjectInput, id?: string): Project;
-  /** Store `draftProject`; returns the new project's id. */
-  createProject(input: CreateProjectInput): Promise<string>;
+  /**
+   * Store `draftProject`; returns the new project's id. With `designPart`, that part's pattern is
+   * turned into a creator design first (its charts laid as tiles), to be corrected in the creator.
+   */
+  createProject(input: CreateProjectInput, designPart?: string): Promise<string>;
 }
 
 export type ImportStep = 'size' | 'legend' | 'parts' | 'preview';
@@ -442,8 +446,9 @@ export const useImport = create<ImportState>((set, get) => ({
     return { ...built, sizeIndex: Math.min(state.chosenSize(), sizes.length - 1) };
   },
 
-  async createProject(input) {
-    const project = get().draftProject(input, newId());
+  async createProject(input, designPart) {
+    const draft = get().draftProject(input, newId());
+    const project = designPart ? withDesignFromLayout(draft, designPart, createRegistry()) : draft;
     await useLibrary.getState().addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');

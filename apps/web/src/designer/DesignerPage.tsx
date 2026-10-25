@@ -178,9 +178,14 @@ function Workbench({
     barRef.current?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   };
 
+  const fromFile = useMemo(() => project.motifs ?? [], [project.motifs]);
   const library: readonly Chart[] = useMemo(
-    () => [...MOTIF_LIBRARY.map((m) => ({ ...m.chart, name: m.label[lang].slice(0, 40) })), ...own],
-    [lang, own],
+    () => [
+      ...fromFile,
+      ...MOTIF_LIBRARY.map((m) => ({ ...m.chart, name: m.label[lang].slice(0, 40) })),
+      ...own,
+    ],
+    [lang, own, fromFile],
   );
   const motifOf = (id: string) =>
     design.motifs.find((m) => m.id === id) ?? library.find((m) => m.id === id);
@@ -438,6 +443,7 @@ function Workbench({
           <PiecesPanel
             design={design}
             library={library}
+            fromFile={fromFile}
             own={own}
             holding={holding?.motif ?? null}
             selected={selectedId}

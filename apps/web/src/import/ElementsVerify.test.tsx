@@ -215,6 +215,29 @@ describe('new project from a PDF: parts to track', () => {
     await waitFor(() => expect(window.location.pathname).toBe(`/projekt/${project?.id}/wzor/back`));
   });
 
+  it('opens a part in the creator, its charts laid as tiles and all charts in the library', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await toPreview(user);
+    await user.click(screen.getByRole('button', { name: 'Popraw' }));
+    expect(screen.getByText(/schematy z PDF leżą na siatce jako kafelki/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Otwórz w kreatorze' }));
+    await waitFor(() => expect(useLibrary.getState().projects).toHaveLength(1));
+    const project = useLibrary.getState().projects[0];
+    expect(project?.motifs?.map((m) => m.name)).toEqual(['A.1', 'A.2']);
+    const body = project?.patterns.find((p) => p.id === 'body');
+    expect(body?.design?.placements.map((p) => [p.col, p.repeatX])).toEqual([
+      [1, 1],
+      [3, 1],
+    ]);
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(`/projekt/${project?.id}/wzor/body/kreator`),
+    );
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Z pliku wzoru' }),
+    ).toBeInTheDocument();
+  });
+
   it('starts over with the usual parts when the kind is changed', async () => {
     const user = userEvent.setup();
     render(<App />);
