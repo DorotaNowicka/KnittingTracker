@@ -195,9 +195,12 @@ describe('pattern creator', () => {
 
     await user.click(within(bar()).getByRole('button', { name: 'Usuń kafelek' }));
     await waitFor(() => expect(pattern()?.design?.placements).toHaveLength(1));
-    expect(screen.getByRole('link', { name: 'Dziergaj' })).toHaveAttribute(
-      'href',
-      '/projekt/p1/wzor/pattern-1',
+    // "Gotowe" marks the part set up and goes back to the garment's parts.
+    expect(screen.queryByRole('link', { name: 'Dziergaj' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Gotowe' }));
+    await waitFor(() => expect(window.location.pathname).toBe(paths.parts('p1')));
+    expect(useLibrary.getState().projects.find((p) => p.id === 'p1')?.patterns[0]?.ready).toBe(
+      true,
     );
   });
 

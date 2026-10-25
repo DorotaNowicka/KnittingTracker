@@ -441,7 +441,8 @@
     "fixedRow": "Zacznij od wybranego rzędu",
     "continueRows": "Dziergaj dalej jak w innym wzorze",
     "continueFrom": "Kontynuuj",
-    "continueHint": "Schemat zacznie się od rzędu po ostatnim zrobionym w tamtym wzorze, np. przód po podziale kontynuuje A.2 z korpusu."
+    "continueHint": "Schemat zacznie się od rzędu po ostatnim zrobionym w tamtym wzorze, np. przód po podziale kontynuuje A.2 z korpusu.",
+    "ready": "Gotowe"
   },
   "diag": {
     "allGood": "Wszystko się zgadza.",
@@ -821,7 +822,17 @@
     "open": "wzór: {{names}}",
     "create": "+ stwórz wzór",
     "how": "{{part}} — wybierz wariant",
-    "link": "Części na rysunku"
+    "link": "Części na rysunku",
+    "ready": "gotowa",
+    "todo": "do ustawienia",
+    "unmark": "Zdejmij ✓ z części „{{part}}”",
+    "summary": "Gotowe części: {{ready}} z {{count}}",
+    "start": "Konfiguracja gotowa — dziergaj",
+    "startHint": "Dzierganie zacznie się od części „{{name}}”.",
+    "notReadyTitle": "Nie wszystkie części są gotowe",
+    "notReadyBody": "Te części nie mają jeszcze ✓ — otwórz każdą i kliknij „Gotowe”, kiedy będzie ustawiona:",
+    "backToParts": "Wróć do części",
+    "startAnyway": "Dziergaj mimo to"
   },
   "designer": {
     "back": "Części projektu",
@@ -930,7 +941,9 @@
     "mirrorHere": "Kliknij dwa razy w linię {{line}}, żeby odbić prawą stronę na lewą.",
     "mirrorOffHere": "Kliknij dwa razy w linię {{line}}, żeby wyłączyć odbicie.",
     "mirrorConflict": "Tu jest odbicie lustrzane — połóż kafelek po prawej stronie osi.",
-    "inMirror": "To odbicie lustrzane: zmieniaj wzór po prawej stronie osi."
+    "inMirror": "To odbicie lustrzane: zmieniaj wzór po prawej stronie osi.",
+    "done": "Gotowe",
+    "doneWithoutGrid": "Gotowe bez siatki — tylko licznik rzędów"
   },
   "rows": {
     "label": "Długość wzoru",

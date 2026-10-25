@@ -24,6 +24,22 @@ export const itemPatterns = (project: Project, item: KindItem): readonly Pattern
   return project.patterns.filter((p) => ids.includes(p.id));
 };
 
+/**
+ * Where an item of the garment stands: not tracked (no pattern), still to set up, or ready (every
+ * pattern of it marked "Gotowe").
+ */
+export type PartStatus = 'off' | 'todo' | 'ready';
+
+export function partStatus(project: Project, item: KindItem): PartStatus {
+  const patterns = itemPatterns(project, item);
+  if (patterns.length === 0) return 'off';
+  return patterns.every((p) => p.ready) ? 'ready' : 'todo';
+}
+
+/** The pattern knitting starts (or goes on) with: the first one in knitting order not finished. */
+export const startPattern = (project: Project): Pattern | undefined =>
+  project.patterns.find((p) => project.finishedRows?.[p.id] === undefined) ?? project.patterns[0];
+
 /** Every part id of the kind, in its usual knitting order. */
 const partOrder = (kind: ProjectKind): readonly string[] =>
   kind === 'custom' ? [] : PROJECT_KIND_INFO[kind].items.flatMap(itemPartIds);

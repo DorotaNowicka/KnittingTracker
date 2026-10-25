@@ -1,9 +1,9 @@
 import { PROJECT_KIND_INFO, type KindItem, type Project, type ProjectKind } from '@kt/core';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DraftGate } from '../editor/DraftGate';
 import { GarmentDiagram } from '../garment/GarmentDiagram';
-import { addItemPatterns, itemPatterns } from '../garment/parts';
+import { addItemPatterns, itemPatterns, partStatus, startPattern } from '../garment/parts';
 import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
 import { useDraft } from '../state/draft';
@@ -41,6 +41,32 @@ function Garment({ project, kind }: { project: Project; kind: Exclude<ProjectKin
     info.items.map((it) => [it.id, { include: itemPatterns(project, it).length > 0 }]),
   );
   const choice = info.items.find((it) => it.id === choosing);
+  const status = Object.fromEntries(info.items.map((it) => [it.id, partStatus(project, it)]));
+  const tracked = info.items.filter((it) => status[it.id] !== 'off');
+  const unready = tracked.filter((it) => status[it.id] === 'todo');
+  const start = startPattern(project);
+  const warnRef = useRef<HTMLDialogElement>(null);
+
+  /** Take the ✓ off a part: it needs another look. */
+  const unmark = (item: KindItem) => {
+    const ids = itemPatterns(project, item).map((p) => p.id);
+    useDraft.getState().update((p) => ({
+      ...p,
+      patterns: p.patterns.map((x) => (ids.includes(x.id) ? { ...x, ready: false } : x)),
+      updatedAt: new Date().toISOString(),
+    }));
+  };
+  /** Start knitting: right away when every tracked part is ready, else after the warning. */
+  const knit = async (anyway = false) => {
+    if (!start) return;
+    if (unready.length > 0 && !anyway) {
+      warnRef.current?.showModal();
+      return;
+    }
+    warnRef.current?.close();
+    await useDraft.getState().flush();
+    navigate(paths.tracker(project.id, start.id));
+  };
 
   /** Open the item's pattern, or create it (a choice first asks how the part is made). */
   const open = async (item: KindItem, optionId: string | null = null) => {
@@ -118,7 +144,7 @@ function Garment({ project, kind }: { project: Project; kind: Exclude<ProjectKin
                   <li key={it.id}>
                     <button
                       type="button"
-                      className={`track-item part-link${hovered === it.id ? ' is-hover' : ''}${patterns.length > 0 ? '' : ' is-off'}`}
+                      className={`track-item part-link${hovered === it.id ? ' is-hover' : ''}${patterns.length > 0 ? ' has-status' : ' is-off'}`}
                       data-part={it.id}
                       aria-expanded={
                         it.type === 'choice' && patterns.length === 0
@@ -144,7 +170,22 @@ function Garment({ project, kind }: { project: Project; kind: Exclude<ProjectKin
                           ? t('parts.open', { names: patterns.map((p) => p.name).join(', ') })
                           : t('parts.create')}
                       </span>
+                      {status[it.id] !== 'off' && (
+                        <span className={`part-status part-status--${status[it.id]}`}>
+                          {status[it.id] === 'ready' && <Icon name="check" size={16} />}
+                          {t(status[it.id] === 'ready' ? 'parts.ready' : 'parts.todo')}
+                        </span>
+                      )}
                     </button>
+                    {status[it.id] === 'ready' && (
+                      <button
+                        type="button"
+                        className="link-btn part-unmark"
+                        onClick={() => unmark(it)}
+                      >
+                        {t('parts.unmark', { part: it.label[lang] })}
+                      </button>
+                    )}
                     {choice?.id === it.id && choice.type === 'choice' && (
                       <fieldset className="part-choice">
                         <legend>{t('parts.how', { part: it.label[lang] })}</legend>
@@ -167,8 +208,47 @@ function Garment({ project, kind }: { project: Project; kind: Exclude<ProjectKin
                 );
               })}
             </ol>
+            {tracked.length > 0 && start && (
+              <div className="parts-finish">
+                <p className="parts-finish__summary">
+                  {t('parts.summary', {
+                    ready: tracked.length - unready.length,
+                    count: tracked.length,
+                  })}
+                </p>
+                <button type="button" className="btn btn--primary" onClick={() => void knit()}>
+                  {t('parts.start')}
+                </button>
+                <p className="hint">{t('parts.startHint', { name: start.name })}</p>
+              </div>
+            )}
           </section>
         </div>
+        <dialog ref={warnRef} className="dialog" aria-labelledby={`${ids}-warn`}>
+          <h2 id={`${ids}-warn`} className="dialog__title">
+            {t('parts.notReadyTitle')}
+          </h2>
+          <p>{t('parts.notReadyBody')}</p>
+          <ul className="parts-unready">
+            {unready.map((it) => (
+              <li key={it.id}>
+                {numbers[it.id]}. {it.label[lang]}
+              </li>
+            ))}
+          </ul>
+          <div className="dialog__actions">
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => warnRef.current?.close()}
+            >
+              {t('parts.backToParts')}
+            </button>
+            <button type="button" className="btn" onClick={() => void knit(true)}>
+              {t('parts.startAnyway')}
+            </button>
+          </div>
+        </dialog>
       </main>
     </>
   );

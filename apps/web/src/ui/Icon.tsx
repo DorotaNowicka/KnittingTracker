@@ -12,6 +12,7 @@ const PATHS = {
   target: 'M12 3v3M12 18v3M3 12h3M18 12h3M12 8a4 4 0 110 8 4 4 0 010-8z',
   panel: 'M4 5h16v14H4zM14 5v14',
   plus: 'M12 5v14M5 12h14',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
   minus: 'M5 12h14',
   settings: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
   trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13',

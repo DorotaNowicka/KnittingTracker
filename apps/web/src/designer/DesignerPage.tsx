@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { PatternGate, SaveState } from '../editor/DraftGate';
 import { EditorCanvas, type CanvasTool, type CellPoint } from '../editor/EditorCanvas';
 import { Link } from '../lib/Link';
-import { paths } from '../lib/router';
+import { navigate, paths } from '../lib/router';
 import { useDraft } from '../state/draft';
 import { useGuides } from '../state/guides';
 import { useMotifs } from '../state/motifs';
@@ -82,6 +82,12 @@ function Designer({ project, pattern }: { project: Project; pattern: Pattern }) 
       .updatePattern(pattern.id, (p) => applyDesign({ ...p, design: next }, registry));
   const back =
     project.kind && project.kind !== 'custom' ? paths.parts(project.id) : paths.project(project.id);
+  /** "Gotowe": the part is set up; back to the garment's parts (or the project). */
+  const finish = async () => {
+    useDraft.getState().updatePattern(pattern.id, (p) => ({ ...p, ready: true }));
+    await useDraft.getState().flush();
+    navigate(back);
+  };
   return design ? (
     <Workbench
       project={project}
@@ -90,11 +96,13 @@ function Designer({ project, pattern }: { project: Project; pattern: Pattern }) 
       registry={registry}
       setDesign={setDesign}
       back={back}
+      onDone={() => void finish()}
     />
   ) : (
     <GridSize
       pattern={pattern}
       back={back}
+      onDone={() => void finish()}
       onCreate={(w, h) =>
         setDesign({
           ...blankDesign(w, h),
@@ -113,10 +121,13 @@ function GridSize({
   pattern,
   back,
   onCreate,
+  onDone,
 }: {
   pattern: Pattern;
   back: string;
   onCreate(width: number, height: number): void;
+  /** Done without a grid: the part is tracked by counting rows. */
+  onDone(): void;
 }) {
   const { t } = useTranslation();
   const [width, setWidth] = useState<number | undefined>(undefined);
@@ -162,6 +173,9 @@ function GridSize({
           >
             {t('designer.createGrid')}
           </button>
+          <button type="button" className="btn" onClick={onDone}>
+            {t('designer.doneWithoutGrid')}
+          </button>
         </div>
       </main>
     </>
@@ -175,6 +189,7 @@ function Workbench({
   registry,
   setDesign,
   back,
+  onDone,
 }: {
   project: Project;
   pattern: Pattern;
@@ -182,6 +197,8 @@ function Workbench({
   registry: SymbolRegistry;
   setDesign(next: Design): void;
   back: string;
+  /** "Gotowe": this part is set up. */
+  onDone(): void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
@@ -511,9 +528,10 @@ function Workbench({
         </Link>
         <h1 className="designer__title">{t('designer.title', { name: pattern.name })}</h1>
         <SaveState />
-        <Link className="btn btn--primary btn--small" to={paths.tracker(project.id, pattern.id)}>
-          {t('designer.knit')}
-        </Link>
+        <button type="button" className="btn btn--primary btn--small" onClick={onDone}>
+          <Icon name="check" size={18} />
+          {t('designer.done')}
+        </button>
       </header>
 
       <div className="editor__toolbar" role="toolbar" aria-label={t('designer.toolbar')}>

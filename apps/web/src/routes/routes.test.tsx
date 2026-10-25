@@ -1,3 +1,4 @@
+import { blankPattern, blankProject, insertPattern } from '@kt/core';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -193,5 +194,52 @@ describe('screens', () => {
     await waitFor(() => expect(location.pathname).toBe('/import'));
     expect(useImport.getState().projectName).toBe('Sweter z PDF');
     expect(useImport.getState().file?.name).toBe('opis.pdf');
+  });
+
+  it('shows which parts are ready, takes a ✓ off, and starts knitting after a warning', async () => {
+    const user = userEvent.setup();
+    let project = blankProject({
+      id: 'sw',
+      name: 'Sweter',
+      kind: 'sweater',
+      sizes: ['M'],
+      now: '2026-10-25T10:00:00.000Z',
+    });
+    project = insertPattern(project, {
+      ...blankPattern('bottom-rib', 'Ściągacz dołu'),
+      ready: true,
+    }).project;
+    project = insertPattern(project, blankPattern('body', 'Korpus')).project;
+    await useLibrary.getState().addProject(project);
+    navigate('/projekt/sw/czesci');
+    render(<App />);
+    const row = async (part: string) => {
+      await screen.findByText(/Gotowe części/);
+      const el = document.querySelector(`.track-item[data-part="${part}"]`);
+      if (!el) throw new Error(part);
+      return el;
+    };
+    expect(await row('bottom-rib')).toHaveTextContent('gotowa');
+    expect(await row('body')).toHaveTextContent('do ustawienia');
+    expect(await row('sleeve')).not.toHaveTextContent(/gotowa|do ustawienia/);
+    expect(screen.getByText('Gotowe części: 1 z 2')).toBeInTheDocument();
+    expect(
+      screen.getByText('Dzierganie zacznie się od części „Ściągacz dołu”.'),
+    ).toBeInTheDocument();
+
+    // Not everything is ready: a warning lists what is left.
+    await user.click(screen.getByRole('button', { name: 'Konfiguracja gotowa — dziergaj' }));
+    const warning = screen.getByRole('dialog', { name: 'Nie wszystkie części są gotowe' });
+    expect(within(warning).getByRole('list')).toHaveTextContent('2. Korpus');
+    await user.click(within(warning).getByRole('button', { name: 'Wróć do części' }));
+    expect(location.pathname).toBe('/projekt/sw/czesci');
+
+    await user.click(screen.getByRole('button', { name: 'Zdejmij ✓ z części „Ściągacz dołu”' }));
+    expect(await screen.findByText('Gotowe części: 0 z 2')).toBeInTheDocument();
+    expect(await row('bottom-rib')).toHaveTextContent('do ustawienia');
+
+    await user.click(screen.getByRole('button', { name: 'Konfiguracja gotowa — dziergaj' }));
+    await user.click(screen.getByRole('button', { name: 'Dziergaj mimo to' }));
+    await waitFor(() => expect(location.pathname).toBe('/projekt/sw/wzor/bottom-rib'));
   });
 });

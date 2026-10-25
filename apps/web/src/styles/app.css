@@ -926,6 +926,8 @@ input[type='range'] {
 }
 
 .action--primary {
+  /* Fills the rest of the bar, also when a row counter has fewer tools. */
+  grid-column: auto / -1;
   flex-direction: row;
   gap: var(--sp-2);
   background: var(--indigo);
@@ -1397,4 +1399,61 @@ input[type='range'] {
 .grid-toggle:focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 2px;
+}
+
+/* Parts page: where each part stands, and the end of the setup. */
+.part-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--sp-2);
+  border-radius: 999px;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.part-status--ready {
+  background: color-mix(in srgb, var(--guide) 16%, transparent);
+  color: var(--guide);
+}
+
+.part-status--todo {
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-muted);
+}
+
+.link-btn.part-unmark {
+  margin: var(--sp-1) 0 0 var(--sp-6);
+  color: var(--ink-muted);
+  font-size: var(--fs-1);
+  font-weight: 500;
+}
+
+/* On a phone the part's state says enough: the pattern name would crowd the row. */
+@media (max-width: 600px) {
+  .track-item.has-status .track-item__note {
+    display: none;
+  }
+}
+
+.parts-finish {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--rule);
+}
+
+.parts-finish__summary {
+  margin: 0;
+  font-weight: 600;
+}
+
+.parts-unready {
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
 }

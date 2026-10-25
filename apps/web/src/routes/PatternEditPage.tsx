@@ -451,21 +451,27 @@ function PatternEditor({ project, pattern }: { project: Project; pattern: Patter
         </section>
 
         <div className="form-actions form-actions--sticky">
-          <Link className="btn" to={paths.project(project.id)}>
-            {t('patternEdit.done')}
-          </Link>
+          {/* "Gotowe": the pattern is set up (a garment part gets its ✓); back to the parts. */}
           <button
             type="button"
             className="btn btn--primary"
             disabled={!report.ok}
-            onClick={() =>
+            onClick={() => {
+              useDraft.getState().updatePattern(pattern.id, (p) => ({ ...p, ready: true }));
               void useDraft
                 .getState()
                 .flush()
-                .then(() => navigate(paths.tracker(project.id, pattern.id)))
-            }
+                .then(() =>
+                  navigate(
+                    project.kind && project.kind !== 'custom'
+                      ? paths.parts(project.id)
+                      : paths.project(project.id),
+                  ),
+                );
+            }}
           >
-            {t('editor.startPattern')}
+            <Icon name="check" size={18} />
+            {t('patternEdit.ready')}
           </button>
         </div>
         {!report.ok && <p className="hint form-actions__hint">{t('editor.fixFirst')}</p>}

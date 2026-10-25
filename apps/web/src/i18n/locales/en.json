@@ -425,7 +425,8 @@
     "fixedRow": "Start at a chosen row",
     "continueRows": "Continue as in another pattern",
     "continueFrom": "Continue",
-    "continueHint": "The chart starts with the row after the last one worked in that pattern, e.g. the front after the split continues A.2 of the body."
+    "continueHint": "The chart starts with the row after the last one worked in that pattern, e.g. the front after the split continues A.2 of the body.",
+    "ready": "Done"
   },
   "diag": {
     "allGood": "Everything checks out.",
@@ -747,7 +748,17 @@
     "open": "pattern: {{names}}",
     "create": "+ create pattern",
     "how": "{{part}} — choose a variant",
-    "link": "Parts on the drawing"
+    "link": "Parts on the drawing",
+    "ready": "ready",
+    "todo": "to set up",
+    "unmark": "Take the ✓ off “{{part}}”",
+    "summary": "Parts ready: {{ready}} of {{count}}",
+    "start": "Setup done — start knitting",
+    "startHint": "Knitting starts with “{{name}}”.",
+    "notReadyTitle": "Not every part is ready",
+    "notReadyBody": "These parts have no ✓ yet — open each and click “Done” when it is set up:",
+    "backToParts": "Back to the parts",
+    "startAnyway": "Knit anyway"
   },
   "designer": {
     "back": "Project parts",
@@ -842,7 +853,9 @@
     "mirrorHere": "Double-click the {{line}} line to mirror the right side onto the left.",
     "mirrorOffHere": "Double-click the {{line}} line to turn the mirror off.",
     "mirrorConflict": "This is a mirror image — lay the tile right of the axis.",
-    "inMirror": "This is a mirror image: change the pattern right of the axis."
+    "inMirror": "This is a mirror image: change the pattern right of the axis.",
+    "done": "Done",
+    "doneWithoutGrid": "Done without a grid — just count rows"
   },
   "rows": {
     "label": "Pattern length",

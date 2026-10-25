@@ -52,7 +52,7 @@ describe('project and pattern editor screens', () => {
 
     // Inline validation: an empty layout is an error, so knitting can't start yet.
     expect(screen.getByText(/układ nie ma jeszcze oczek/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dziergaj ten wzór' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Gotowe' })).toBeDisabled();
 
     // An empty name is refused next to the field and never saved.
     const name = screen.getByLabelText('Nazwa wzoru');
@@ -158,7 +158,7 @@ describe('project and pattern editor screens', () => {
     await user.clear(expected);
     await user.type(expected, '10');
     expect(await screen.findByText('Wszystko się zgadza.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dziergaj ten wzór' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Gotowe' })).toBeEnabled();
 
     // "I knit it in plain knit" keeps the chart and changes the grid.
     await user.click(screen.getByLabelText('Przerabiam samymi prawymi'));

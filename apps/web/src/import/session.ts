@@ -130,7 +130,8 @@ interface ImportState {
   draftProject(input: CreateProjectInput, id?: string): Project;
   /**
    * Store `draftProject`; returns the new project's id. With `designPart`, that part's pattern is
-   * turned into a creator design first (its charts laid as tiles), to be corrected in the creator.
+   * turned into a creator design first (its charts laid as tiles), to be corrected in the creator,
+   * and every part still waits for its "Gotowe"; without it the knitter approved them all.
    */
   createProject(input: CreateProjectInput, designPart?: string): Promise<string>;
 }
@@ -456,7 +457,8 @@ export const useImport = create<ImportState>((set, get) => ({
           createRegistry(),
           splitsFrontBack(draft.kind, designPart) ? input.sections : undefined,
         )
-      : draft;
+      : // "Zgadza się": the knitter approved every part as previewed.
+        { ...draft, patterns: draft.patterns.map((p) => ({ ...p, ready: true })) };
     await useLibrary.getState().addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');
