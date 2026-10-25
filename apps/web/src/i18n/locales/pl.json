@@ -891,6 +891,7 @@
     "placedSummary_one": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczko",
     "placedSummary_few": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczka",
     "placedSummary_many": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczek",
-    "placedSummary_other": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczka"
+    "placedSummary_other": "od oczka {{col}} · {{times}} × {{w}} = {{count}} oczka",
+    "layHere": "Kliknij, żeby położyć kafelek od oczka {{col}}."
   }
 }

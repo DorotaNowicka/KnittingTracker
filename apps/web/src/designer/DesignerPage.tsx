@@ -167,6 +167,7 @@ function Workbench({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [cursor, setCursor] = useState<CellPoint | null>(null);
+  const [hover, setHover] = useState<CellPoint | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [newPiece, setNewPiece] = useState(false);
   const stroke = useRef<Design | null>(null);
@@ -177,9 +178,6 @@ function Workbench({
     barRef.current?.scrollIntoView?.({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   };
 
-  const chart = pattern.charts[0];
-  const parsed = useMemo(() => (chart ? parseChart(chart, registry) : null), [chart, registry]);
-  const source = useMemo(() => (parsed ? chartSource(parsed, registry) : null), [parsed, registry]);
   const library: readonly Chart[] = useMemo(
     () => [...MOTIF_LIBRARY.map((m) => ({ ...m.chart, name: m.label[lang].slice(0, 40) })), ...own],
     [lang, own],
@@ -189,21 +187,61 @@ function Workbench({
   const selected = design.placements.find((p) => p.id === selectedId) ?? null;
   const selectedMotif = selected ? motifOf(selected.motifId) : undefined;
   const shown = drag?.preview ?? selected;
-  const selection =
-    selected && shown && selectedMotif
-      ? areaRect(design, { ...selected, ...shown }, selectedMotif)
-      : null;
-  const overlay = editorOverlay({ cursor, selection });
+  // The tile in hand under the mouse, or the tile being dragged, where it would land.
+  const ghost = useMemo(() => {
+    let motif: Chart | undefined;
+    let input: PlaceInput | null = null;
+    let ignore: string | null = null;
+    if (holding && hover && tool === 'tiles') {
+      motif = holding.motif;
+      input = onBottom(fromRight(design, hover.col), holding.times);
+    } else if (drag?.preview) {
+      const tile = design.placements.find((p) => p.id === drag.id);
+      motif = design.motifs.find((m) => m.id === tile?.motifId);
+      input = drag.preview;
+      ignore = drag.id;
+    }
+    if (!motif || !input) return null;
+    const conflict = conflictOf(design, motif, input, ignore);
+    // The grid shows the pattern with the tile in place when it fits (on grids small enough to
+    // redraw while the mouse moves); otherwise only its outline.
+    const small = design.width * design.height <= 200_000;
+    const preview =
+      conflict || !small
+        ? null
+        : ignore
+          ? updatePlacement(design, ignore, input)
+          : placeMotif(design, motif, input).design;
+    return {
+      rect: areaRect(design, { ...input, id: '', motifId: '' }, motif),
+      conflict,
+      preview,
+    };
+  }, [holding, hover, tool, drag, design]);
 
+  const chart = useMemo(
+    () =>
+      ghost?.preview
+        ? applyDesign({ ...pattern, design: ghost.preview }, registry).charts[0]
+        : pattern.charts[0],
+    [ghost, pattern, registry],
+  );
+  const parsed = useMemo(() => (chart ? parseChart(chart, registry) : null), [chart, registry]);
+  const source = useMemo(() => (parsed ? chartSource(parsed, registry) : null), [parsed, registry]);
+  const selection =
+    ghost?.rect ??
+    (selected && shown && selectedMotif
+      ? areaRect(design, { ...selected, ...shown }, selectedMotif)
+      : null);
+  const overlay = editorOverlay({ cursor: ghost ? null : cursor, selection });
+
+  const conflictText = (conflict: Conflict) =>
+    conflict.kind === 'off'
+      ? t('designer.offGrid')
+      : t('designer.overlap', { name: motifOf(conflict.with.motifId)?.name ?? '' });
   /** Show why a tile can't go somewhere (or clear the message). */
   const explain = (conflict: Conflict | null) =>
-    setMessage(
-      !conflict
-        ? null
-        : conflict.kind === 'off'
-          ? t('designer.offGrid')
-          : t('designer.overlap', { name: motifOf(conflict.with.motifId)?.name ?? '' }),
-    );
+    setMessage(conflict ? conflictText(conflict) : null);
 
   const select = (id: string | null) => {
     setSelectedId(id);
@@ -361,6 +399,7 @@ function Workbench({
               help={t('designer.help')}
               fitKey={`${design.width}x${design.height}`}
               testId="designer-canvas"
+              onHover={setHover}
               onStrokeStart={(cell) => {
                 setCursor(cell);
                 stroke.current = null;
@@ -381,10 +420,17 @@ function Workbench({
               }}
             />
           )}
-          <p className="editor__where" aria-live="polite">
-            {cursor
-              ? t('designer.where', { col: fromRight(design, cursor.col), row: cursor.row })
-              : t(`designer.hint.${tool}`)}
+          <p
+            className={`editor__where${ghost?.conflict ? ' editor__where--refused' : ''}`}
+            aria-live="polite"
+          >
+            {ghost?.conflict
+              ? conflictText(ghost.conflict)
+              : hover && holding
+                ? t('designer.layHere', { col: fromRight(design, hover.col) })
+                : cursor
+                  ? t('designer.where', { col: fromRight(design, cursor.col), row: cursor.row })
+                  : t(`designer.hint.${tool}`)}
           </p>
         </div>
 

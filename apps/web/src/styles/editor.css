@@ -1142,3 +1142,8 @@ textarea {
 .designer__bar {
   scroll-margin-top: var(--sp-2);
 }
+
+.editor__where--refused {
+  color: var(--danger);
+  font-weight: 600;
+}

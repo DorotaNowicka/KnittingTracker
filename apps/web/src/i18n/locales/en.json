@@ -811,6 +811,7 @@
     "stitchesUnit": "stitches",
     "toEnd": "To the end",
     "placedSummary_one": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitch",
-    "placedSummary_other": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitches"
+    "placedSummary_other": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitches",
+    "layHere": "Click to lay the tile from stitch {{col}}."
   }
 }

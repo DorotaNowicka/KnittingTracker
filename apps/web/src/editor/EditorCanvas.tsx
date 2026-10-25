@@ -23,6 +23,8 @@ interface Props {
   onStrokeEnd?(): void;
   onStrokeCancel?(): void;
   onKeyDown?(e: KeyboardEvent<HTMLDivElement>): void;
+  /** The cell under the mouse while no button is pressed; null when it leaves the grid. */
+  onHover?(cell: CellPoint | null): void;
   /** Called with a cell to keep in view (keyboard cursor). */
   readonly reveal?: CellPoint | null;
   readonly testId?: string;
@@ -186,10 +188,20 @@ export function EditorCanvas(props: Props) {
     }
   };
 
+  const hovered = useRef<CellPoint | null>(null);
+  const hover = (cell: CellPoint | null) => {
+    const last = hovered.current;
+    if (last === cell || (last && cell && last.row === cell.row && last.col === cell.col)) return;
+    hovered.current = cell;
+    cb.current.onHover?.(cell);
+  };
+
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const prev = pointers.current.get(e.pointerId);
     const s = g.current;
     const r = rendererRef.current;
+    // A mouse moving without a pressed button only points at cells.
+    if (!prev && !s && e.pointerType === 'mouse') return hover(cellAt(e));
     if (!prev || !s || !r) return;
     const next = { x: e.clientX, y: e.clientY };
     pointers.current.set(e.pointerId, next);
@@ -271,6 +283,7 @@ export function EditorCanvas(props: Props) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onPointerLeave={() => hover(null)}
       onKeyDown={(e) => cb.current.onKeyDown?.(e)}
       data-testid={testId}
     >

@@ -20,6 +20,7 @@ vi.mock('../editor/EditorCanvas', () => ({
     testId?: string;
     onStrokeStart?(cell: { row: number; col: number }): void;
     onStrokeEnd?(): void;
+    onHover?(cell: { row: number; col: number } | null): void;
   }) => (
     <div data-testid={props.testId}>
       {Array.from({ length: canvas.width }, (_, i) => (
@@ -30,6 +31,8 @@ vi.mock('../editor/EditorCanvas', () => ({
             props.onStrokeStart?.({ row: 1, col: i + 1 });
             props.onStrokeEnd?.();
           }}
+          onMouseEnter={() => props.onHover?.({ row: 1, col: i + 1 })}
+          onMouseLeave={() => props.onHover?.(null)}
         >
           {`kolumna ${canvas.width - i}`}
         </button>
@@ -37,6 +40,11 @@ vi.mock('../editor/EditorCanvas', () => ({
     </div>
   ),
 }));
+
+const column = (n: number) =>
+  within(screen.getByTestId('designer-canvas')).getByRole('button', { name: `kolumna ${n}` });
+/** What the line under the grid says. */
+const where = () => document.querySelector('.editor__where')?.textContent;
 
 /** Click the grid in the column of stitch `n` from the right edge. */
 const clickStitch = (user: ReturnType<typeof userEvent.setup>, n: number) =>
@@ -115,6 +123,12 @@ describe('pattern creator', () => {
     // A cable, 2 repeats wide, can't lie on the rib; next to it, it can.
     await user.click(screen.getByRole('button', { name: /Warkocz 2\/2 w lewo/ }));
     await user.click(within(width()).getByRole('button', { name: 'O jedno powtórzenie więcej' }));
+    // Pointing at the grid shows where it would land, or why it can't, before any click.
+    await user.hover(column(100));
+    expect(where()).toBe('Tu się nie zmieści — kafelek wszedłby na „Ściągacz 1/1”.');
+    await user.hover(column(103));
+    expect(where()).toBe('Kliknij, żeby położyć kafelek od oczka 103.');
+    expect(pattern()?.design?.placements).toHaveLength(1);
     await clickStitch(user, 100);
     expect(within(bar()).getByRole('status')).toHaveTextContent(
       'Tu się nie zmieści — kafelek wszedłby na „Ściągacz 1/1”.',
