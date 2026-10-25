@@ -4,7 +4,9 @@ import {
   areaRect,
   brushCell,
   eraseCell,
-  movePlacement,
+  conflictOf,
+  roomFor,
+  tileAt,
   placeMotif,
   removePlacement,
   resizeDesign,
@@ -42,9 +44,6 @@ describe('changing a design', () => {
     });
     d = updatePlacement(d, 'p2', { col: 1, row: 3, repeatX: 'fill', repeatY: 'fill' });
     expect(d.placements[1]).toMatchObject({ col: 1, repeatX: 'fill' });
-    d = movePlacement(d, 'p2', -1);
-    expect(d.placements.map((p) => p.id)).toEqual(['p2', 'p1']);
-    expect(movePlacement(d, 'p2', -1)).toBe(d);
     d = removePlacement(d, 'p2');
     expect(d.motifs.map((m) => m.id)).toEqual(['lib:rib-1-1']);
     expect(placeMotif(d, lib('moss'), { col: 1, row: 1, repeatX: 1, repeatY: 1 }).id).toBe('p2');
@@ -77,5 +76,26 @@ describe('changing a design', () => {
     expect(d.cells).toEqual([{ row: 1, col: 4, symbolId: 'cable:2-2-lc' }]);
     d = eraseCell(d, registry, 1, 6);
     expect(d.cells).toEqual([]);
+  });
+
+  it('keeps tiles apart: finds the tile under a cell and what a tile would cover', () => {
+    let d = blankDesign(20, 10);
+    d = placeMotif(d, lib('rib-1-1'), { col: 1, row: 1, repeatX: 'fill', repeatY: 2 }).design;
+    d = placeMotif(d, lib('moss'), { col: 1, row: 3, repeatX: 3, repeatY: 'fill' }).design;
+    expect(tileAt(d, 1, 1)?.id).toBe('p1');
+    expect(tileAt(d, 5, 20)?.id).toBe('p2');
+    expect(tileAt(d, 5, 1)).toBeUndefined();
+    const cable = lib('cable-2-2-left');
+    expect(conflictOf(d, cable, { col: 7, row: 3, repeatX: 1, repeatY: 1 })).toBeNull();
+    expect(conflictOf(d, cable, { col: 5, row: 3, repeatX: 1, repeatY: 1 })).toMatchObject({
+      kind: 'overlap',
+      with: { id: 'p2' },
+    });
+    expect(conflictOf(d, cable, { col: 21, row: 3, repeatX: 1, repeatY: 1 })).toEqual({
+      kind: 'off',
+    });
+    // Moving a tile ignores the tile itself.
+    expect(conflictOf(d, lib('moss'), { col: 2, row: 3, repeatX: 3, repeatY: 1 }, 'p2')).toBeNull();
+    expect(roomFor(d, cable, { col: 7, row: 3 })).toEqual({ across: 2, up: 2 });
   });
 });

@@ -44,7 +44,7 @@ const tidy = (design: Design): Design => ({
 
 export type PlaceInput = Omit<Placement, 'id' | 'motifId'>;
 
-/** Place a piece on top of everything placed so far. */
+/** Place a piece as a new tile (callers check {@link conflictOf} first). */
 export function placeMotif(
   design: Design,
   motif: Chart,
@@ -71,15 +71,61 @@ export function removePlacement(design: Design, id: string): Design {
   return tidy({ ...design, placements: design.placements.filter((p) => p.id !== id) });
 }
 
-/** Move a placement one layer up (towards the top, later) or down. */
-export function movePlacement(design: Design, id: string, by: 1 | -1): Design {
-  const i = design.placements.findIndex((p) => p.id === id);
-  const j = i + by;
-  if (i < 0 || j < 0 || j >= design.placements.length) return design;
-  const placements = [...design.placements];
-  const [moved] = placements.splice(i, 1);
-  if (moved) placements.splice(j, 0, moved);
-  return { ...design, placements };
+type Rect = NonNullable<ReturnType<typeof areaRect>>;
+
+const meets = (a: Rect, b: Rect) =>
+  a.col1 <= b.col2 && b.col1 <= a.col2 && a.row1 <= b.row2 && b.row1 <= a.row2;
+
+/** The piece copy a placement uses. */
+const motifOf = (design: Design, placement: Placement) =>
+  design.motifs.find((m) => m.id === placement.motifId);
+
+/** The tile covering a cell of the canvas (display column, row from the bottom). */
+export function tileAt(design: Design, row: number, col: number): Placement | undefined {
+  return design.placements.find((p) => {
+    const motif = motifOf(design, p);
+    const r = motif ? areaRect(design, p, motif) : null;
+    return r !== null && row >= r.row1 && row <= r.row2 && col >= r.col1 && col <= r.col2;
+  });
+}
+
+/** Why a tile can't lie there: it starts off the grid, or it would cover another tile. */
+export type Conflict =
+  { readonly kind: 'off' } | { readonly kind: 'overlap'; readonly with: Placement };
+
+/**
+ * Whether `motif` placed at `input` fits: on the grid and over no other tile (tiles never
+ * overlap; `ignore` is the tile being moved or changed). Null when it fits.
+ */
+export function conflictOf(
+  design: Design,
+  motif: Pick<Chart, 'width' | 'height'>,
+  input: PlaceInput,
+  ignore: string | null = null,
+): Conflict | null {
+  const rect = areaRect(design, { ...input, id: '', motifId: '' }, motif);
+  if (!rect) return { kind: 'off' };
+  for (const other of design.placements) {
+    if (other.id === ignore) continue;
+    const m = motifOf(design, other);
+    const r = m ? areaRect(design, other, m) : null;
+    if (r && meets(rect, r)) return { kind: 'overlap', with: other };
+  }
+  return null;
+}
+
+/** Whole repeats that fit from a tile's start to the grid's edge (at least 1). */
+export function roomFor(
+  design: Pick<Design, 'width' | 'height'>,
+  motif: Pick<Chart, 'width' | 'height'>,
+  input: Pick<PlaceInput, 'col' | 'row'>,
+): { readonly across: number; readonly up: number } {
+  const right = design.width - input.col + 1;
+  const above = design.height - input.row + 1;
+  return {
+    across: Math.max(1, Math.floor(right / motif.width)),
+    up: Math.max(1, Math.floor(above / motif.height)),
+  };
 }
 
 /** Columns (display) a brush cell covers. */

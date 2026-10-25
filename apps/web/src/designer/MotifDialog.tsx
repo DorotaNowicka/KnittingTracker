@@ -10,7 +10,7 @@ import {
   type SymbolRows,
 } from '@kt/core';
 import { chartSource, editorOverlay } from '@kt/grid-renderer';
-import { useId, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EditorCanvas } from '../editor/EditorCanvas';
 import { newId } from '../lib/files';
@@ -26,15 +26,21 @@ const blankRows = (w: number, h: number): string[][] =>
  * the library of every project.
  */
 export function MotifDialog({
-  dialogRef,
   registry,
   onSaved,
+  onClose,
 }: {
-  dialogRef: RefObject<HTMLDialogElement | null>;
   registry: SymbolRegistry;
   onSaved(motif: Chart): void;
+  onClose(): void;
 }) {
   const { t } = useTranslation();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  // Shown while mounted: the parent mounts it to open it.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (dialog && !dialog.open) dialog.showModal?.();
+  }, []);
   const ids = useId();
   const [name, setName] = useState(() => t('designer.newPieceName'));
   const [rows, setRows] = useState<SymbolRows>(() => blankRows(4, 4));
@@ -71,8 +77,7 @@ export function MotifDialog({
   };
   const close = () => {
     dialogRef.current?.close();
-    setRows(blankRows(4, 4));
-    setName(t('designer.newPieceName'));
+    onClose();
   };
   const save = async () => {
     const motif = { ...chart, id: `own:${newId()}` };

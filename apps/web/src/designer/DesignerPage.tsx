@@ -22,14 +22,28 @@ import { useMotifs } from '../state/motifs';
 import { NumberField } from '../ui/fields';
 import { Icon } from '../ui/Icon';
 import { AppHeader } from '../routes/AppHeader';
-import { areaRect, brushCell, eraseCell, fromRight, resizeDesign } from './designOps';
+import {
+  areaRect,
+  brushCell,
+  conflictOf,
+  eraseCell,
+  fromRight,
+  placeMotif,
+  resizeDesign,
+  tileAt,
+  updatePlacement,
+  type Conflict,
+  type PlaceInput,
+} from './designOps';
 import { MotifDialog } from './MotifDialog';
-import { PiecesPanel, type PlaceForm } from './PiecesPanel';
+import { PiecesPanel } from './PiecesPanel';
+import { TileBar } from './TileBar';
 import { SymbolPalette } from './SymbolPalette';
 
 /**
  * The pattern creator: a grid of the size the knitter types, pieces of pattern from the library
- * (or drawn by the knitter) placed on it with their repeats, and a brush for single stitches.
+ * (or drawn by the knitter) laid on it as tiles that never overlap — moved by dragging and
+ * stretched in whole repeats from the bar above the grid — and a brush for single stitches.
  */
 export function DesignerPage({ projectId, patternId }: { projectId: string; patternId: string }) {
   return (
@@ -39,7 +53,7 @@ export function DesignerPage({ projectId, patternId }: { projectId: string; patt
   );
 }
 
-type Tool = 'place' | 'brush' | 'eraser' | 'pan';
+type Tool = 'tiles' | 'brush' | 'eraser' | 'pan';
 
 function Designer({ project, pattern }: { project: Project; pattern: Pattern }) {
   const registry = useMemo(() => patternRegistry(pattern), [pattern]);
@@ -146,11 +160,14 @@ function Workbench({
   useEffect(() => {
     void useMotifs.getState().load();
   }, []);
-  const [tool, setTool] = useState<Tool>('place');
+  const [tool, setTool] = useState<Tool>('tiles');
   const [symbol, setSymbol] = useState('std:p');
-  const [form, setForm] = useState<PlaceForm | null>(null);
+  const [holding, setHolding] = useState<Chart | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [cursor, setCursor] = useState<CellPoint | null>(null);
-  const dialog = useRef<HTMLDialogElement>(null);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const [newPiece, setNewPiece] = useState(false);
   const stroke = useRef<Design | null>(null);
 
   const chart = pattern.charts[0];
@@ -162,21 +179,78 @@ function Workbench({
   );
   const motifOf = (id: string) =>
     design.motifs.find((m) => m.id === id) ?? library.find((m) => m.id === id);
-  const formMotif = form ? motifOf(form.motifId) : undefined;
-  const preview =
-    form && formMotif
-      ? areaRect(design, { ...form.input, id: 'preview', motifId: form.motifId }, formMotif)
+  const selected = design.placements.find((p) => p.id === selectedId) ?? null;
+  const selectedMotif = selected ? motifOf(selected.motifId) : undefined;
+  const shown = drag?.preview ?? selected;
+  const selection =
+    selected && shown && selectedMotif
+      ? areaRect(design, { ...selected, ...shown }, selectedMotif)
       : null;
-  const overlay = editorOverlay({ cursor, selection: preview });
+  const overlay = editorOverlay({ cursor, selection });
 
-  const at = (cell: CellPoint) => {
-    setCursor(cell);
-    if (tool === 'place' && form) {
-      setForm({
-        ...form,
-        input: { ...form.input, col: fromRight(design, cell.col), row: cell.row },
-      });
+  /** Show why a tile can't go somewhere (or clear the message). */
+  const explain = (conflict: Conflict | null) =>
+    setMessage(
+      !conflict
+        ? null
+        : conflict.kind === 'off'
+          ? t('designer.offGrid')
+          : t('designer.overlap', { name: motifOf(conflict.with.motifId)?.name ?? '' }),
+    );
+
+  const select = (id: string | null) => {
+    setSelectedId(id);
+    setHolding(null);
+    setMessage(null);
+    if (id) setTool('tiles');
+  };
+  const pick = (motif: Chart) => {
+    setHolding(motif);
+    setSelectedId(null);
+    setMessage(null);
+    setTool('tiles');
+  };
+
+  /** Lay the held piece as a tile of one repeat with its bottom right corner at `at`. */
+  const lay = (at: { col: number; row: number }) => {
+    if (!holding) return;
+    const input = { ...at, repeatX: 1, repeatY: 1 };
+    const conflict = conflictOf(design, holding, input);
+    explain(conflict);
+    if (conflict) return;
+    const placed = placeMotif(design, holding, input);
+    setDesign(placed.design);
+    setHolding(null);
+    setSelectedId(placed.id);
+  };
+  const tilesStart = (cell: CellPoint) => {
+    if (holding) return lay({ col: fromRight(design, cell.col), row: cell.row });
+    const tile = tileAt(design, cell.row, cell.col);
+    setSelectedId(tile?.id ?? null);
+    setMessage(null);
+    if (tile) {
+      const orig = { col: tile.col, row: tile.row, repeatX: tile.repeatX, repeatY: tile.repeatY };
+      setDrag({ id: tile.id, start: cell, orig, preview: null });
     }
+  };
+  const tilesMove = (cell: CellPoint) => {
+    if (!drag) return;
+    const col = drag.orig.col - (cell.col - drag.start.col);
+    const row = drag.orig.row + (cell.row - drag.start.row);
+    if (col === drag.orig.col && row === drag.orig.row) return setDrag({ ...drag, preview: null });
+    setDrag({ ...drag, preview: { ...drag.orig, col, row } });
+  };
+  const tilesEnd = () => {
+    const moved = drag?.preview;
+    const motif = drag
+      ? motifOf(design.placements.find((p) => p.id === drag.id)?.motifId ?? '')
+      : undefined;
+    if (drag && moved && motif) {
+      const conflict = conflictOf(design, motif, moved, drag.id);
+      explain(conflict);
+      if (!conflict) setDesign(updatePlacement(design, drag.id, moved));
+    }
+    setDrag(null);
   };
   const paint = (cell: CellPoint) => {
     const base = stroke.current ?? design;
@@ -188,9 +262,9 @@ function Workbench({
     stroke.current = next;
     setDesign(next);
   };
-  const canvasTool: CanvasTool = tool === 'pan' ? 'pan' : tool === 'place' ? 'select' : 'paint';
-  const tools: { id: Tool; icon: 'plus' | 'brush' | 'eraser' | 'hand'; label: string }[] = [
-    { id: 'place', icon: 'plus', label: t('designer.toolPlace') },
+  const canvasTool: CanvasTool = tool === 'pan' ? 'pan' : tool === 'tiles' ? 'select' : 'paint';
+  const tools: { id: Tool; icon: 'select' | 'brush' | 'eraser' | 'hand'; label: string }[] = [
+    { id: 'tiles', icon: 'select', label: t('designer.toolTiles') },
     { id: 'brush', icon: 'brush', label: t('designer.toolBrush') },
     { id: 'eraser', icon: 'eraser', label: t('designer.toolEraser') },
     { id: 'pan', icon: 'hand', label: t('designer.toolPan') },
@@ -247,6 +321,22 @@ function Workbench({
         </div>
       </div>
 
+      <TileBar
+        design={design}
+        holding={holding}
+        selected={selected}
+        motifOf={motifOf}
+        message={message}
+        onCancel={() => {
+          setHolding(null);
+          setMessage(null);
+        }}
+        onPlace={lay}
+        onDeselect={() => select(null)}
+        setDesign={setDesign}
+        onConflict={explain}
+      />
+
       <div className="editor__body">
         <div className="editor__canvas">
           {source && (
@@ -259,18 +349,22 @@ function Workbench({
               fitKey={`${design.width}x${design.height}`}
               testId="designer-canvas"
               onStrokeStart={(cell) => {
+                setCursor(cell);
                 stroke.current = null;
-                at(cell);
-                if (tool === 'brush' || tool === 'eraser') paint(cell);
+                if (tool === 'tiles') tilesStart(cell);
+                else if (tool === 'brush' || tool === 'eraser') paint(cell);
               }}
               onStrokeMove={(cell) => {
-                if (tool === 'brush' || tool === 'eraser') paint(cell);
+                if (tool === 'tiles') tilesMove(cell);
+                else if (tool === 'brush' || tool === 'eraser') paint(cell);
               }}
               onStrokeEnd={() => {
                 stroke.current = null;
+                if (tool === 'tiles') tilesEnd();
               }}
               onStrokeCancel={() => {
                 stroke.current = null;
+                setDrag(null);
               }}
             />
           )}
@@ -286,13 +380,12 @@ function Workbench({
             design={design}
             library={library}
             own={own}
-            form={form}
-            setForm={(f) => {
-              setForm(f);
-              if (f) setTool('place');
-            }}
+            holding={holding}
+            selected={selectedId}
+            onPick={pick}
+            onSelect={select}
             setDesign={setDesign}
-            onNewPiece={() => dialog.current?.showModal()}
+            onNewPiece={() => setNewPiece(true)}
             pattern={pattern}
           />
           <section aria-labelledby={`${ids}-brush`}>
@@ -311,17 +404,17 @@ function Workbench({
           </section>
         </aside>
       </div>
-      <MotifDialog
-        dialogRef={dialog}
-        registry={registry}
-        onSaved={(motif) =>
-          setForm({
-            motifId: motif.id,
-            editing: null,
-            input: { col: 1, row: 1, repeatX: 'fill', repeatY: 'fill' },
-          })
-        }
-      />
+      {newPiece && (
+        <MotifDialog registry={registry} onSaved={pick} onClose={() => setNewPiece(false)} />
+      )}
     </main>
   );
+}
+
+/** A tile being dragged: where the drag started and where the tile would go. */
+interface Drag {
+  readonly id: string;
+  readonly start: CellPoint;
+  readonly orig: PlaceInput;
+  readonly preview: PlaceInput | null;
 }
