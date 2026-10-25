@@ -5,7 +5,6 @@ import {
   brushCell,
   eraseCell,
   conflictOf,
-  firstFree,
   maxRepeats,
   onBottom,
   tileAt,
@@ -105,18 +104,15 @@ describe('changing a design', () => {
     const rib = lib('rib-2-2');
     const cable = lib('cable-2-2-left');
     expect(onBottom(5, 2)).toEqual({ col: 5, row: 1, repeatX: 2, repeatY: 'fill' });
-    expect(firstFree(d, cable)).toBe(1);
     d = placeMotif(d, rib, onBottom(1, 1)).design; // stitches 1–4
     d = placeMotif(d, rib, onBottom(11, 1)).design; // stitches 11–14
-    expect(firstFree(d, cable)).toBe(5); // stitches 5–10, just between
-    expect(firstFree(placeMotif(d, cable, onBottom(5, 1)).design, cable)).toBe(15);
-    expect(firstFree(d, rib)).toBe(5);
     expect(maxRepeats(d, rib, 5)).toBe(1);
     expect(maxRepeats(d, rib, 3)).toBe(0);
     expect(maxRepeats(d, rib, 15)).toBe(1);
     // A tile may grow over the place it already takes.
     expect(maxRepeats(d, rib, 1, 'p1')).toBe(2);
-    expect(firstFree(placeMotif(d, cable, onBottom(15, 1)).design, rib)).toBe(5);
+    // Between the two ribs there is room for exactly one 6-stitch cable (stitches 5–10).
+    expect(maxRepeats(d, cable, 5)).toBe(1);
     // A 6-row cable and a 2-row piece side by side each repeat by their own height.
     const rows = composeDesign(
       placeMotif(

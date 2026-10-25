@@ -794,7 +794,7 @@
     "toolTiles": "Tiles",
     "tile": "Tile",
     "holding": "Laying: {{name}}",
-    "holdingHint": "Click a column on the grid — the tile stands on the bottom with its right edge in that column and repeats upwards.",
+    "holdingHint": "Set the width, then click a column on the grid — the tile stands on the bottom with its right edge in that column and repeats upwards.",
     "noTile": "Pick a pattern from the library and lay it on the grid, or click a tile to change its width. Drag a tile sideways to move it.",
     "tileWidth": "Tile width",
     "removeTile": "Remove tile",
@@ -810,8 +810,6 @@
     "tileStitches": "Width in stitches",
     "stitchesUnit": "stitches",
     "toEnd": "To the end",
-    "layFree": "Lay in the first free place",
-    "noRoom": "There is no room left on the grid for this tile.",
     "placedSummary_one": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitch",
     "placedSummary_other": "from stitch {{col}} · {{times}} × {{w}} = {{count}} stitches"
   }

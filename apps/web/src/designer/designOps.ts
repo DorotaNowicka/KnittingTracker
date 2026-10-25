@@ -154,14 +154,6 @@ export function maxRepeats(
   return Math.max(0, Math.floor((end - col + 1) / motif.width));
 }
 
-/** The first stitch from the right where one repeat of a piece fits, or null. */
-export function firstFree(design: Design, motif: Pick<Chart, 'width'>): number | null {
-  for (let col = 1; col <= design.width - motif.width + 1; col++) {
-    if (maxRepeats(design, motif, col) > 0) return col;
-  }
-  return null;
-}
-
 /** Columns (display) a brush cell covers. */
 const span = (design: Design, cell: Design['cells'][number], registry: SymbolRegistry) => {
   const left = fromRight(design, cell.col);

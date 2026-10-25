@@ -27,7 +27,6 @@ import {
   brushCell,
   conflictOf,
   eraseCell,
-  firstFree,
   onBottom,
   fromRight,
   placeMotif,
@@ -164,7 +163,7 @@ function Workbench({
   }, []);
   const [tool, setTool] = useState<Tool>('tiles');
   const [symbol, setSymbol] = useState('std:p');
-  const [holding, setHolding] = useState<Chart | null>(null);
+  const [holding, setHolding] = useState<{ motif: Chart; times: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [cursor, setCursor] = useState<CellPoint | null>(null);
@@ -216,22 +215,21 @@ function Workbench({
     }
   };
   const pick = (motif: Chart) => {
-    setHolding(motif);
+    setHolding({ motif, times: 1 });
     setSelectedId(null);
     setMessage(null);
     setTool('tiles');
     showBar();
   };
 
-  /** Lay the held piece as a tile of one repeat standing on the bottom row at stitch `col`. */
-  const lay = (col: number | null) => {
+  /** Lay the held piece as a tile standing on the bottom row, its right edge at stitch `col`. */
+  const lay = (col: number) => {
     if (!holding) return;
-    if (col === null) return setMessage(t('designer.noRoom'));
-    const input = onBottom(col, 1);
-    const conflict = conflictOf(design, holding, input);
+    const input = onBottom(col, holding.times);
+    const conflict = conflictOf(design, holding.motif, input);
     explain(conflict);
     if (conflict) return;
-    const placed = placeMotif(design, holding, input);
+    const placed = placeMotif(design, holding.motif, input);
     setDesign(placed.design);
     setHolding(null);
     setSelectedId(placed.id);
@@ -345,7 +343,7 @@ function Workbench({
             setHolding(null);
             setMessage(null);
           }}
-          onLay={() => holding && lay(firstFree(design, holding))}
+          onHoldTimes={(times) => holding && setHolding({ ...holding, times })}
           onDeselect={() => select(null)}
           setDesign={setDesign}
           onConflict={explain}
@@ -395,7 +393,7 @@ function Workbench({
             design={design}
             library={library}
             own={own}
-            holding={holding}
+            holding={holding?.motif ?? null}
             selected={selectedId}
             onPick={pick}
             onSelect={select}
