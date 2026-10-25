@@ -119,26 +119,30 @@ export function MotifDialog({
           onCommit={(h) => resize(width, h)}
         />
       </div>
-      <div className="piece-dialog__canvas">
-        <EditorCanvas
-          source={source}
-          overlay={overlay}
-          tool="paint"
-          label={t('designer.pieceCanvas')}
-          help={t('designer.pieceHelp')}
-          fitKey={`${width}x${height}`}
-          testId="piece-canvas"
-          onStrokeStart={(c) => {
-            last.current = null;
-            paint(c.row, c.col);
-          }}
-          onStrokeMove={(c) => paint(c.row, c.col)}
-          onStrokeEnd={() => {
-            last.current = null;
-          }}
-        />
+      <div className="piece-dialog__body">
+        <div className="piece-dialog__canvas">
+          <EditorCanvas
+            source={source}
+            overlay={overlay}
+            tool="paint"
+            label={t('designer.pieceCanvas')}
+            help={t('designer.pieceHelp')}
+            fitKey={`${width}x${height}`}
+            testId="piece-canvas"
+            onStrokeStart={(c) => {
+              last.current = null;
+              paint(c.row, c.col);
+            }}
+            onStrokeMove={(c) => paint(c.row, c.col)}
+            onStrokeEnd={() => {
+              last.current = null;
+            }}
+          />
+        </div>
+        <div className="piece-dialog__palette">
+          <SymbolPalette registry={registry} active={symbol} onPick={setSymbol} />
+        </div>
       </div>
-      <SymbolPalette registry={registry} active={symbol} onPick={setSymbol} />
       <div className="dialog__actions">
         <button type="button" className="btn" onClick={close}>
           {t('common.cancel')}

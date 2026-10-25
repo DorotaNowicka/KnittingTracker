@@ -17,14 +17,22 @@ interface Props {
   readonly help: string;
   /** Re-fit the view when this changes (e.g. another chart or a resize). */
   readonly fitKey: string;
-  /** A stroke (paint or selection drag) starts, moves over cells, ends or is cancelled. */
-  onStrokeStart?(cell: CellPoint): void;
+  /**
+   * A stroke (paint or selection drag) starts, moves over cells, ends or is cancelled. `shift`:
+   * the stroke started with Shift held (adds to a selection).
+   */
+  onStrokeStart?(cell: CellPoint, mods?: { readonly shift: boolean }): void;
   onStrokeMove?(cell: CellPoint): void;
   onStrokeEnd?(): void;
   onStrokeCancel?(): void;
   onKeyDown?(e: KeyboardEvent<HTMLDivElement>): void;
   /** The cell under the mouse while no button is pressed; null when it leaves the grid. */
   onHover?(cell: CellPoint | null): void;
+  /**
+   * A double click on (or within a few pixels of) the line between two columns, or in the gap
+   * between two sections: `atCol` is the column right of the line.
+   */
+  onLineDoubleClick?(atCol: number): void;
   /** Called with a cell to keep in view (keyboard cursor). */
   readonly reveal?: CellPoint | null;
   readonly testId?: string;
@@ -173,9 +181,10 @@ export function EditorCanvas(props: Props) {
         pinchDist: 0,
         pinchCell: 0,
       };
+      shift.current = e.shiftKey;
       if (mode === 'stroke' && cell) {
         g.current.last = cell;
-        cb.current.onStrokeStart?.(cell);
+        cb.current.onStrokeStart?.(cell, { shift: e.shiftKey });
       }
     } else if (pointers.current.size === 2 && g.current) {
       if (g.current.mode === 'stroke') cb.current.onStrokeCancel?.();
@@ -186,6 +195,30 @@ export function EditorCanvas(props: Props) {
         g.current.pinchCell = rendererRef.current?.camera.cell ?? 20;
       }
     }
+  };
+
+  /** Shift was held when the current stroke started. */
+  const shift = useRef(false);
+
+  /** The column line nearest to the pointer, if close enough (or the gap it is in). */
+  const lineAt = (clientX: number, left: number): number | null => {
+    const r = rendererRef.current;
+    const geo = r?.geometry;
+    if (!r || !geo) return null;
+    const x = clientX - left + r.camera.scrollX;
+    const c = geo.m.cell;
+    let best: { col: number; d: number } | null = null;
+    geo.runs.forEach((run, i) => {
+      for (let col = run.firstCol; col <= run.lastCol + 1; col++) {
+        const d = Math.abs(x - (run.x + (col - run.firstCol) * c));
+        if (!best || d < best.d) best = { col, d };
+      }
+      const next = geo.runs[i + 1];
+      const end = run.x + (run.lastCol - run.firstCol + 1) * c;
+      if (next && x >= end && x <= next.x) best = { col: next.firstCol, d: 0 };
+    });
+    const found = best as { col: number; d: number } | null;
+    return found && found.d <= Math.max(6, c * 0.35) ? found.col : null;
   };
 
   const hovered = useRef<CellPoint | null>(null);
@@ -229,14 +262,14 @@ export function EditorCanvas(props: Props) {
       const start = r.hitTest(s.startX - rect.left, s.startY - rect.top);
       if (start) {
         s.last = start;
-        cb.current.onStrokeStart?.(start);
+        cb.current.onStrokeStart?.(start, { shift: shift.current });
       }
     }
     const cell = cellAt(e);
     if (!cell) return;
     if (!s.last) {
       s.last = cell;
-      cb.current.onStrokeStart?.(cell);
+      cb.current.onStrokeStart?.(cell, { shift: shift.current });
     } else if (cell.row !== s.last.row || cell.col !== s.last.col) {
       s.last = cell;
       cb.current.onStrokeMove?.(cell);
@@ -252,7 +285,7 @@ export function EditorCanvas(props: Props) {
       // A tap: a one-cell stroke.
       const cell = cellAt(e);
       if (cell) {
-        cb.current.onStrokeStart?.(cell);
+        cb.current.onStrokeStart?.(cell, { shift: shift.current });
         cb.current.onStrokeEnd?.();
       }
     } else if (s.mode === 'stroke') {
@@ -285,6 +318,10 @@ export function EditorCanvas(props: Props) {
       onPointerCancel={onPointerUp}
       onPointerLeave={() => hover(null)}
       onKeyDown={(e) => cb.current.onKeyDown?.(e)}
+      onDoubleClick={(e) => {
+        const at = lineAt(e.clientX, e.currentTarget.getBoundingClientRect().left);
+        if (at !== null) cb.current.onLineDoubleClick?.(at);
+      }}
       data-testid={testId}
     >
       <canvas ref={canvasRef} className="grid-canvas" aria-hidden="true" />

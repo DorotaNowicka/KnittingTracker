@@ -1006,20 +1006,67 @@ textarea {
   outline-offset: 2px;
 }
 
-.piece-dialog {
-  display: grid;
+/*
+ * New piece: name and size on top, the buttons always at the bottom, and between them the grid
+ * and the symbols, scrolling on a short screen (side by side on a wide one).
+ */
+.piece-dialog[open] {
+  display: flex;
+  flex-direction: column;
   gap: var(--sp-3);
+  width: min(94vw, 880px);
+  max-width: min(94vw, 880px);
+  max-height: calc(100dvh - 2 * var(--sp-4));
+  overflow: hidden;
 }
 
-.piece-dialog:not([open]) {
-  display: none;
+.piece-dialog > * {
+  flex-shrink: 0;
+}
+
+.piece-dialog .form-grid {
+  margin-bottom: 0;
+}
+
+.piece-dialog .dialog__actions {
+  margin-top: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--rule);
+}
+
+.piece-dialog__body {
+  display: grid;
+  flex: 1 1 auto;
+  gap: var(--sp-3);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .piece-dialog__canvas {
   height: min(40dvh, 360px);
+  min-height: 180px;
   border: 1px solid var(--rule);
   border-radius: var(--r-sheet);
   overflow: hidden;
+}
+
+@media (min-width: 760px) {
+  .piece-dialog__body {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 300px);
+    overflow: hidden;
+  }
+
+  .piece-dialog__canvas {
+    height: auto;
+    min-height: 300px;
+  }
+
+  .piece-dialog__palette {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: var(--sp-1);
+  }
 }
 
 @media (max-width: 520px) {
@@ -1080,6 +1127,11 @@ textarea {
   flex-basis: 100%;
   color: var(--danger);
   font-weight: 600;
+}
+
+.tile-bar__message--info {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .tile-bar__message:empty {
@@ -1156,4 +1208,21 @@ textarea {
 
 .designer__cuts {
   margin: var(--sp-2) var(--sp-3) 0;
+}
+
+/* On a phone the name takes the row; width and height share the next. */
+@media (max-width: 759px) {
+  .piece-dialog .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .piece-dialog .form-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.mirror-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
 }

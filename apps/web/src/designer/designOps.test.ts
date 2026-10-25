@@ -6,6 +6,8 @@ import {
   eraseCell,
   conflictOf,
   maxRepeats,
+  moveTiles,
+  toggleMirror,
   onBottom,
   tileAt,
   placeMotif,
@@ -125,5 +127,29 @@ describe('changing a design', () => {
     expect(rows.map((r) => r.filter((x) => x === 'cable:2-2-lc').length)).toEqual([
       0, 0, 1, 0, 0, 0, 1, 0,
     ]);
+  });
+
+  it('moves selected tiles together, refused when one would cover another tile or a mirror', () => {
+    let d = blankDesign(12, 2);
+    for (const [col, id] of [
+      [1, 'purl'],
+      [3, 'rib-1-1'],
+      [8, 'purl'],
+    ] as const) {
+      d = placeMotif(d, lib(id), onBottom(col, 1)).design;
+    }
+    // Two columns to the left (a negative shift on the canvas) moves stitches 1 and 3 to 3 and 5.
+    const moved = moveTiles(d, ['p1', 'p2'], -2);
+    expect(moved.design?.placements.map((p) => p.col)).toEqual([3, 5, 8]);
+    // Four to the left: the rib (now 7-8) would cover the purl at 8.
+    expect(moveTiles(d, ['p1', 'p2'], -4).conflict).toMatchObject({ kind: 'overlap' });
+    expect(moveTiles(d, ['p1', 'p2'], 1).conflict).toEqual({ kind: 'off' });
+    // A mirror at ½ shows stitches 7-12 from the other side: no tile may go there.
+    const mirrored = toggleMirror(removePlacement(d, 'p3'), 2);
+    expect(mirrored.mirrors).toEqual([2]);
+    expect(moveTiles(mirrored, ['p2'], -3).conflict).toEqual({ kind: 'mirror' });
+    // From stitch 5 only 5-6 are free before the mirror image.
+    expect(maxRepeats(mirrored, lib('purl'), 5)).toBe(2);
+    expect(toggleMirror(mirrored, 2).mirrors).toBeUndefined();
   });
 });

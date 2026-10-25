@@ -8,6 +8,7 @@ import {
   onBottom,
   removePlacement,
   updatePlacement,
+  type Clip,
   type Conflict,
 } from './designOps';
 
@@ -23,19 +24,37 @@ export function TileBar({
   selected,
   motifOf,
   message,
+  info,
   onCancel,
   onHoldTimes,
   onDeselect,
   setDesign,
   onConflict,
+  pasting,
+  count,
+  canPaste,
+  onCopy,
+  onPaste,
+  onRemoveSelected,
 }: {
   design: Design;
+  /** Copied tiles about to be laid together. */
+  pasting: Clip | null;
+  /** How many tiles are selected (several: moved, copied or removed together). */
+  count: number;
+  /** Tiles were copied and can be pasted. */
+  canPaste: boolean;
+  onCopy(): void;
+  onPaste(): void;
+  onRemoveSelected(): void;
   /** The piece about to be laid and how many repeats wide its tile will be. */
   holding: { readonly motif: Chart; readonly times: number } | null;
   selected: Placement | null;
   motifOf(id: string): Chart | undefined;
   /** Why the last change was refused, shown until the next one. */
   message: string | null;
+  /** What the last action did (copied, mirror on), when nothing was refused. */
+  info: string | null;
   onCancel(): void;
   onHoldTimes(times: number): void;
   onDeselect(): void;
@@ -43,6 +62,57 @@ export function TileBar({
   onConflict(conflict: Conflict | null): void;
 }) {
   const { t } = useTranslation();
+  if (pasting) {
+    return (
+      <div className="tile-bar" role="region" aria-label={t('designer.tile')}>
+        <p className="tile-bar__lead">
+          <b>{t('designer.pasting', { count: pasting.items.length })}</b>
+        </p>
+        <p className="hint tile-bar__hint">{t('designer.pastingHint')}</p>
+        <div className="tile-bar__actions">
+          <button type="button" className="btn btn--small" onClick={onCancel}>
+            {t('common.cancel')}
+          </button>
+        </div>
+        <Message text={message} info={info} />
+      </div>
+    );
+  }
+  if (count > 1) {
+    return (
+      <div className="tile-bar" role="region" aria-label={t('designer.tile')}>
+        <p className="tile-bar__lead">
+          <b>{t('designer.selectedMany', { count })}</b>
+        </p>
+        <p className="hint tile-bar__hint">{t('designer.selectedManyHint')}</p>
+        <div className="tile-bar__actions">
+          <button type="button" className="btn btn--small" onClick={onCopy}>
+            <Icon name="copy" size={18} />
+            {t('designer.copyTiles')}
+          </button>
+          {canPaste && (
+            <button type="button" className="btn btn--small" onClick={onPaste}>
+              <Icon name="paste" size={18} />
+              {t('designer.paste')}
+            </button>
+          )}
+          <button type="button" className="btn btn--small" onClick={onRemoveSelected}>
+            <Icon name="trash" size={18} />
+            {t('designer.removeTiles')}
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('designer.deselect')}
+            onClick={onDeselect}
+          >
+            <Icon name="close" size={20} />
+          </button>
+        </div>
+        <Message text={message} info={info} />
+      </div>
+    );
+  }
   if (holding) {
     const piece = holding.motif;
     // Before it lies anywhere, a tile can be as wide as the grid.
@@ -66,7 +136,7 @@ export function TileBar({
             {t('common.cancel')}
           </button>
         </div>
-        <Message text={message} />
+        <Message text={message} info={info} />
       </div>
     );
   }
@@ -75,7 +145,15 @@ export function TileBar({
     return (
       <div className="tile-bar tile-bar--empty" role="region" aria-label={t('designer.tile')}>
         <p className="hint">{t('designer.noTile')}</p>
-        <Message text={message} />
+        {canPaste && (
+          <div className="tile-bar__actions">
+            <button type="button" className="btn btn--small" onClick={onPaste}>
+              <Icon name="paste" size={18} />
+              {t('designer.paste')}
+            </button>
+          </div>
+        )}
+        <Message text={message} info={info} />
       </div>
     );
   }
@@ -103,6 +181,16 @@ export function TileBar({
         onToEnd={() => setTimes(most)}
       />
       <div className="tile-bar__actions">
+        <button type="button" className="btn btn--small" onClick={onCopy}>
+          <Icon name="copy" size={18} />
+          {t('designer.copyTile')}
+        </button>
+        {canPaste && (
+          <button type="button" className="btn btn--small" onClick={onPaste}>
+            <Icon name="paste" size={18} />
+            {t('designer.paste')}
+          </button>
+        )}
         <button
           type="button"
           className="btn btn--small"
@@ -123,7 +211,7 @@ export function TileBar({
           <Icon name="close" size={20} />
         </button>
       </div>
-      <Message text={message} />
+      <Message text={message} info={info} />
     </div>
   );
 }
@@ -200,10 +288,10 @@ function WidthEditor({
   );
 }
 
-function Message({ text }: { text: string | null }) {
+function Message({ text, info }: { text: string | null; info: string | null }) {
   return (
-    <p className="tile-bar__message" role="status">
-      {text}
+    <p className={`tile-bar__message${text ? '' : ' tile-bar__message--info'}`} role="status">
+      {text ?? info}
     </p>
   );
 }

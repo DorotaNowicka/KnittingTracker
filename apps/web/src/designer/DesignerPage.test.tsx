@@ -18,6 +18,7 @@ import { useDraft } from '../state/draft';
 import { setStorageForTests, useLibrary } from '../state/library';
 import { useGuides } from '../state/guides';
 import { useMotifs } from '../state/motifs';
+import { useTileClip } from '../state/tileClip';
 
 /**
  * jsdom has no canvas: the grid is stood in by a button per stitch column (row 1), which starts
@@ -29,13 +30,15 @@ const canvas = vi.hoisted(() => ({
   source: null as null | {
     sections: readonly { label: string; firstCol: number; lastCol: number }[];
     guides?: readonly { atCol: number; kind: string }[];
+    shaded?: readonly { firstCol: number; lastCol: number }[];
   },
 }));
 vi.mock('../editor/EditorCanvas', () => ({
   EditorCanvas: (props: {
     source: NonNullable<typeof canvas.source>;
     testId?: string;
-    onStrokeStart?(cell: { row: number; col: number }): void;
+    onStrokeStart?(cell: { row: number; col: number }, mods?: { shift: boolean }): void;
+    onLineDoubleClick?(atCol: number): void;
     onStrokeEnd?(): void;
     onHover?(cell: { row: number; col: number } | null): void;
   }) => {
@@ -46,10 +49,12 @@ vi.mock('../editor/EditorCanvas', () => ({
           <button
             key={i}
             type="button"
-            onClick={() => {
-              props.onStrokeStart?.({ row: 1, col: i + 1 });
+            onClick={(e) => {
+              props.onStrokeStart?.({ row: 1, col: i + 1 }, { shift: e.shiftKey });
               props.onStrokeEnd?.();
             }}
+            // The line on the column's left edge.
+            onDoubleClick={() => props.onLineDoubleClick?.(i + 1)}
             onMouseEnter={() => props.onHover?.({ row: 1, col: i + 1 })}
             onMouseLeave={() => props.onHover?.(null)}
           >
@@ -285,11 +290,106 @@ describe('pattern creator', () => {
       'aria-pressed',
       'false',
     );
-    expect(canvas.source?.guides).toBeUndefined();
+    expect(canvas.source?.guides).toEqual([]);
     expect(localStorage.getItem('kt.guides')).toBe('off');
 
     await user.click(halves);
     expect(canvas.source?.sections).toEqual([]);
     await waitFor(() => expect(pattern()?.charts.map((c) => c.id)).toEqual(['design']));
+  });
+
+  let fresh = 0;
+  /** A new project of its own, its pattern opened in the creator with a w × h grid. */
+  const newGrid = async (user: ReturnType<typeof userEvent.setup>, w: number, h: number) => {
+    canvas.width = w;
+    fresh += 1;
+    const id = `fresh-${fresh}`;
+    await useLibrary.getState().addProject(
+      blankProject({
+        id,
+        name: 'Sweter',
+        sizes: ['M'],
+        patternName: 'Korpus',
+        now: '2026-10-25T10:00:00.000Z',
+      }),
+    );
+    navigate(paths.designer(id, 'pattern-1'), { replace: true });
+    render(<App />);
+    await user.type(await screen.findByLabelText('Szerokość (oczka)'), String(w));
+    await user.type(screen.getByLabelText('Wysokość (rzędy)'), String(h));
+    await user.click(screen.getByRole('button', { name: 'Utwórz siatkę' }));
+  };
+  const lay = async (user: ReturnType<typeof userEvent.setup>, piece: RegExp, stitch: number) => {
+    const library = await screen.findByRole('region', { name: 'Biblioteka wzorów' });
+    await user.click(within(library).getByRole('button', { name: piece }));
+    await clickStitch(user, stitch);
+  };
+  const cols = () => pattern()?.design?.placements.map((p) => p.col);
+
+  it('selects several tiles with Shift, copies them together, pastes them in hand, Delete removes', async () => {
+    const user = userEvent.setup();
+    useTileClip.setState({ clip: null });
+    await newGrid(user, 12, 2);
+    await lay(user, /Lewe oczka/, 1);
+    await lay(user, /Ściągacz 1\/1/, 3);
+    // The rib just laid is selected; Shift + click adds the purl tile.
+    await user.keyboard('{Shift>}');
+    await clickStitch(user, 1);
+    await user.keyboard('{/Shift}');
+    expect(within(bar()).getByText('Zaznaczone 2 kafelki')).toBeInTheDocument();
+
+    await user.keyboard('{Control>}c{/Control}');
+    expect(within(bar()).getByRole('status')).toHaveTextContent('Skopiowano 2 kafelki');
+    await user.keyboard('{Control>}v{/Control}');
+    expect(within(bar()).getByText('Wklejasz 2 kafelki')).toBeInTheDocument();
+    // In hand they keep their spacing: from stitch 2 the rib would land on the rib.
+    await user.hover(column(2));
+    expect(where()).toBe('Tu się nie zmieści — kafelek wszedłby na „Ściągacz 1/1”.');
+    await clickStitch(user, 7);
+    await waitFor(() => expect(cols()).toEqual([1, 3, 7, 9]));
+    expect(within(bar()).getByText('Zaznaczone 2 kafelki')).toBeInTheDocument();
+
+    await user.keyboard('{Delete}');
+    await waitFor(() => expect(cols()).toEqual([1, 3]));
+    // Shift + click in the list selects there too; the button pastes like Ctrl+V.
+    const placed = screen.getByRole('region', { name: 'Na siatce' });
+    const items = () => within(placed).getAllByRole('button', { pressed: false });
+    await user.click(items()[0] as HTMLElement);
+    await user.keyboard('{Shift>}');
+    await user.click(items()[0] as HTMLElement);
+    await user.keyboard('{/Shift}');
+    expect(within(bar()).getByText('Zaznaczone 2 kafelki')).toBeInTheDocument();
+    await user.click(within(bar()).getByRole('button', { name: 'Wklej' }));
+    expect(within(bar()).getByText('Wklejasz 2 kafelki')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(within(bar()).queryByText(/Wklejasz/)).toBeNull();
+  });
+
+  it('mirrors the right side onto the left, live: from the panel or a double click on a line', async () => {
+    const user = userEvent.setup();
+    await newGrid(user, 8, 1);
+    await lay(user, /Lewe oczka/, 1);
+    const row = () => {
+      const c = pattern()?.charts[0];
+      return c
+        ? (chartToSymbolRows(c)[0] ?? []).map((id) => (id === 'std:p' ? 'p' : 'k')).join('')
+        : '';
+    };
+    await user.click(screen.getByRole('checkbox', { name: 'Odbij w ½' }));
+    await waitFor(() => expect(row()).toBe('pkkkkkkp'));
+    expect(canvas.source?.shaded).toEqual([{ firstCol: 1, lastCol: 4 }]);
+    // The ¼ line is the left edge of stitch 2's column: a double click mirrors there too.
+    await user.dblClick(column(2));
+    await waitFor(() => expect(pattern()?.design?.mirrors).toEqual([2, 1]));
+    expect(row()).toBe('pkkppkkp');
+    expect(screen.getByRole('checkbox', { name: 'Odbij w ¼' })).toBeChecked();
+    // Nothing can be laid in a mirror image.
+    await lay(user, /Lewe oczka/, 7);
+    expect(within(bar()).getByRole('status')).toHaveTextContent(
+      'Tu jest odbicie lustrzane — połóż kafelek po prawej stronie osi.',
+    );
+    await user.keyboard('{Escape}');
+    await user.dblClick(column(2));
+    await waitFor(() => expect(pattern()?.design?.mirrors).toEqual([2]));
   });
 });

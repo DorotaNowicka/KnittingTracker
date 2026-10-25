@@ -28,10 +28,11 @@ export function PiecesPanel({
   own: readonly Chart[];
   /** The piece about to be laid on the grid. */
   holding: Chart | null;
-  /** The tile selected on the grid. */
-  selected: string | null;
+  /** The tiles selected on the grid. */
+  selected: readonly string[];
   onPick(motif: Chart): void;
-  onSelect(id: string | null): void;
+  /** Select a tile (null: none); `add`: Shift held, add it to the selection or take it out. */
+  onSelect(id: string | null, add: boolean): void;
   setDesign(design: Design): void;
   onNewPiece(): void;
   pattern: Pattern;
@@ -111,8 +112,8 @@ export function PiecesPanel({
                   <button
                     type="button"
                     className="placed__text"
-                    aria-pressed={selected === p.id}
-                    onClick={() => onSelect(selected === p.id ? null : p.id)}
+                    aria-pressed={selected.includes(p.id)}
+                    onClick={(e) => onSelect(p.id, e.shiftKey)}
                   >
                     <b>{motif?.name ?? p.motifId}</b>
                     <span className="hint">
@@ -133,7 +134,7 @@ export function PiecesPanel({
                     className="icon-btn"
                     aria-label={t('designer.remove', { name: motif?.name ?? '' })}
                     onClick={() => {
-                      if (selected === p.id) onSelect(null);
+                      if (selected.includes(p.id)) onSelect(null, false);
                       setDesign(removePlacement(design, p.id));
                     }}
                   >

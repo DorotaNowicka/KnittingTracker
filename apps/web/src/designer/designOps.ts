@@ -1,4 +1,5 @@
 import {
+  mirrorAreas,
   placementArea,
   type Chart,
   type Design,
@@ -89,9 +90,18 @@ export function tileAt(design: Design, row: number, col: number): Placement | un
   });
 }
 
-/** Why a tile can't lie there: it starts off the grid, or it would cover another tile. */
+/**
+ * Why a tile can't lie there: it starts off the grid, it would cover another tile, or it would lie
+ * where a mirror shows the other side.
+ */
 export type Conflict =
-  { readonly kind: 'off' } | { readonly kind: 'overlap'; readonly with: Placement };
+  | { readonly kind: 'off' }
+  | { readonly kind: 'overlap'; readonly with: Placement }
+  | { readonly kind: 'mirror' };
+
+/** Whether display columns `col1`…`col2` reach into a mirror image. */
+export const inMirror = (design: Design, col1: number, col2: number) =>
+  mirrorAreas(design).some((m) => col1 <= m.lastCol && col2 >= m.firstCol);
 
 /**
  * Whether `motif` placed at `input` fits: on the grid and over no other tile (tiles never
@@ -103,10 +113,22 @@ export function conflictOf(
   input: PlaceInput,
   ignore: string | null = null,
 ): Conflict | null {
+  return conflictAmong(design, motif, input, ignore === null ? [] : [ignore]);
+}
+
+/** {@link conflictOf} ignoring several tiles (those moving together). */
+function conflictAmong(
+  design: Design,
+  motif: Pick<Chart, 'width' | 'height'>,
+  input: PlaceInput,
+  ignore: readonly string[],
+): Conflict | null {
   const rect = areaRect(design, { ...input, id: '', motifId: '' }, motif);
-  if (!rect) return { kind: 'off' };
+  // A tile starts at stitch 1 or further left: never past the right edge.
+  if (!rect || input.col < 1) return { kind: 'off' };
+  if (inMirror(design, rect.col1, rect.col2)) return { kind: 'mirror' };
   for (const other of design.placements) {
-    if (other.id === ignore) continue;
+    if (ignore.includes(other.id)) continue;
     const m = motifOf(design, other);
     const r = m ? areaRect(design, other, m) : null;
     if (r && meets(rect, r)) return { kind: 'overlap', with: other };
@@ -125,14 +147,19 @@ export const onBottom = (col: number, repeatX: number | 'fill'): PlaceInput => (
   repeatY: 'fill',
 });
 
-/** Stitches (from the right edge) each tile covers, other than `ignore`. */
+/** Stitches (from the right edge) each tile other than `ignore` and each mirror image covers. */
 function spans(design: Design, ignore: string | null) {
-  return design.placements.flatMap((p) => {
+  const tiles = design.placements.flatMap((p) => {
     if (p.id === ignore) return [];
     const m = motifOf(design, p);
     const r = m ? areaRect(design, p, m) : null;
     return r ? [{ from: fromRight(design, r.col2), to: fromRight(design, r.col1) }] : [];
   });
+  const mirrors = mirrorAreas(design).map((m) => ({
+    from: fromRight(design, m.lastCol),
+    to: fromRight(design, m.firstCol),
+  }));
+  return [...tiles, ...mirrors];
 }
 
 /**
@@ -212,4 +239,98 @@ export function resizeDesign(design: Design, width: number, height: number): Des
     height,
     cells: design.cells.filter((c) => c.col <= width && c.row <= height),
   };
+}
+
+/**
+ * Move tiles together sideways by `shift` display columns (positive = to the right). Returns the
+ * changed design, or why one of them can't go there.
+ */
+export function moveTiles(
+  design: Design,
+  ids: readonly string[],
+  shift: number,
+): { design: Design; conflict: null } | { design: null; conflict: Conflict } {
+  const moving = design.placements.filter((p) => ids.includes(p.id));
+  const moved = new Map(moving.map((p) => [p.id, { ...p, col: p.col - shift }] as const));
+  for (const p of moved.values()) {
+    const motif = motifOf(design, p);
+    if (!motif) continue;
+    const conflict = conflictAmong(design, motif, p, ids);
+    if (conflict) return { design: null, conflict };
+  }
+  return {
+    design: { ...design, placements: design.placements.map((p) => moved.get(p.id) ?? p) },
+    conflict: null,
+  };
+}
+
+/** Tiles copied together: each piece, its width in repeats and its offset from the rightmost. */
+export interface Clip {
+  readonly items: readonly {
+    readonly motif: Chart;
+    readonly repeatX: Placement['repeatX'];
+    /** Stitches from the group's right edge to this tile's right edge. */
+    readonly offset: number;
+  }[];
+}
+
+/** The selected tiles as a clip, in their order on the grid; null when none is selected. */
+export function copyTiles(design: Design, ids: readonly string[]): Clip | null {
+  const picked = design.placements.filter((p) => ids.includes(p.id));
+  const first = Math.min(...picked.map((p) => p.col));
+  const items = picked.flatMap((p) => {
+    const motif = motifOf(design, p);
+    return motif ? [{ motif, repeatX: p.repeatX, offset: p.col - first }] : [];
+  });
+  return items.length > 0 ? { items } : null;
+}
+
+/** Where a clip's tiles land with the group's right edge at stitch `col` (from the right). */
+const clipInputs = (clip: Clip, col: number) =>
+  clip.items.map((it) => ({ motif: it.motif, input: onBottom(col + it.offset, it.repeatX) }));
+
+/** Why a clip can't be laid there, or null when it fits. */
+export function clipConflict(design: Design, clip: Clip, col: number): Conflict | null {
+  for (const { motif, input } of clipInputs(clip, col)) {
+    const conflict = conflictOf(design, motif, input);
+    if (conflict) return conflict;
+  }
+  return null;
+}
+
+/** Lay a clip's tiles (callers check {@link clipConflict} first); returns the new tiles' ids. */
+export function placeClip(
+  design: Design,
+  clip: Clip,
+  col: number,
+): { design: Design; ids: string[] } {
+  let next = design;
+  const ids: string[] = [];
+  for (const { motif, input } of clipInputs(clip, col)) {
+    const placed = placeMotif(next, motif, input);
+    next = placed.design;
+    ids.push(placed.id);
+  }
+  return { design: next, ids };
+}
+
+/** Display rectangles of tiles a clip would cover with its right edge at stitch `col`. */
+export function clipRects(design: Design, clip: Clip, col: number) {
+  return clipInputs(clip, col).flatMap(({ motif, input }) => {
+    const r = areaRect(design, { ...input, id: '', motifId: '' }, motif);
+    return r ? [r] : [];
+  });
+}
+
+/** Remove several tiles. */
+export function removeTiles(design: Design, ids: readonly string[]): Design {
+  return ids.reduce((d, id) => removePlacement(d, id), design);
+}
+
+/** Turn the mirror at a quarter of the width on or off. */
+export function toggleMirror(design: Design, quarter: 1 | 2 | 3): Design {
+  const on = design.mirrors ?? [];
+  const mirrors = on.includes(quarter) ? on.filter((q) => q !== quarter) : [...on, quarter];
+  const { mirrors: _old, ...rest } = design;
+  return mirrors.length > 0 ? { ...rest, mirrors } : rest;
 }

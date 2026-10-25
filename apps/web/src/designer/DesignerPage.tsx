@@ -4,6 +4,8 @@ import {
   designChart,
   firstHalf,
   halfCuts,
+  mirrorAreas,
+  mirrorAxis,
   MOTIF_LIBRARY,
   parseChart,
   patternRegistry,
@@ -24,6 +26,7 @@ import { paths } from '../lib/router';
 import { useDraft } from '../state/draft';
 import { useGuides } from '../state/guides';
 import { useMotifs } from '../state/motifs';
+import { useTileClip } from '../state/tileClip';
 import { NumberField } from '../ui/fields';
 import { GuidesToggle } from '../ui/GuidesToggle';
 import { Icon } from '../ui/Icon';
@@ -31,16 +34,23 @@ import { AppHeader } from '../routes/AppHeader';
 import {
   areaRect,
   brushCell,
+  clipConflict,
+  clipRects,
   conflictOf,
+  copyTiles,
   eraseCell,
-  onBottom,
   fromRight,
+  inMirror,
+  moveTiles,
+  onBottom,
+  placeClip,
   placeMotif,
+  removeTiles,
   resizeDesign,
   tileAt,
-  updatePlacement,
+  toggleMirror,
+  type Clip,
   type Conflict,
-  type PlaceInput,
 } from './designOps';
 import { MotifDialog } from './MotifDialog';
 import { PiecesPanel } from './PiecesPanel';
@@ -177,14 +187,19 @@ function Workbench({
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
   const own = useMotifs((s) => s.motifs);
+  const clip = useTileClip((s) => s.clip);
   useEffect(() => {
     void useMotifs.getState().load();
   }, []);
   const [tool, setTool] = useState<Tool>('tiles');
   const [symbol, setSymbol] = useState('std:p');
   const [holding, setHolding] = useState<{ motif: Chart; times: number } | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** Copied tiles in hand, laid together by clicking a column. */
+  const [pasting, setPasting] = useState<Clip | null>(null);
+  const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  /** What the last action did, shown in the bar until something else happens. */
+  const [info, setInfo] = useState<string | null>(null);
   const [cursor, setCursor] = useState<CellPoint | null>(null);
   const [hover, setHover] = useState<CellPoint | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -208,40 +223,57 @@ function Workbench({
   );
   const motifOf = (id: string) =>
     design.motifs.find((m) => m.id === id) ?? library.find((m) => m.id === id);
-  const selected = design.placements.find((p) => p.id === selectedId) ?? null;
-  const selectedMotif = selected ? motifOf(selected.motifId) : undefined;
-  const shown = drag?.preview ?? selected;
-  // The tile in hand under the mouse, or the tile being dragged, where it would land.
+  const chosen = selectedIds.filter((id) => design.placements.some((p) => p.id === id));
+  const selected =
+    chosen.length === 1 ? (design.placements.find((p) => p.id === chosen[0]) ?? null) : null;
+  const mirrors = useMemo(() => mirrorAreas(design), [design]);
+  /** Quarter whose mirror axis lies on the left edge of display column `col`, if any. */
+  const quarterAt = (col: number) =>
+    QUARTERS.find((q) => design.width - mirrorAxis(design.width, q) + 1 === col);
+
+  // What the grid shows before a click: the piece or the copied tiles in hand under the mouse, or
+  // the tiles being dragged, where they would land.
   const ghost = useMemo(() => {
-    let motif: Chart | undefined;
-    let input: PlaceInput | null = null;
-    let ignore: string | null = null;
-    if (holding && hover && tool === 'tiles') {
-      motif = holding.motif;
-      input = onBottom(fromRight(design, hover.col), holding.times);
-    } else if (drag?.preview) {
-      const tile = design.placements.find((p) => p.id === drag.id);
-      motif = design.motifs.find((m) => m.id === tile?.motifId);
-      input = drag.preview;
-      ignore = drag.id;
-    }
-    if (!motif || !input) return null;
-    const conflict = conflictOf(design, motif, input, ignore);
-    // The grid shows the pattern with the tile in place when it fits (on grids small enough to
-    // redraw while the mouse moves); otherwise only its outline.
     const small = design.width * design.height <= 200_000;
-    const preview =
-      conflict || !small
-        ? null
-        : ignore
-          ? updatePlacement(design, ignore, input)
-          : placeMotif(design, motif, input).design;
-    return {
-      rect: areaRect(design, { ...input, id: '', motifId: '' }, motif),
-      conflict,
-      preview,
-    };
-  }, [holding, hover, tool, drag, design]);
+    if (tool === 'tiles' && hover && (holding || pasting)) {
+      const col = fromRight(design, hover.col);
+      if (pasting) {
+        const conflict = clipConflict(design, pasting, col);
+        return {
+          rects: clipRects(design, pasting, col),
+          conflict,
+          preview: conflict || !small ? null : placeClip(design, pasting, col).design,
+        };
+      }
+      if (holding) {
+        const input = onBottom(col, holding.times);
+        const conflict = conflictOf(design, holding.motif, input);
+        const rect = areaRect(design, { ...input, id: '', motifId: '' }, holding.motif);
+        return {
+          rects: rect ? [rect] : [],
+          conflict,
+          // The grid shows the pattern with the tile in place when it fits (on grids small enough
+          // to redraw while the mouse moves); otherwise only its outline.
+          preview: conflict || !small ? null : placeMotif(design, holding.motif, input).design,
+        };
+      }
+    }
+    if (drag && drag.shift !== 0) {
+      const moved = moveTiles(design, drag.ids, drag.shift);
+      const after = moved.design ?? {
+        ...design,
+        placements: design.placements.map((p) =>
+          drag.ids.includes(p.id) ? { ...p, col: p.col - drag.shift } : p,
+        ),
+      };
+      return {
+        rects: rectsOf(after, drag.ids),
+        conflict: moved.conflict,
+        preview: small ? moved.design : null,
+      };
+    }
+    return null;
+  }, [holding, pasting, hover, tool, drag, design]);
 
   const chart = useMemo(
     () => designChart(ghost?.preview ?? design, registry, pattern.name),
@@ -263,39 +295,130 @@ function Workbench({
           ]
         : [];
     const shown = { ...base, sections };
-    return guides ? { ...shown, guides: quarterGuides(shown) } : shown;
-  }, [parsed, registry, design.width, design.halves, guides]);
-  const selection =
-    ghost?.rect ??
-    (selected && shown && selectedMotif
-      ? areaRect(design, { ...selected, ...shown }, selectedMotif)
-      : null);
-  const overlay = editorOverlay({ cursor: ghost ? null : cursor, selection });
+    // Mirror axes are always shown (dashed), with the mirror image hatched.
+    const axes = mirrors.map((m) => ({ atCol: m.axisCol, kind: 'mirror' as const }));
+    const counting = guides
+      ? quarterGuides(shown).filter((g) => !axes.some((a) => a.atCol === g.atCol))
+      : [];
+    return {
+      ...shown,
+      guides: [...counting, ...axes],
+      shaded: mirrors.map((m) => ({ firstCol: m.firstCol, lastCol: m.lastCol })),
+    };
+  }, [parsed, registry, design.width, design.halves, guides, mirrors]);
+  const rects = ghost ? ghost.rects : rectsOf(design, chosen);
+  const overlay = editorOverlay({
+    cursor: ghost ? null : cursor,
+    selection: rects[0] ?? null,
+    selections: rects.slice(1),
+  });
 
   const conflictText = (conflict: Conflict) =>
     conflict.kind === 'off'
       ? t('designer.offGrid')
-      : t('designer.overlap', { name: motifOf(conflict.with.motifId)?.name ?? '' });
+      : conflict.kind === 'mirror'
+        ? t('designer.mirrorConflict')
+        : t('designer.overlap', { name: motifOf(conflict.with.motifId)?.name ?? '' });
   /** Show why a tile can't go somewhere (or clear the message). */
-  const explain = (conflict: Conflict | null) =>
+  const explain = (conflict: Conflict | null) => {
     setMessage(conflict ? conflictText(conflict) : null);
+    setInfo(null);
+  };
 
-  const select = (id: string | null) => {
-    setSelectedId(id);
+  /** Select these tiles (nothing in hand any more). */
+  const selectTiles = (next: readonly string[]) => {
+    setSelectedIds(next);
     setHolding(null);
+    setPasting(null);
     setMessage(null);
-    if (id) {
+    setInfo(null);
+    if (next.length > 0) {
       setTool('tiles');
       showBar();
     }
   };
+  /** A tile in the list: select it alone, or with Shift add it to (or take it out of) the rest. */
+  const selectFromList = (id: string | null, add: boolean) => {
+    if (id === null) return selectTiles([]);
+    if (add) {
+      return selectTiles(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id]);
+    }
+    selectTiles(chosen.length === 1 && chosen[0] === id ? [] : [id]);
+  };
   const pick = (motif: Chart) => {
+    setInfo(null);
     setHolding({ motif, times: 1 });
-    setSelectedId(null);
+    setPasting(null);
+    setSelectedIds([]);
     setMessage(null);
     setTool('tiles');
     showBar();
   };
+  const copy = () => {
+    const copied = copyTiles(design, chosen);
+    if (!copied) return;
+    useTileClip.getState().set(copied);
+    setMessage(null);
+    setInfo(t('designer.copied', { count: copied.items.length }));
+  };
+  const paste = () => {
+    setInfo(null);
+    const current = useTileClip.getState().clip;
+    if (!current) return;
+    setPasting(current);
+    setHolding(null);
+    setSelectedIds([]);
+    setMessage(null);
+    setTool('tiles');
+    showBar();
+  };
+  const removeSelected = () => {
+    if (chosen.length === 0) return;
+    setDesign(removeTiles(design, chosen));
+    setSelectedIds([]);
+    setMessage(null);
+  };
+  const cancel = () => {
+    setInfo(null);
+    setHolding(null);
+    setPasting(null);
+    setSelectedIds([]);
+    setMessage(null);
+  };
+  const flipMirror = (quarter: 1 | 2 | 3) => {
+    const on = !(design.mirrors ?? []).includes(quarter);
+    setDesign(toggleMirror(design, quarter));
+    setMessage(null);
+    setInfo(t(on ? 'designer.mirrorOn' : 'designer.mirrorOff', { line: QUARTER_LABEL[quarter] }));
+  };
+
+  // Ctrl/⌘+C copies the selected tiles, Ctrl/⌘+V takes the copy in hand, Delete removes the
+  // selected tiles, Escape lets go — unless the knitter is typing in a field.
+  const keys = useRef({ copy, paste, removeSelected, cancel });
+  useEffect(() => {
+    keys.current = { copy, paste, removeSelected, cancel };
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest('input, textarea, select, [contenteditable="true"]') ||
+        document.querySelector('dialog[open]')
+      ) {
+        return;
+      }
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      if (mod && key === 'c') keys.current.copy();
+      else if (mod && key === 'v') keys.current.paste();
+      else if (!mod && (e.key === 'Delete' || e.key === 'Backspace')) keys.current.removeSelected();
+      else if (e.key === 'Escape') keys.current.cancel();
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   /** Lay the held piece as a tile standing on the bottom row, its right edge at stitch `col`. */
   const lay = (col: number) => {
@@ -307,38 +430,57 @@ function Workbench({
     const placed = placeMotif(design, holding.motif, input);
     setDesign(placed.design);
     setHolding(null);
-    setSelectedId(placed.id);
+    setSelectedIds([placed.id]);
   };
-  const tilesStart = (cell: CellPoint) => {
+  /** Lay the copied tiles, the rightmost with its right edge at stitch `col`. */
+  const layClip = (col: number) => {
+    if (!pasting) return;
+    const conflict = clipConflict(design, pasting, col);
+    explain(conflict);
+    if (conflict) return;
+    const placed = placeClip(design, pasting, col);
+    setDesign(placed.design);
+    setPasting(null);
+    setSelectedIds(placed.ids);
+  };
+  const tilesStart = (cell: CellPoint, shift: boolean) => {
     if (holding) return lay(fromRight(design, cell.col));
-    const tile = tileAt(design, cell.row, cell.col);
-    setSelectedId(tile?.id ?? null);
+    if (pasting) return layClip(fromRight(design, cell.col));
     setMessage(null);
-    if (tile) {
-      const orig = { col: tile.col, row: tile.row, repeatX: tile.repeatX, repeatY: tile.repeatY };
-      setDrag({ id: tile.id, start: cell, orig, preview: null });
+    // A mirror image is drawn from the other side of its axis: nothing to pick there.
+    if (inMirror(design, cell.col, cell.col)) {
+      setSelectedIds([]);
+      return setMessage(t('designer.inMirror'));
     }
+    const tile = tileAt(design, cell.row, cell.col);
+    if (shift) {
+      if (tile) {
+        setSelectedIds(
+          chosen.includes(tile.id) ? chosen.filter((x) => x !== tile.id) : [...chosen, tile.id],
+        );
+      }
+      return;
+    }
+    if (!tile) return setSelectedIds([]);
+    // Dragging one of several selected tiles moves them all.
+    const group = chosen.includes(tile.id) ? chosen : [tile.id];
+    setSelectedIds(group);
+    setDrag({ ids: group, start: cell, shift: 0 });
   };
   const tilesMove = (cell: CellPoint) => {
-    if (!drag) return;
     // Tiles stand on the bottom row: a drag moves them sideways only.
-    const col = drag.orig.col - (cell.col - drag.start.col);
-    if (col === drag.orig.col) return setDrag({ ...drag, preview: null });
-    setDrag({ ...drag, preview: onBottom(col, drag.orig.repeatX) });
+    if (drag) setDrag({ ...drag, shift: cell.col - drag.start.col });
   };
   const tilesEnd = () => {
-    const moved = drag?.preview;
-    const motif = drag
-      ? motifOf(design.placements.find((p) => p.id === drag.id)?.motifId ?? '')
-      : undefined;
-    if (drag && moved && motif) {
-      const conflict = conflictOf(design, motif, moved, drag.id);
-      explain(conflict);
-      if (!conflict) setDesign(updatePlacement(design, drag.id, moved));
+    if (drag && drag.shift !== 0) {
+      const moved = moveTiles(design, drag.ids, drag.shift);
+      explain(moved.conflict);
+      if (moved.design) setDesign(moved.design);
     }
     setDrag(null);
   };
   const paint = (cell: CellPoint) => {
+    if (inMirror(design, cell.col, cell.col)) return setMessage(t('designer.inMirror'));
     const base = stroke.current ?? design;
     const next =
       tool === 'brush'
@@ -355,6 +497,11 @@ function Workbench({
     { id: 'eraser', icon: 'eraser', label: t('designer.toolEraser') },
     { id: 'pan', icon: 'hand', label: t('designer.toolPan') },
   ];
+  // Pointing at a quarter line tells how to mirror there.
+  const nearLine =
+    hover && !holding && !pasting && (tool === 'tiles' || tool === 'pan')
+      ? (quarterAt(hover.col) ?? quarterAt(hover.col + 1))
+      : undefined;
 
   return (
     <main className="editor designer" id="main">
@@ -428,15 +575,19 @@ function Workbench({
         <TileBar
           design={design}
           holding={holding}
+          pasting={pasting}
           selected={selected}
+          count={chosen.length}
+          canPaste={clip !== null}
           motifOf={motifOf}
           message={message}
-          onCancel={() => {
-            setHolding(null);
-            setMessage(null);
-          }}
+          info={info}
+          onCancel={cancel}
           onHoldTimes={(times) => holding && setHolding({ ...holding, times })}
-          onDeselect={() => select(null)}
+          onDeselect={() => selectTiles([])}
+          onCopy={copy}
+          onPaste={paste}
+          onRemoveSelected={removeSelected}
           setDesign={setDesign}
           onConflict={explain}
         />
@@ -453,47 +604,60 @@ function Workbench({
       <div className="editor__body">
         <div className="editor__canvas">
           <GuidesToggle />
-          {source && (
-            <EditorCanvas
-              source={source}
-              overlay={overlay}
-              tool={canvasTool}
-              label={t('designer.canvasLabel', { name: pattern.name })}
-              help={t('designer.help')}
-              fitKey={`${design.width}x${design.height}${design.halves ? '/2' : ''}`}
-              testId="designer-canvas"
-              onHover={setHover}
-              onStrokeStart={(cell) => {
-                setCursor(cell);
-                stroke.current = null;
-                if (tool === 'tiles') tilesStart(cell);
-                else if (tool === 'brush' || tool === 'eraser') paint(cell);
-              }}
-              onStrokeMove={(cell) => {
-                if (tool === 'tiles') tilesMove(cell);
-                else if (tool === 'brush' || tool === 'eraser') paint(cell);
-              }}
-              onStrokeEnd={() => {
-                stroke.current = null;
-                if (tool === 'tiles') tilesEnd();
-              }}
-              onStrokeCancel={() => {
-                stroke.current = null;
-                setDrag(null);
-              }}
-            />
-          )}
+          <EditorCanvas
+            source={source}
+            overlay={overlay}
+            tool={canvasTool}
+            label={t('designer.canvasLabel', { name: pattern.name })}
+            help={t('designer.help')}
+            fitKey={`${design.width}x${design.height}${design.halves ? '/2' : ''}`}
+            testId="designer-canvas"
+            onHover={setHover}
+            onStrokeStart={(cell, mods) => {
+              setCursor(cell);
+              stroke.current = null;
+              if (tool === 'tiles') tilesStart(cell, mods?.shift ?? false);
+              else if (tool === 'brush' || tool === 'eraser') paint(cell);
+            }}
+            onStrokeMove={(cell) => {
+              if (tool === 'tiles') tilesMove(cell);
+              else if (tool === 'brush' || tool === 'eraser') paint(cell);
+            }}
+            onStrokeEnd={() => {
+              stroke.current = null;
+              if (tool === 'tiles') tilesEnd();
+            }}
+            onStrokeCancel={() => {
+              stroke.current = null;
+              setDrag(null);
+            }}
+            onLineDoubleClick={(col) => {
+              // Brush strokes own double clicks; the panel's switches work with every tool.
+              if (tool === 'brush' || tool === 'eraser') return;
+              const quarter = quarterAt(col);
+              if (quarter) flipMirror(quarter);
+            }}
+          />
           <p
             className={`editor__where${ghost?.conflict ? ' editor__where--refused' : ''}`}
             aria-live="polite"
           >
             {ghost?.conflict
               ? conflictText(ghost.conflict)
-              : hover && holding
-                ? t('designer.layHere', { col: fromRight(design, hover.col) })
-                : cursor
-                  ? t('designer.where', { col: fromRight(design, cursor.col), row: cursor.row })
-                  : t(`designer.hint.${tool}`)}
+              : hover && pasting
+                ? t('designer.pasteHere', { col: fromRight(design, hover.col) })
+                : hover && holding
+                  ? t('designer.layHere', { col: fromRight(design, hover.col) })
+                  : nearLine
+                    ? t(
+                        (design.mirrors ?? []).includes(nearLine)
+                          ? 'designer.mirrorOffHere'
+                          : 'designer.mirrorHere',
+                        { line: QUARTER_LABEL[nearLine] },
+                      )
+                    : cursor
+                      ? t('designer.where', { col: fromRight(design, cursor.col), row: cursor.row })
+                      : t(`designer.hint.${tool}`)}
           </p>
         </div>
 
@@ -504,13 +668,31 @@ function Workbench({
             fromFile={fromFile}
             own={own}
             holding={holding?.motif ?? null}
-            selected={selectedId}
+            selected={chosen}
             onPick={pick}
-            onSelect={select}
+            onSelect={selectFromList}
             setDesign={setDesign}
             onNewPiece={() => setNewPiece(true)}
             pattern={pattern}
           />
+          <section aria-labelledby={`${ids}-mirror`}>
+            <h2 id={`${ids}-mirror`} className="panel__title">
+              {t('designer.mirror')}
+            </h2>
+            <p className="hint">{t('designer.mirrorHint')}</p>
+            <div className="mirror-switches">
+              {QUARTERS.map((q) => (
+                <label key={q} className="check">
+                  <input
+                    type="checkbox"
+                    checked={(design.mirrors ?? []).includes(q)}
+                    onChange={() => flipMirror(q)}
+                  />
+                  <span>{t('designer.mirrorAt', { line: QUARTER_LABEL[q] })}</span>
+                </label>
+              ))}
+            </div>
+          </section>
           <section aria-labelledby={`${ids}-brush`}>
             <h2 id={`${ids}-brush`} className="panel__title">
               {t('designer.brush')}
@@ -534,10 +716,22 @@ function Workbench({
   );
 }
 
-/** A tile being dragged: where the drag started and where the tile would go. */
+const QUARTERS = [1, 2, 3] as const;
+const QUARTER_LABEL = { 1: '¼', 2: '½', 3: '¾' } as const;
+
+/** Canvas rectangles of these tiles. */
+function rectsOf(design: Design, ids: readonly string[]) {
+  return design.placements.flatMap((p) => {
+    if (!ids.includes(p.id)) return [];
+    const motif = design.motifs.find((m) => m.id === p.motifId);
+    const r = motif ? areaRect(design, p, motif) : null;
+    return r ? [r] : [];
+  });
+}
+
+/** Tiles being dragged together: where the drag started and how far it has moved (columns). */
 interface Drag {
-  readonly id: string;
+  readonly ids: readonly string[];
   readonly start: CellPoint;
-  readonly orig: PlaceInput;
-  readonly preview: PlaceInput | null;
+  readonly shift: number;
 }
