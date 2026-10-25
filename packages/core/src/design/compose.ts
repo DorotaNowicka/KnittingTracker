@@ -91,18 +91,20 @@ export const DESIGN_CHART_ID = 'design';
 
 /**
  * The pattern with its chart composed from its design: one chart as wide and tall as the grid,
- * placed once, and the planned rows set to the grid's height. Patterns without a design are
- * returned unchanged.
+ * placed once, and the planned rows set to the grid's height. The grid sets the stitch count, so a
+ * stated per-size count (from an imported file) is dropped. Patterns without a design are returned
+ * unchanged.
  */
 export function applyDesign(pattern: Pattern, registry: SymbolRegistry): Pattern {
   const design = pattern.design;
   if (!design) return pattern;
+  const { expectedStitches: _stated, ...rest } = pattern;
   const chart = applySymbolRows(
     blankChart({ id: DESIGN_CHART_ID, name: pattern.name.slice(0, 40) || 'Wzór' }, 1, 1),
     composeDesign(design, registry),
   );
   return {
-    ...pattern,
+    ...rest,
     charts: [chart],
     layout: [
       { kind: 'marker', id: 'start' },

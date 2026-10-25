@@ -242,6 +242,8 @@ export const projectSchema = z.object({
   knitterGauge: gaugeSchema.optional(),
   /** Patterns in the order they are knitted. A new project may have none yet. */
   patterns: z.array(patternSchema),
+  /** Charts of the imported pattern file, offered as pieces in the creator for every part. */
+  motifs: z.array(chartSchema).max(200).optional(),
   /** The pattern the tracker opens. */
   activePatternId: id.optional(),
   /**
