@@ -243,3 +243,13 @@ export const PROJECT_KIND_INFO: Readonly<Record<ProjectKind, KindInfo>> = {
 export const PROJECT_KIND_LIST: readonly KindInfo[] = PROJECT_KINDS.map(
   (k) => PROJECT_KIND_INFO[k],
 );
+
+/** Garments whose body, knitted in the round in one piece, has a front and a back. */
+const FRONT_AND_BACK: readonly ProjectKind[] = ['sweater', 'cardigan', 'vest'];
+
+/**
+ * True for the part that is knitted in the round as a front and a back side by side (a sweater's
+ * body in one piece): the pattern creator splits its grid in halves.
+ */
+export const splitsFrontBack = (kind: ProjectKind | undefined, partId: string): boolean =>
+  !!kind && FRONT_AND_BACK.includes(kind) && partId === 'body';

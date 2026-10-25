@@ -5,7 +5,14 @@ import { resolvePattern } from '../layout/resolve';
 import { designSchema, patternSchema, type Design } from '../schema/pattern';
 import { createRegistry } from '../symbols/registry';
 import { validateProject } from '../validate/pattern';
-import { applyDesign, blankDesign, composeDesign, placementArea } from './compose';
+import {
+  applyDesign,
+  blankDesign,
+  composeDesign,
+  designChart,
+  halfCuts,
+  placementArea,
+} from './compose';
 import { MOTIF_LIBRARY } from './motifs';
 
 const registry = createRegistry();
@@ -134,5 +141,61 @@ describe('pattern creator designs', () => {
       ).project;
       expect(validateProject(project).ok, m.chart.id).toBe(true);
     }
+  });
+
+  it('splits a design in halves: the front from stitch 1, then the back, as sections', () => {
+    const design: Design = {
+      ...blankDesign(9, 4),
+      motifs: [lib('moss')],
+      placements: [
+        { id: 'a', motifId: 'lib:moss', col: 1, row: 1, repeatX: 'fill', repeatY: 'fill' },
+      ],
+      halves: ['Przód', 'Tył'],
+    };
+    expect(designSchema.safeParse(design).success).toBe(true);
+    const pattern = applyDesign({ ...blankPattern('body', 'Korpus'), design }, registry);
+    expect(pattern.charts.map((c) => [c.id, c.width])).toEqual([
+      ['design', 5],
+      ['design-back', 4],
+    ]);
+    const project = insertPattern(
+      blankProject({ id: 'p', name: 'Sweter', now: '2026-10-25T12:00:00.000Z' }),
+      pattern,
+    ).project;
+    expect(validateProject(project).ok).toBe(true);
+    const stage = resolvePattern(project, 'body', { registry });
+    expect(stage.sections.map((x) => [x.name, x.firstStitch, x.lastStitch])).toEqual([
+      ['Przód', 1, 5],
+      ['Tył', 6, 9],
+    ]);
+    // Stitch for stitch the same grid as the whole design, which the creator shows.
+    const whole = chartToSymbolRows(designChart(design, registry, 'Korpus'));
+    expect(composeDesign(design, registry)).toEqual(whole);
+    expect(halfCuts(design, registry)).toEqual([]);
+    for (let row = 1; row <= 4; row++) {
+      for (let col = 1; col <= 9; col++) {
+        expect(stage.cellAtCol(row, col).symbolId).toBe(whole[row - 1]?.[col - 1]);
+      }
+    }
+  });
+
+  it('shows where the halves cut a cable in two: knit there, in the creator as in the tracker', () => {
+    const cable = lib('cable-2-2-left');
+    // 8 stitches split 4 | 4; the cable's 4 stitches straddle the middle.
+    const design: Design = {
+      ...blankDesign(8, cable.height),
+      motifs: [cable],
+      placements: [{ id: 'a', motifId: cable.id, col: 3, row: 1, repeatX: 1, repeatY: 'fill' }],
+      halves: ['Przód', 'Tył'],
+    };
+    const crossing = composeDesign(design, registry).flatMap((r, i) =>
+      r.includes('cable:2-2-lc') ? [i + 1] : [],
+    );
+    expect(crossing.length).toBeGreaterThan(0);
+    expect(halfCuts(design, registry)).toEqual(crossing);
+    const shown = chartToSymbolRows(designChart(design, registry, 'Korpus'));
+    expect(shown.flat()).not.toContain('cable:2-2-lc');
+    const { halves: _, ...whole } = design;
+    expect(halfCuts(whole, registry)).toEqual([]);
   });
 });

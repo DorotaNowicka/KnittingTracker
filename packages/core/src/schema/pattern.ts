@@ -178,6 +178,11 @@ export const designSchema = z.object({
   placements: z.array(placementSchema),
   /** Symbols painted with the brush: anchor stitch from the right edge, row from the bottom. */
   cells: z.array(z.object({ row: posInt.max(1000), col: posInt.max(1000), symbolId: id })),
+  /**
+   * Split in two halves, knitted in this order (a body in the round: front, then back): names of
+   * the half starting at stitch 1 (the right one) and of the other.
+   */
+  halves: z.tuple([z.string().min(1).max(40), z.string().min(1).max(40)]).optional(),
 });
 
 /** A pattern (wzór): one grid of charts worked side by side, with its own progress. */

@@ -86,29 +86,92 @@ export function composeDesign(design: Design, registry: SymbolRegistry): string[
   return out;
 }
 
-/** Id of the chart a design is composed into. */
+/** Id of the chart a design is composed into (its first half, when split in halves). */
 export const DESIGN_CHART_ID = 'design';
+/** Id of the chart of a split design's second half. */
+export const DESIGN_BACK_CHART_ID = 'design-back';
+
+/** Stitches in the first half of a split design (the right one, from stitch 1). */
+export const firstHalf = (width: number) => Math.ceil(width / 2);
+
+/** Columns (RS view) where a split design is cut: left of it the second half. */
+const cutOf = (design: Design) => design.width - firstHalf(design.width);
+
+/**
+ * The design's grid as it is knitted: composed, and for a design split in halves each half made
+ * well formed on its own, so a symbol crossing the middle (a cable) becomes knit there.
+ */
+function knittedRows(design: Design, registry: SymbolRegistry): string[][] {
+  const rows = composeDesign(design, registry);
+  if (!design.halves || design.width < 2) return rows;
+  const cut = cutOf(design);
+  const left = repairRows(
+    rows.map((r) => r.slice(0, cut)),
+    registry,
+  );
+  const right = repairRows(
+    rows.map((r) => r.slice(cut)),
+    registry,
+  );
+  return rows.map((_, i) => [...(left[i] ?? []), ...(right[i] ?? [])]);
+}
+
+/** Rows (from 1) where splitting in halves cuts a symbol in two; empty when not split. */
+export function halfCuts(design: Design, registry: SymbolRegistry): number[] {
+  if (!design.halves || design.width < 2) return [];
+  const whole = composeDesign(design, registry);
+  const knitted = knittedRows(design, registry);
+  return whole.flatMap((row, i) => (row.some((id, c) => knitted[i]?.[c] !== id) ? [i + 1] : []));
+}
+
+/** The whole design as one chart, as it is knitted (the creator shows it like this). */
+export function designChart(design: Design, registry: SymbolRegistry, name: string): Chart {
+  return applySymbolRows(
+    blankChart({ id: DESIGN_CHART_ID, name: name.slice(0, 40) || 'Wzór' }, 1, 1),
+    knittedRows(design, registry),
+  );
+}
 
 /**
  * The pattern with its chart composed from its design: one chart as wide and tall as the grid,
- * placed once, and the planned rows set to the grid's height. The grid sets the stitch count, so a
- * stated per-size count (from an imported file) is dropped. Patterns without a design are returned
- * unchanged.
+ * placed once, and the planned rows set to the grid's height. A design split in halves becomes two
+ * charts with a marker between them, so the grid shows them as sections (front | back). The grid
+ * sets the stitch count, so a stated per-size count (from an imported file) is dropped. Patterns
+ * without a design are returned unchanged.
  */
 export function applyDesign(pattern: Pattern, registry: SymbolRegistry): Pattern {
   const design = pattern.design;
   if (!design) return pattern;
   const { expectedStitches: _stated, ...rest } = pattern;
-  const chart = applySymbolRows(
-    blankChart({ id: DESIGN_CHART_ID, name: pattern.name.slice(0, 40) || 'Wzór' }, 1, 1),
-    composeDesign(design, registry),
-  );
+  const name = pattern.name.slice(0, 40) || 'Wzór';
+  const rows = knittedRows(design, registry);
+  const halves = design.halves && design.width >= 2 ? design.halves : null;
+  if (!halves) {
+    return {
+      ...rest,
+      charts: [applySymbolRows(blankChart({ id: DESIGN_CHART_ID, name }, 1, 1), rows)],
+      layout: [
+        { kind: 'marker', id: 'start' },
+        { kind: 'chart', placementId: `${DESIGN_CHART_ID}-1`, chartId: DESIGN_CHART_ID },
+      ],
+      rows: design.height,
+    };
+  }
+  // RS view: the first half is on the right.
+  const cut = cutOf(design);
+  const half = (id: string, from: number, to: number) =>
+    applySymbolRows(
+      blankChart({ id, name }, 1, 1),
+      rows.map((r) => r.slice(from, to)),
+    );
   return {
     ...rest,
-    charts: [chart],
+    charts: [half(DESIGN_CHART_ID, cut, design.width), half(DESIGN_BACK_CHART_ID, 0, cut)],
     layout: [
-      { kind: 'marker', id: 'start' },
+      { kind: 'marker', id: 'start', sectionName: halves[0] },
       { kind: 'chart', placementId: `${DESIGN_CHART_ID}-1`, chartId: DESIGN_CHART_ID },
+      { kind: 'marker', id: 'side', sectionName: halves[1] },
+      { kind: 'chart', placementId: `${DESIGN_BACK_CHART_ID}-1`, chartId: DESIGN_BACK_CHART_ID },
     ],
     rows: design.height,
   };
