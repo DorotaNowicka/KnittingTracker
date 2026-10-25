@@ -29,7 +29,8 @@ export interface Band {
 /** A vertical guide line along the left edge of display column `atCol`. */
 export interface Guide {
   readonly atCol: number;
-  readonly kind: 'quarter' | 'half';
+  /** `mirror`: the axis of a mirror image (drawn dashed, stronger than the other guides). */
+  readonly kind: 'quarter' | 'half' | 'mirror';
 }
 
 /**
@@ -66,6 +67,8 @@ export interface GridSource {
   readonly sections: readonly Band[];
   /** Coloured vertical lines that help count stitches (quarters and the half of a round). */
   readonly guides?: readonly Guide[];
+  /** Column ranges drawn hatched, e.g. a mirror image the knitter doesn't draw herself. */
+  readonly shaded?: readonly { readonly firstCol: number; readonly lastCol: number }[];
   cell(row: number, col: number): GridCell;
   /** Stitch number printed above a column. */
   stitchNumber(col: number): number;

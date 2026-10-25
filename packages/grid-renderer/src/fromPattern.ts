@@ -88,6 +88,7 @@ export function chartSource(parsed: ParsedChart, registry: SymbolRegistry): Grid
 export function editorOverlay(options: {
   readonly cursor?: { readonly row: number; readonly col: number } | null;
   readonly selection?: Overlay['selection'];
+  readonly selections?: Overlay['selections'];
   readonly highlights?: Overlay['highlights'];
 }): Overlay {
   return {
@@ -99,6 +100,7 @@ export function editorOverlay(options: {
     veilAbove: false,
     staticKey: 'editor',
     selection: options.selection ?? null,
+    selections: options.selections ?? [],
     highlights: options.highlights ?? [],
   };
 }

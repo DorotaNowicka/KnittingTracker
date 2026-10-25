@@ -47,6 +47,13 @@ export interface Overlay {
     readonly row2: number;
     readonly col2: number;
   } | null;
+  /** More selected rectangles (several tiles selected at once). */
+  readonly selections?: readonly {
+    readonly row1: number;
+    readonly col1: number;
+    readonly row2: number;
+    readonly col2: number;
+  }[];
   /** Cells to flag, e.g. validation problems in the editor. */
   readonly highlights?: readonly { readonly row: number; readonly col: number }[];
 }
@@ -213,6 +220,29 @@ export function buildScene(
       }
     }
 
+    // Shaded column ranges (a mirror image), under the symbols.
+    for (const band of doStatic && c >= LOD.rules ? (source.shaded ?? []) : []) {
+      const top = sy(geo.rowY(rows.last));
+      const h = sy(geo.rowY(rows.first) + c) - top;
+      for (const r of geo.runs) {
+        const a = Math.max(band.firstCol, r.firstCol, cols.first);
+        const b = Math.min(band.lastCol, r.lastCol, cols.last);
+        if (a > b) continue;
+        const x = sx(geo.colX(a));
+        out.push({
+          t: 'hatch',
+          phase: cam.scrollX - cam.scrollY,
+          x,
+          y: top,
+          w: (b - a + 1) * c,
+          h,
+          stroke: 'guideHalf',
+          spacing: Math.max(6, c / 1.5),
+          width: Math.max(1, c / 24),
+        });
+      }
+    }
+
     // No-stitch cells and glyphs.
     const items: { x: number; y: number; glyph: Glyph }[] = [];
     for (let row = rows.first; doStatic && row <= rows.last; row++) {
@@ -335,8 +365,11 @@ export function buildScene(
       }
       if (segs.length > 0) out.push({ t: 'lines', segments: segs, stroke: 'danger', width: 2.5 });
     }
-    if (doOverlay && overlay.selection) {
-      const s = overlay.selection;
+    const selected = [
+      ...(overlay.selection ? [overlay.selection] : []),
+      ...(overlay.selections ?? []),
+    ];
+    for (const s of doOverlay ? selected : []) {
       const x1 = sx(geo.colX(Math.min(s.col1, s.col2)));
       const x2 = sx(geo.colX(Math.max(s.col1, s.col2)) + c);
       // Rows grow upwards: the top edge belongs to the higher row.
@@ -465,6 +498,13 @@ function guideLines(
   return [
     { t: 'lines', segments: of('quarter'), stroke: 'guide', width },
     { t: 'lines', segments: of('half'), stroke: 'guideHalf', width: width * 1.25 },
+    {
+      t: 'lines',
+      segments: of('mirror'),
+      stroke: 'guideHalf',
+      width: width * 1.6,
+      dash: [geo.m.cell / 2, geo.m.cell / 4],
+    },
   ];
 }
 

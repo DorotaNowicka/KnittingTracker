@@ -269,6 +269,33 @@ describe('scene', () => {
     ).toBe(false);
   });
 
+  it('hatches a mirror image, dashes its axis and outlines several selected tiles', () => {
+    const mirrored: GridSource = {
+      ...source,
+      guides: [{ atCol: 6, kind: 'mirror' }],
+      shaded: [{ firstCol: 1, lastCol: 4 }],
+    };
+    const geo = new GridGeometry(mirrored, 20);
+    const overlay = {
+      ...editorOverlay({
+        selection: { row1: 1, col1: 1, row2: 2, col2: 2 },
+        selections: [{ row1: 1, col1: 8, row2: 2, col2: 9 }],
+      }),
+    };
+    const cmds = buildScene(
+      mirrored,
+      geo,
+      clampCamera(cam({ width: 800, height: 400 }), geo),
+      overlay,
+    );
+    expect(cmds.some((c) => c.t === 'hatch' && c.stroke === 'guideHalf')).toBe(true);
+    const axis = cmds.find((c) => c.t === 'lines' && c.stroke === 'guideHalf' && c.dash);
+    expect(axis && axis.t === 'lines' ? axis.segments.length : 0).toBe(4);
+    expect(
+      cmds.filter((c) => c.t === 'rect' && c.fill === 'indigo' && c.alpha === 0.12),
+    ).toHaveLength(2);
+  });
+
   it('drops glyphs and rules when zoomed far out (level of detail)', () => {
     const geo = new GridGeometry(source, LOD.rules - 1);
     const k = kinds(buildScene(source, geo, clampCamera(cam(), geo), progressOverlay(model, 0)));
