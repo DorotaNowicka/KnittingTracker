@@ -183,6 +183,14 @@ export const designSchema = z.object({
    * the half starting at stitch 1 (the right one) and of the other.
    */
   halves: z.tuple([z.string().min(1).max(40), z.string().min(1).max(40)]).optional(),
+  /**
+   * Mirror axes at a quarter (1), half (2) or three quarters (3) of the width, counted from the
+   * right edge: the stitches left of an axis show the mirror image of those right of it.
+   */
+  mirrors: z
+    .array(z.union([z.literal(1), z.literal(2), z.literal(3)]))
+    .max(3)
+    .optional(),
 });
 
 /** A pattern (wzór): one grid of charts worked side by side, with its own progress. */

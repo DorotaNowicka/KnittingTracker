@@ -2,12 +2,19 @@ import {
   applySymbolRows,
   blankChart,
   chartToSymbolRows,
+  mirrorSymbolId,
   paintCell,
   repairRows,
 } from '../chart/edit';
 import { STD } from '../symbols/library';
 import type { SymbolRegistry } from '../symbols/registry';
-import type { Chart, Design, Pattern, Placement } from '../schema/pattern';
+import {
+  CONTINUATION,
+  type Chart,
+  type Design,
+  type Pattern,
+  type Placement,
+} from '../schema/pattern';
 
 /** Columns and rows a placement covers on a grid, 1-based display columns (1 = leftmost). */
 export interface PlacementArea {
@@ -83,7 +90,73 @@ export function composeDesign(design: Design, registry: SymbolRegistry): string[
     if (x < 1 || cell.row > design.height) continue;
     out = paintCell(out, registry, cell.row, x, cell.symbolId).map((r) => [...r]);
   }
+  for (const area of mirrorAreas(design)) out = mirrorInto(out, registry, area);
   return out;
+}
+
+/** Stitches right of a mirror axis at `quarter` quarters of the width. */
+export const mirrorAxis = (width: number, quarter: 1 | 2 | 3) => Math.round((width * quarter) / 4);
+
+/** Where a mirror copies to, in display columns: `from`…`to` mirror the columns right of `to`. */
+export interface MirrorArea {
+  readonly quarter: 1 | 2 | 3;
+  /** Display column just right of the axis (the axis is its left edge). */
+  readonly axisCol: number;
+  /** Columns that show the mirror image (left of the axis). */
+  readonly firstCol: number;
+  readonly lastCol: number;
+}
+
+/**
+ * The design's mirrors, from the right edge leftwards (so a quarter mirrored and then the half
+ * gives four-way symmetry). Each copies as many stitches as fit on both sides of its axis.
+ */
+export function mirrorAreas(design: Pick<Design, 'width' | 'mirrors'>): MirrorArea[] {
+  const n = design.width;
+  return [...new Set(design.mirrors ?? [])]
+    .sort((a, b) => a - b)
+    .flatMap((quarter) => {
+      const k = mirrorAxis(n, quarter);
+      const m = Math.min(k, n - k);
+      if (m < 1) return [];
+      const axisCol = n - k + 1;
+      return [{ quarter, axisCol, firstCol: axisCol - m, lastCol: axisCol - 1 }];
+    });
+}
+
+/**
+ * Rows with the columns right of the axis mirrored onto its left: each symbol reversed in place
+ * and swapped for its mirror image (a cable crossing left crosses right). A symbol cut by the
+ * axis or by the copied band's far edge becomes knit.
+ */
+function mirrorInto(rows: string[][], registry: SymbolRegistry, area: MirrorArea): string[][] {
+  const width = area.lastCol - area.firstCol + 1;
+  const s1 = area.axisCol;
+  const s2 = area.axisCol + width - 1;
+  const out = rows.map((r) => [...r]);
+  for (let i = 0; i < rows.length; i++) {
+    const src = rows[i];
+    const target = out[i];
+    if (!src || !target) continue;
+    // Walk the source right to left (away from the axis, back towards it) and write the target
+    // left to right, so each stitch lands as far left of the axis as it was right of it.
+    let write = area.firstCol;
+    let c = s2;
+    while (c >= s1) {
+      let a = c;
+      while (a > 1 && src[a - 1] === CONTINUATION) a -= 1;
+      if (a < s1) {
+        for (; c >= s1; c--) target[write++ - 1] = STD.knit;
+        break;
+      }
+      const w = c - a + 1;
+      target[write - 1] = mirrorSymbolId(src[a - 1] ?? STD.knit);
+      for (let k = 1; k < w; k++) target[write - 1 + k] = CONTINUATION;
+      write += w;
+      c = a - 1;
+    }
+  }
+  return repairRows(out, registry);
 }
 
 /** Id of the chart a design is composed into (its first half, when split in halves). */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blankProject, insertPattern, blankPattern } from '../authoring/pattern';
-import { chartToSymbolRows } from '../chart/edit';
+import { applySymbolRows, blankChart, chartToSymbolRows } from '../chart/edit';
 import { resolvePattern } from '../layout/resolve';
 import { designSchema, patternSchema, type Design } from '../schema/pattern';
 import { createRegistry } from '../symbols/registry';
@@ -11,6 +11,7 @@ import {
   composeDesign,
   designChart,
   halfCuts,
+  mirrorAreas,
   placementArea,
 } from './compose';
 import { MOTIF_LIBRARY } from './motifs';
@@ -197,5 +198,51 @@ describe('pattern creator designs', () => {
     expect(shown.flat()).not.toContain('cable:2-2-lc');
     const { halves: _, ...whole } = design;
     expect(halfCuts(whole, registry)).toEqual([]);
+  });
+
+  it('mirrors the stitches right of an axis onto its left, live, cables crossing the other way', () => {
+    const C = 'cable:2-2-lc';
+    const cable = applySymbolRows(blankChart({ id: 'own:c', name: 'C' }, 1, 1), [
+      [C, '.', '.', '.'],
+    ]);
+    // 12 stitches: purl at stitch 1, a left cable on stitches 2-5; the axis at ½ (after stitch 6).
+    const design: Design = {
+      ...blankDesign(12, 1),
+      motifs: [lib('purl'), cable],
+      placements: [
+        { id: 'a', motifId: 'lib:purl', col: 1, row: 1, repeatX: 1, repeatY: 'fill' },
+        { id: 'b', motifId: 'own:c', col: 2, row: 1, repeatX: 1, repeatY: 'fill' },
+      ],
+      mirrors: [2],
+    };
+    expect(designSchema.safeParse(design).success).toBe(true);
+    expect(mirrorAreas(design)).toEqual([{ quarter: 2, axisCol: 7, firstCol: 1, lastCol: 6 }]);
+    expect(view(composeDesign(design, registry))).toEqual([
+      'p cable:2-2-rc . . . k k cable:2-2-lc . . . p',
+    ]);
+    // Live: move the cable one stitch left and the mirror follows.
+    const moved = {
+      ...design,
+      placements: design.placements.map((p) => (p.id === 'b' ? { ...p, col: 3 } : p)),
+    };
+    expect(view(composeDesign(moved, registry))).toEqual([
+      'p k cable:2-2-rc . . . cable:2-2-lc . . . k p',
+    ]);
+  });
+
+  it('mirrors a quarter, then the half: four-way symmetry from one quarter', () => {
+    const design: Design = {
+      ...blankDesign(8, 1),
+      motifs: [lib('purl')],
+      placements: [{ id: 'a', motifId: 'lib:purl', col: 1, row: 1, repeatX: 1, repeatY: 'fill' }],
+      mirrors: [2, 1],
+    };
+    expect(mirrorAreas(design).map((a) => [a.quarter, a.firstCol, a.lastCol])).toEqual([
+      [1, 5, 6],
+      [2, 1, 4],
+    ]);
+    expect(view(composeDesign(design, registry))).toEqual(['p k k p p k k p']);
+    // Three quarters: only the last quarter is left of the axis.
+    expect(view(composeDesign({ ...design, mirrors: [3] }, registry))).toEqual(['k k k k k k k p']);
   });
 });

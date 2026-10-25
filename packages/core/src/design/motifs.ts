@@ -27,6 +27,7 @@ const motif = (id: string, pl: string, en: string, drawn: string[][]): Motif => 
 export const MOTIF_LIBRARY: readonly Motif[] = [
   motif('rib-1-1', 'Ściągacz 1/1', 'Rib 1×1', [[K, P]]),
   motif('rib-2-2', 'Ściągacz 2/2', 'Rib 2×2', [[K, K, P, P]]),
+  motif('knit', 'Prawe oczka', 'Stockinette', [[K]]),
   motif('purl', 'Lewe oczka', 'Reverse stockinette', [[P]]),
   motif('garter', 'Ścieg francuski (okrążenia)', 'Garter (in the round)', [[P], [K]]),
   motif('moss', 'Ryż', 'Seed stitch', [
