@@ -3,6 +3,7 @@ import {
   PROJECT_KIND_INFO,
   PROJECT_KIND_LIST,
   resolvePattern,
+  splitsFrontBack,
   type KindItem,
   type Project,
   type ProjectKind,
@@ -18,14 +19,15 @@ import { KIND_ICONS } from '../ui/kindIcons';
 import { ChartReview } from './ChartReview';
 import {
   describedSequence,
-  kindItems,
   mainItemId,
   orderedItems,
   partsOf,
+  trackedPartsOf,
   type ElementState,
 } from './elements';
+import { LayoutEditor } from './LayoutEditor';
 import { GarmentDiagram } from '../garment/GarmentDiagram';
-import { DescriptionReview, LegendReview, SymbolsReview } from './Reviews';
+import { LegendReview, SymbolsReview } from './Reviews';
 import {
   pendingSymbols,
   splitSizes,
@@ -239,7 +241,13 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
   const [hovered, setHovered] = useState<string | null>(null);
   const toggle = (id: string) =>
     s.updateElement(id, { include: !(s.elements[id]?.include ?? false) });
-  const tracked = items.filter((it) => s.elements[it.id]?.include).length;
+  // Parts, not items: a body in pieces counts its back and front.
+  const tracked = items
+    .filter((it) => s.elements[it.id]?.include)
+    .reduce((n, it) => n + trackedPartsOf(it, s.elements[it.id]).length, 0);
+  const pieced = items.filter(
+    (it) => it.type === 'choice' && partsOf(it, s.elements[it.id]).length > 1,
+  );
   const order = s.order;
   const orderText =
     order.source === 'headings'
@@ -294,6 +302,7 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
             onHover={setHovered}
             numbers={numbers}
             size="large"
+            layered={pieced.map((it) => it.id)}
           />
           <fieldset className="track__list">
             <legend className="section-title">{t('elements.trackTitle')}</legend>
@@ -331,6 +340,7 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
                         <span className="track-item__note">{t('elements.optional')}</span>
                       )}
                     </label>
+                    {it.type === 'choice' && on && <Variant item={it} />}
                   </li>
                 );
               })}
@@ -353,6 +363,62 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
           {kind === 'custom' ? t('elements.next') : t('elements.nextCount', { count: tracked })}
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * How a part with variants is made (a body in the round or in pieces), right under it in the list
+ * of parts; in pieces, each piece is tracked or not on its own.
+ */
+function Variant({ item }: { item: Extract<KindItem, { type: 'choice' }> }) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
+  const ids = useId();
+  const s = useImport();
+  const state = s.elements[item.id];
+  const parts = partsOf(item, state);
+  const skip = state?.skip ?? [];
+  return (
+    <div className="part-variant">
+      <div className="segmented" role="radiogroup" aria-label={t('elements.how')}>
+        {item.options.map((o) => (
+          <label key={o.id} className="segmented__item">
+            <input
+              type="radio"
+              name={`${ids}-v`}
+              checked={state?.option === o.id}
+              onChange={() => s.updateElement(item.id, { option: o.id, skip: [] })}
+            />
+            <span>{o.label[lang]}</span>
+          </label>
+        ))}
+      </div>
+      {item.id === 'body' && s.bodyPieces.pieces && (
+        <p className="hint">
+          {t('elements.piecesFromPdf', { words: s.bodyPieces.evidence.join(', ') })}
+        </p>
+      )}
+      {parts.length > 1 && (
+        <ul className="part-variant__parts">
+          {parts.map((p) => (
+            <li key={p.id}>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={!skip.includes(p.id)}
+                  onChange={() =>
+                    s.updateElement(item.id, {
+                      skip: skip.includes(p.id) ? skip.filter((x) => x !== p.id) : [...skip, p.id],
+                    })
+                  }
+                />
+                <span>{p.label[lang]}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -400,12 +466,22 @@ function PreviewStep({ onSize }: { onSize(): void }) {
   const draft = useMemo(
     () => useImport.getState().draftProject(input),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the session's data the draft reads
-    [input, s.elements, s.charts, s.legend, s.result, s.description, s.sizeIndex, s.order],
+    [
+      input,
+      s.elements,
+      s.charts,
+      s.legend,
+      s.result,
+      s.description,
+      s.sizeIndex,
+      s.order,
+      s.setups,
+    ],
   );
   const parts: PreviewPart[] = items
     .filter((it) => s.elements[it.id]?.include)
     .flatMap((it) =>
-      partsOf(it, s.elements[it.id]).map((p) => ({
+      trackedPartsOf(it, s.elements[it.id]).map((p) => ({
         patternId: p.id,
         label: p.label[lang],
         number: s.projectKind === 'custom' ? undefined : numbers[it.id],
@@ -509,7 +585,8 @@ function useFacts(part: PreviewPart, stage: ResolvedPattern | null) {
   const { t } = useTranslation();
   const s = useImport();
   const state = s.elements[part.item.id];
-  const charts = state?.charts ?? [];
+  // The part's own charts: as set in "Popraw", or as the import gives them.
+  const charts = [...new Set(s.partSetup(part.patternId).sequence.map((x) => x.chart))];
   const uncertain = charts.reduce(
     (n, i) => n + (s.charts[i]?.confidence.flat().filter((v) => v < UNCERTAIN).length ?? 0),
     0,
@@ -632,17 +709,9 @@ function FixPart({
   const facts = useFacts(part, stage);
   if (!state || !result) return null;
   const update = (change: Partial<ElementState>) => s.updateElement(item.id, change);
-  const owner = (chart: number) =>
-    kindItems(s.projectKind).find(
-      (it) =>
-        it.id !== item.id &&
-        s.elements[it.id]?.include &&
-        s.elements[it.id]?.charts.includes(chart),
-    );
-  const names = state.charts
-    .map((i) => s.charts[i]?.name)
-    .filter(Boolean)
-    .join(', ');
+  const setup = s.partSetup(part.patternId);
+  const used = [...new Set(setup.sequence.map((x) => x.chart))].sort((a, b) => a - b);
+  const round = stage?.pattern.construction !== 'flat';
   const size = s.sizes[s.chosenSize()] ?? t('elements.oneSize');
   return (
     <section className="fix-part" aria-labelledby={headingId}>
@@ -669,67 +738,45 @@ function FixPart({
                 : t('preview.allSure')}
           </span>
         </summary>
-        {[...state.charts]
-          .sort((a, b) => a - b)
-          .map((i) => {
-            const found = result.charts[i];
-            const draftChart = s.charts[i];
-            return found && draftChart ? (
-              <ChartReview
-                key={i}
-                index={i}
-                found={found}
-                draft={draftChart}
-                result={result}
-                registry={registry}
-                selectable={false}
-              />
-            ) : null;
-          })}
+        {used.map((i) => {
+          const found = result.charts[i];
+          const draftChart = s.charts[i];
+          return found && draftChart ? (
+            <ChartReview
+              key={i}
+              index={i}
+              found={found}
+              draft={draftChart}
+              result={result}
+              registry={registry}
+              selectable={false}
+            />
+          ) : null;
+        })}
       </details>
 
-      {s.charts.length > 0 && (
-        <details className="fix">
-          <summary>
-            <b>{t('preview.fixCharts')}</b>
-            <span>{names || t('preview.none')}</span>
-          </summary>
-          <ul className="chart-picks">
-            {s.charts.map((c, i) => {
-              const other = owner(i);
-              return (
-                <li key={i}>
-                  <label className="check">
-                    <input
-                      type="checkbox"
-                      checked={state.charts.includes(i)}
-                      onChange={(e) =>
-                        update({
-                          charts: e.target.checked
-                            ? [...state.charts, i]
-                            : state.charts.filter((x) => x !== i),
-                        })
-                      }
-                    />
-                    <span>
-                      {c.name}{' '}
-                      <span className="hint num">
-                        {t('editor.chartSize', { w: c.rows[0]?.length ?? 0, h: c.rows.length })}
-                      </span>
-                      {other && (
-                        <span className="chart-picks__owner">
-                          {' '}
-                          {t('elements.chartIn', { part: other.label[lang] })}
-                        </span>
-                      )}
-                    </span>
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      )}
+      <details className="fix" open>
+        <summary>
+          <b>{t('layout.title')}</b>
+          <span>
+            {[
+              setup.sequence.map((x) => s.charts[x.chart]?.name ?? '?').join(' · '),
+              t(round ? 'layout.inRound' : 'layout.inRow', { count: setup.stitches }),
+            ]
+              .filter(Boolean)
+              .join(' — ')}
+          </span>
+        </summary>
+        <LayoutEditor
+          setup={setup}
+          charts={s.charts}
+          stage={stage}
+          round={round}
+          halves={splitsFrontBack(s.projectKind, part.patternId)}
+          length={s.lengthGuess(part.patternId)}
+          onChange={(next) => s.setPartSetup(part.patternId, next)}
+        />
+      </details>
 
       {item.type === 'choice' && (
         <details className="fix">
@@ -750,16 +797,6 @@ function FixPart({
               </label>
             ))}
           </div>
-        </details>
-      )}
-
-      {facts.described && (
-        <details className="fix">
-          <summary>
-            <b>{t('preview.fixLayout')}</b>
-            <span>{facts.layout}</span>
-          </summary>
-          <DescriptionReview headingLevel={3} />
         </details>
       )}
 

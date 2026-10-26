@@ -27,7 +27,9 @@ export function PatternPreview({ stage }: { stage: ResolvedPattern | null }) {
         testId="stage-preview"
       />
       <p className="hint">
-        {t('patternEdit.previewRows', { shown, rows: stage.plannedRows ?? '∞' })}
+        {stage.plannedRows === null
+          ? t('patternEdit.previewRowsOpen', { shown })
+          : t('patternEdit.previewRows', { shown, rows: stage.plannedRows })}
       </p>
     </div>
   );

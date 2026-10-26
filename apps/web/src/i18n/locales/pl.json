@@ -442,7 +442,8 @@
     "continueRows": "Dziergaj dalej jak w innym wzorze",
     "continueFrom": "Kontynuuj",
     "continueHint": "Schemat zacznie się od rzędu po ostatnim zrobionym w tamtym wzorze, np. przód po podziale kontynuuje A.2 z korpusu.",
-    "ready": "Gotowe"
+    "ready": "Gotowe",
+    "previewRowsOpen": "Pokazane rzędy: {{shown}} — wzór powtarza się dalej w górę."
   },
   "diag": {
     "allGood": "Wszystko się zgadza.",
@@ -768,7 +769,8 @@
     "sizesEdit": "Popraw listę rozmiarów",
     "sizesEditHint": "Oddziel rozmiary myślnikiem lub przecinkiem, np. S - M - L.",
     "sizeNext": "Dalej: rozmiar {{size}}",
-    "legendConfirm": "Zatwierdź legendę"
+    "legendConfirm": "Zatwierdź legendę",
+    "piecesFromPdf": "Z PDF: osobne części ({{words}})."
   },
   "preview": {
     "partsLabel": "Części do podglądu",
@@ -943,7 +945,9 @@
     "mirrorConflict": "Tu jest odbicie lustrzane — połóż kafelek po prawej stronie osi.",
     "inMirror": "To odbicie lustrzane: zmieniaj wzór po prawej stronie osi.",
     "done": "Gotowe",
-    "doneWithoutGrid": "Gotowe bez siatki — tylko licznik rzędów"
+    "doneWithoutGrid": "Gotowe bez siatki — tylko licznik rzędów",
+    "lengthCm": "Długość (cm)",
+    "lengthHint": "Wzór powtarza się w górę do tej długości."
   },
   "rows": {
     "label": "Długość wzoru",
@@ -974,5 +978,50 @@
   "guides": {
     "label": "Linie co ¼",
     "hint": "Pokaż lub ukryj linie w ¼, ½ i ¾ szerokości siatki"
+  },
+  "layout": {
+    "title": "Ułożenie i wymiary",
+    "hint": "Klikaj schematy w kolejności z opisu: pierwszy staje od oczka 1 (z prawej), każdy następny na lewo od poprzednich. Przy każdym wpisz, przez ile oczek go przerabiasz.",
+    "add": "Dodaj schemat",
+    "order": "Kolejność schematów od oczka 1",
+    "empty": "Nie ma jeszcze żadnego schematu — część będzie liczona rzędami.",
+    "stitchesOf": "Oczka schematu {{name}}",
+    "stitchesUnit": "o.",
+    "later": "{{name}} — o jedno miejsce dalej (w lewo)",
+    "earlier": "{{name}} — o jedno miejsce wcześniej (w prawo)",
+    "remove": "Usuń {{name}} z ułożenia",
+    "next": "kolejne",
+    "first": "pierwszy, od oczka 1",
+    "stitches": {
+      "round": "Oczek w okrążeniu",
+      "row": "Oczek w rzędzie"
+    },
+    "cm": "Długość części (cm)",
+    "cmFromFile": "Z PDF: „{{words}}”",
+    "cmNotInFile": "W opisie nie ma długości tej części.",
+    "noLength": "Bez długości",
+    "noCharts": "Dodaj schematy, żeby zobaczyć siatkę.",
+    "fits": {
+      "round": "✓ Schematy wypełniają całe okrążenie.",
+      "row": "✓ Schematy wypełniają cały rząd."
+    },
+    "over": {
+      "round": "Schematy mają {{used}} oczek, więcej niż okrążenie ({{count}}) — zmniejsz je albo zwiększ okrążenie.",
+      "row": "Schematy mają {{used}} oczek, więcej niż rząd ({{count}}) — zmniejsz je albo zwiększ rząd."
+    },
+    "centred": "Schematy: {{used}} oczek, na środku; po bokach {{rest}} prawych.",
+    "centredHalves": "Schematy: {{used}} oczek, na środku przodu i na środku tyłu; reszta to prawe oczka.",
+    "repeatTo": {
+      "round": "Wzór powtarza się w górę do {{cm}} cm.",
+      "row": "Wzór powtarza się w górę do {{cm}} cm."
+    },
+    "inRound_one": "{{count}} oczko w okrążeniu",
+    "inRound_few": "{{count}} oczka w okrążeniu",
+    "inRound_many": "{{count}} oczek w okrążeniu",
+    "inRound_other": "{{count}} oczka w okrążeniu",
+    "inRow_one": "{{count}} oczko w rzędzie",
+    "inRow_few": "{{count}} oczka w rzędzie",
+    "inRow_many": "{{count}} oczek w rzędzie",
+    "inRow_other": "{{count}} oczka w rzędzie"
   }
 }

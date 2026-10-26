@@ -9,12 +9,15 @@ export function CommitNumber({
   value,
   unit,
   max = 100_000,
+  hideLabel = false,
   onCommit,
 }: {
   label: string;
   value: number;
   unit?: string;
   max?: number;
+  /** The label is for screen readers only (the field sits next to what it counts). */
+  hideLabel?: boolean;
   onCommit(value: number): void;
 }) {
   const id = useId();
@@ -28,7 +31,9 @@ export function CommitNumber({
   };
   return (
     <div className="field field--compact">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className={hideLabel ? 'visually-hidden' : undefined}>
+        {label}
+      </label>
       <span className="commit-number">
         <input
           id={id}

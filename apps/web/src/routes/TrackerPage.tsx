@@ -251,7 +251,7 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
               </span>
             </span>
           )}
-          {grid.pattern.design && (
+          {grid.pattern.design && grid.plannedRows !== null && (
             <span className="status__item status__item--rows">
               <RowsControl
                 grid={grid}

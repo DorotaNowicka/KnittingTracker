@@ -570,6 +570,24 @@ function Workbench({
             onCommit={(h) => setDesign(resizeDesign(design, design.width, h))}
           />
         </div>
+        {pattern.targetCm !== undefined && (
+          <div className="designer__length">
+            <NumberField
+              compact
+              decimals
+              label={t('designer.lengthCm')}
+              value={typeof pattern.targetCm === 'number' ? pattern.targetCm : undefined}
+              min={1}
+              max={300}
+              hint={t('designer.lengthHint')}
+              onCommit={(cm) =>
+                useDraft
+                  .getState()
+                  .updatePattern(pattern.id, (p) => applyDesign({ ...p, targetCm: cm }, registry))
+              }
+            />
+          </div>
+        )}
         {(pattern.construction === 'round' || design.halves) && (
           <label className="check designer__halves">
             <input

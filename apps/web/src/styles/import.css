@@ -894,3 +894,112 @@ button.steps__link {
   margin: 0;
   max-width: 60ch;
 }
+
+/* "Popraw": the part's round put together from charts, its width and length. */
+.layout-editor {
+  display: grid;
+  gap: var(--sp-3);
+  padding: 0 var(--sp-4) var(--sp-4);
+}
+
+.layout-editor__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* The first chart (stitch 1) on the right, each next one to its left, as on the needles. */
+.layout-seq {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0 0 var(--sp-1);
+  list-style: none;
+  /* One row, as on the needles: a long round scrolls sideways, starting at stitch 1. */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.layout-seq__item {
+  flex: 0 0 auto;
+}
+
+.layout-seq__item {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  background: var(--paper);
+}
+
+.layout-seq__item .commit-number input {
+  width: 3rem;
+  padding-inline: var(--sp-2);
+}
+
+.layout-seq__tools {
+  display: flex;
+}
+
+.layout-seq__tools .icon-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.layout-seq__item .commit-number {
+  gap: 2px;
+}
+
+.layout-editor > .link-btn {
+  justify-self: start;
+}
+
+.layout-seq__earlier svg {
+  transform: scaleX(-1);
+}
+
+.layout-seq__ends {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.layout-editor__fields {
+  align-items: start;
+}
+
+.layout-editor__status {
+  margin: 0;
+  font-weight: 600;
+}
+
+.layout-editor__status--warn {
+  color: var(--danger);
+}
+
+/* Parts step: a body in the round or in pieces, right under it. */
+.part-variant {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-1) var(--sp-6);
+}
+
+.part-variant__parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.garment__region--behind {
+  pointer-events: none;
+  opacity: 0.7;
+}

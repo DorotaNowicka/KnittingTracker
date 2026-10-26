@@ -181,8 +181,13 @@ describe('new project from a PDF: parts to track', () => {
     await user.click(tab(/Rękaw$/));
     await user.click(screen.getByRole('button', { name: 'Popraw' }));
     expect(screen.getByRole('heading', { level: 2, name: 'Popraw: Rękaw' })).toBeInTheDocument();
-    await user.click(screen.getByText('Schematy tej części'));
-    await user.click(screen.getByRole('checkbox', { name: /A\.2/ }));
+    // The sleeve has no chart yet: one click puts A.2 in its round.
+    await user.click(
+      within(screen.getByRole('group', { name: 'Dodaj schemat' })).getByRole('button', {
+        name: /A\.2/,
+      }),
+    );
+    expect(screen.getByText('✓ Schematy wypełniają całe okrążenie.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Wróć do podglądu' }));
     expect(screen.getByText('2 oczka w okrążeniu')).toBeInTheDocument();
 
@@ -206,8 +211,8 @@ describe('new project from a PDF: parts to track', () => {
     expect(project?.patterns.map((p) => [p.name, p.charts.map((c) => c.name)])).toEqual([
       ['Ściągacz dołu', []],
       ['Rękaw', ['A.2']],
-      ['Tył', ['A.1']],
-      ['Przód', ['A.1']],
+      ['Tył', ['A.1', 'A.2']],
+      ['Przód', ['A.1', 'A.2']],
       ['Ściągacz rękawa', []],
       ['Dekolt / golf', []],
     ]);
@@ -236,6 +241,93 @@ describe('new project from a PDF: parts to track', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Z pliku wzoru' }),
     ).toBeInTheDocument();
+  });
+
+  it('puts the round together in Popraw: charts from the right, its stitches, centred, length from the PDF', async () => {
+    const user = userEvent.setup();
+    const text =
+      'Sweter Jesienny\nROZMIARY: S - M\nKORPUS\nPrzerabiać do wys. 34-36 cm.\nRękawy: nabierz oczka.';
+    useImport.setState({ description: { text, parsed: parseDescription(text) } });
+    render(<App />);
+    await toPreview(user);
+    await user.click(screen.getByRole('button', { name: 'Popraw' }));
+    const order = () =>
+      within(screen.getByRole('list', { name: 'Kolejność schematów od oczka 1' }))
+        .getAllByRole('listitem')
+        .map((li) => li.querySelector('b')?.textContent);
+    expect(order()).toEqual(['A.1', 'A.2']);
+    expect(screen.getByText('✓ Schematy wypełniają całe okrążenie.')).toBeInTheDocument();
+    // The length comes from the body's section of the text, at size M.
+    expect(screen.getByLabelText('Długość części (cm)')).toHaveValue('36');
+    expect(screen.getByText('Z PDF: „Przerabiać do wys. 34-36 cm”')).toBeInTheDocument();
+
+    const round = screen.getByLabelText('Oczek w okrążeniu');
+    await user.clear(round);
+    await user.type(round, '20');
+    expect(
+      screen.getByText(
+        'Schematy: 4 oczek, na środku przodu i na środku tyłu; reszta to prawe oczka.',
+      ),
+    ).toBeInTheDocument();
+    await user.click(
+      within(screen.getByRole('group', { name: 'Dodaj schemat' })).getByRole('button', {
+        name: /A\.1/,
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'A.2 — o jedno miejsce dalej (w lewo)' }));
+    expect(order()).toEqual(['A.1', 'A.1', 'A.2']);
+    expect(screen.getByLabelText('Oczek w okrążeniu')).toHaveValue('20');
+
+    await user.click(screen.getByRole('button', { name: 'Wróć do podglądu' }));
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, zaczynam' }));
+    await waitFor(() => expect(useLibrary.getState().projects).toHaveLength(1));
+    const body = useLibrary.getState().projects[0]?.patterns.find((p) => p.id === 'body');
+    expect(body).toMatchObject({ targetCm: 36, expectedStitches: 20 });
+    // Front: 2 knit, A.1, A.1, A.2, 2 knit (10); then the same on the back.
+    expect(
+      body?.layout.map((x) =>
+        x.kind === 'marker' ? `|${x.sectionName ?? ''}` : `${x.chartId}:${String(x.stitches)}`,
+      ),
+    ).toEqual([
+      '|Przód',
+      'prawe:2',
+      'a-1:2',
+      'a-1:2',
+      'a-2:2',
+      'prawe:2',
+      '|Tył',
+      'prawe:2',
+      'a-1:2',
+      'a-1:2',
+      'a-2:2',
+      'prawe:2',
+    ]);
+  });
+
+  it('chooses in the parts step how the body is made; its back and front are tracked on their own', async () => {
+    const user = userEvent.setup();
+    // The text makes the body as a back and a front: the parts start "in pieces".
+    useImport.setState({ result: { ...result, text: 'TYŁ\nNabrać 80 oczek.\nPRZÓD\nJak tył.' } });
+    useImport.getState().setProjectKind('sweater');
+    render(<App />);
+    expect(await screen.findByRole('radio', { name: 'Z osobnych części' })).toBeChecked();
+    expect(screen.getByText('Z PDF: osobne części (TYŁ, PRZÓD).')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Tył' })).toBeChecked();
+    expect(
+      screen.getByTestId('garment-diagram').querySelector('[data-behind="body"]'),
+    ).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Dalej: 6 części' })).toBeEnabled();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Przód' }));
+    expect(screen.getByRole('button', { name: 'Dalej: 5 części' })).toBeEnabled();
+    await user.click(screen.getByRole('radio', { name: 'Na okrągło, w jednym kawałku' }));
+    expect(screen.queryByRole('checkbox', { name: 'Tył' })).toBeNull();
+    expect(screen.getByTestId('garment-diagram').querySelector('[data-behind="body"]')).toBeNull();
+    await user.click(screen.getByRole('radio', { name: 'Z osobnych części' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Tył' }));
+    await toPreview(user);
+    expect(tab(/Przód/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Tył$/ })).toBeNull();
   });
 
   it('starts over with the usual parts when the kind is changed', async () => {

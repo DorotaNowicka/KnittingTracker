@@ -426,7 +426,8 @@
     "continueRows": "Continue as in another pattern",
     "continueFrom": "Continue",
     "continueHint": "The chart starts with the row after the last one worked in that pattern, e.g. the front after the split continues A.2 of the body.",
-    "ready": "Done"
+    "ready": "Done",
+    "previewRowsOpen": "Rows shown: {{shown}} — the pattern goes on repeating upwards."
   },
   "diag": {
     "allGood": "Everything checks out.",
@@ -704,7 +705,8 @@
     "sizesEdit": "Correct the list of sizes",
     "sizesEditHint": "Separate sizes with a dash or a comma, e.g. S - M - L.",
     "sizeNext": "Next: size {{size}}",
-    "legendConfirm": "Confirm the legend"
+    "legendConfirm": "Confirm the legend",
+    "piecesFromPdf": "From the PDF: separate pieces ({{words}})."
   },
   "preview": {
     "partsLabel": "Parts to preview",
@@ -855,7 +857,9 @@
     "mirrorConflict": "This is a mirror image — lay the tile right of the axis.",
     "inMirror": "This is a mirror image: change the pattern right of the axis.",
     "done": "Done",
-    "doneWithoutGrid": "Done without a grid — just count rows"
+    "doneWithoutGrid": "Done without a grid — just count rows",
+    "lengthCm": "Length (cm)",
+    "lengthHint": "The pattern repeats upwards to this length."
   },
   "rows": {
     "label": "Pattern length",
@@ -878,5 +882,46 @@
   "guides": {
     "label": "Lines every ¼",
     "hint": "Show or hide lines at ¼, ½ and ¾ of the grid width"
+  },
+  "layout": {
+    "title": "Layout and size",
+    "hint": "Click the charts in the order the pattern gives: the first starts at stitch 1 (on the right), each next one to the left of those before. Type over how many stitches each is worked.",
+    "add": "Add a chart",
+    "order": "Charts in order from stitch 1",
+    "empty": "No chart yet — the part will be counted in rows.",
+    "stitchesOf": "Stitches of chart {{name}}",
+    "stitchesUnit": "st.",
+    "later": "{{name}} — one place later (to the left)",
+    "earlier": "{{name}} — one place earlier (to the right)",
+    "remove": "Remove {{name}} from the layout",
+    "next": "next",
+    "first": "first, from stitch 1",
+    "stitches": {
+      "round": "Stitches in a round",
+      "row": "Stitches in a row"
+    },
+    "cm": "Length of the part (cm)",
+    "cmFromFile": "From the PDF: “{{words}}”",
+    "cmNotInFile": "The pattern gives no length for this part.",
+    "noLength": "No length",
+    "noCharts": "Add charts to see the grid.",
+    "fits": {
+      "round": "✓ The charts fill the whole round.",
+      "row": "✓ The charts fill the whole row."
+    },
+    "over": {
+      "round": "The charts take {{used}} stitches, more than the round ({{count}}) — make them narrower or the round wider.",
+      "row": "The charts take {{used}} stitches, more than the row ({{count}}) — make them narrower or the row wider."
+    },
+    "centred": "Charts: {{used}} stitches, in the middle; {{rest}} knit stitches at the sides.",
+    "centredHalves": "Charts: {{used}} stitches, in the middle of the front and of the back; the rest is knit.",
+    "repeatTo": {
+      "round": "The pattern repeats upwards to {{cm}} cm.",
+      "row": "The pattern repeats upwards to {{cm}} cm."
+    },
+    "inRound_one": "{{count}} stitch in a round",
+    "inRound_other": "{{count}} stitches in a round",
+    "inRow_one": "{{count}} stitch in a row",
+    "inRow_other": "{{count}} stitches in a row"
   }
 }

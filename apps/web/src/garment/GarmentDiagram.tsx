@@ -16,6 +16,7 @@ export function GarmentDiagram({
   onHover,
   numbers,
   inert,
+  layered = [],
   size = 'normal',
 }: {
   kind: Exclude<ProjectKind, 'custom'>;
@@ -31,6 +32,8 @@ export function GarmentDiagram({
   /** Parts that can't be clicked (not tracked). */
   inert?: (id: string) => boolean;
   size?: 'normal' | 'large';
+  /** Parts made as separate pieces (a back behind the front): drawn with a second sheet behind. */
+  layered?: readonly string[];
 }) {
   const diagram = DIAGRAMS[kind];
   const outline = diagram.regions.find((r) => r.id === selected)?.d;
@@ -42,6 +45,17 @@ export function GarmentDiagram({
       focusable="false"
       data-testid="garment-diagram"
     >
+      {diagram.regions
+        .filter((r) => layered.includes(r.id))
+        .map((r) => (
+          <path
+            key={`${r.id}-behind`}
+            d={r.d}
+            className={`garment__region garment__region--behind${elements[r.id]?.include === false ? ' is-off' : ''}`}
+            transform="translate(-7 -6)"
+            data-behind={r.id}
+          />
+        ))}
       {diagram.regions.map((r) => {
         const classes = [
           'garment__region',

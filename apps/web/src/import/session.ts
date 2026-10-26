@@ -12,7 +12,11 @@ import {
 import {
   buildPattern,
   buildProject,
+  detectBodyPieces,
   detectKind,
+  lengthOf,
+  partLengths,
+  PIECED_BODY,
   detectPartOrder,
   parseDescription,
   type KindGuess,
@@ -31,7 +35,10 @@ import { useLibrary } from '../state/library';
 import { ImportClient, ImportError, type CheckedFile } from './client';
 import {
   buildProjectFromElements,
+  defaultSetup,
   initialElements,
+  kindItems,
+  type PartSetup,
   withDesignFromLayout,
   type ElementState,
   type Elements,
@@ -94,6 +101,15 @@ interface ImportState {
   readonly elements: Elements;
   /** In what order the pattern makes the parts. */
   readonly order: PartOrder;
+  /** Whether the text makes the body as a back and a front (headings "TYŁ", "PRZÓD"). */
+  readonly bodyPieces: { readonly pieces: boolean; readonly evidence: readonly string[] };
+  /** Parts the knitter set up in "Popraw" (part id → charts in order, stitches, length). */
+  readonly setups: Readonly<Record<string, PartSetup>>;
+  setPartSetup(partId: string, setup: PartSetup): void;
+  /** The part's setup: as the knitter set it, or as the import reads it. */
+  partSetup(partId: string): PartSetup;
+  /** The length to knit a part to, as the text says (chosen size), with the words it's from. */
+  lengthGuess(partId: string): { cm: number; evidence: string } | null;
   /**
    * Checking a new project, step by step: the size being knitted, the legend, which parts to
    * track, then a preview of the grid before the project is created.
@@ -210,12 +226,31 @@ function describedLayout(
   };
 }
 
-/** The parts of `kind`, in the order the text makes them. */
-const partsFor = (kind: ProjectKind, text: string, charts: number) => ({
-  projectKind: kind,
-  elements: initialElements(kind, charts),
-  order: detectPartOrder(text, kind),
-});
+/**
+ * The parts of `kind`, in the order the text makes them; a body the text makes as a back and a
+ * front starts "in pieces".
+ */
+function partsFor(kind: ProjectKind, text: string, charts: number) {
+  const bodyPieces = PIECED_BODY.includes(kind)
+    ? detectBodyPieces(text)
+    : { pieces: false, evidence: [] };
+  const elements = initialElements(kind, charts);
+  const body = elements['body'];
+  return {
+    projectKind: kind,
+    elements:
+      bodyPieces.pieces && body ? { ...elements, body: { ...body, option: 'pieces' } } : elements,
+    order: detectPartOrder(text, kind),
+    bodyPieces,
+    setups: {},
+  };
+}
+
+/** Every part id a kind can have: its parts and the parts of every option of its choices. */
+const allPartIds = (kind: ProjectKind) =>
+  kindItems(kind).flatMap((it) =>
+    it.type === 'part' ? [it.id] : it.options.flatMap((o) => o.parts.map((p) => p.id)),
+  );
 
 /** The kind guessed from the text, with the parts it usually has. */
 function kindOf(result: ImportResult, hints: string) {
@@ -251,6 +286,34 @@ export const useImport = create<ImportState>((set, get) => ({
   setProjectKind(projectKind) {
     const { result, charts } = get();
     set(partsFor(projectKind, result?.text ?? '', charts.length));
+  },
+  setPartSetup(partId, setup) {
+    set({ setups: { ...get().setups, [partId]: setup } });
+  },
+  partSetup(partId) {
+    const state = get();
+    const stored = state.setups[partId];
+    if (stored) return stored;
+    const item = kindItems(state.projectKind).find((it) =>
+      it.type === 'part'
+        ? it.id === partId
+        : it.options.some((o) => o.parts.some((p) => p.id === partId)),
+    );
+    if (!item) return { sequence: [], stitches: 1 };
+    return defaultSetup({
+      kind: state.projectKind,
+      item,
+      state: state.elements[item.id],
+      charts: state.charts.map((c) => ({ name: c.name, rows: c.rows })),
+      layout: describedLayout(state, Math.max(1, state.sizes.length), ['', '']),
+      sizeIndex: state.chosenSize(),
+    });
+  },
+  lengthGuess(partId) {
+    const state = get();
+    const text = state.description.text || state.result?.text || '';
+    if (!text) return null;
+    return lengthOf(partLengths(text, Math.max(1, state.sizes.length)), partId, state.chosenSize());
   },
 
   setStep(step) {
@@ -444,6 +507,13 @@ export const useImport = create<ImportState>((set, get) => ({
       layout: describedLayout(state, sizes.length, sections),
       elements: state.elements,
       order: state.order.order,
+      setups: state.setups,
+      lengths: Object.fromEntries(
+        allPartIds(state.projectKind).flatMap((id) => {
+          const cm = state.lengthGuess(id)?.cm;
+          return cm ? [[id, cm]] : [];
+        }),
+      ),
     });
     return { ...built, sizeIndex: Math.min(state.chosenSize(), sizes.length - 1) };
   },
