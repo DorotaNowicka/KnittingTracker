@@ -245,4 +245,36 @@ describe('pattern creator designs', () => {
     // Three quarters: only the last quarter is left of the axis.
     expect(view(composeDesign({ ...design, mirrors: [3] }, registry))).toEqual(['k k k k k k k p']);
   });
+
+  it('knitted until N cm: no planned rows, composed tall enough to repeat with every rhythm', () => {
+    const tall = applySymbolRows(blankChart({ id: 'own:t', name: 'T' }, 1, 1), [
+      ['std:p'],
+      ['std:k'],
+      ['std:k'],
+    ]);
+    const design: Design = {
+      ...blankDesign(2, 3),
+      motifs: [lib('garter'), tall],
+      placements: [
+        { id: 'a', motifId: 'lib:garter', col: 1, row: 1, repeatX: 1, repeatY: 'fill' },
+        { id: 'b', motifId: 'own:t', col: 2, row: 1, repeatX: 1, repeatY: 'fill' },
+      ],
+      cells: [],
+    };
+    const base = { ...blankPattern('body', 'Korpus'), design };
+    expect(applyDesign(base, registry).rows).toBe(3);
+    const open = applyDesign({ ...base, rows: 3, targetCm: 35 }, registry);
+    expect(open.rows).toBeUndefined();
+    // Garter repeats every 2 rows, the other piece every 3: together every 6.
+    expect(open.charts[0]?.height).toBe(6);
+    // Top row first: the 3-row piece (left) purls on rows 1 and 4, garter (right) on even rows.
+    expect(view(chartToSymbolRows(open.charts[0] ?? tall))).toEqual([
+      'k p',
+      'k k',
+      'p p',
+      'k k',
+      'k p',
+      'p k',
+    ]);
+  });
 });

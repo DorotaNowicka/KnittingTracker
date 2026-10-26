@@ -5,7 +5,7 @@ import { resolvePattern } from '../layout/resolve';
 import { designSchema, type Chart, type Pattern, type Segment } from '../schema/pattern';
 import { createRegistry } from '../symbols/registry';
 import { composeDesign } from './compose';
-import { designFromLayout, fileMotifId, fileMotifs } from './fromLayout';
+import { designFromLayout, fileMotifId, fileMotifs, plainKnit } from './fromLayout';
 
 const registry = createRegistry();
 const K = 'std:k';
@@ -56,8 +56,8 @@ describe('designs from an imported layout', () => {
     if (!design) throw new Error('no design');
     expect(designSchema.safeParse(design).success).toBe(true);
     expect(design.width).toBe(19);
-    // The charts line up again after 6 rows (3 and 2).
-    expect(design.height).toBe(6);
+    // As tall as the tallest chart: one repeat to work on.
+    expect(design.height).toBe(3);
     expect(design.placements).toEqual([
       { id: 'p1', motifId: 'pdf:a', col: 1, row: 1, repeatX: 2, repeatY: 'fill' },
       { id: 'p2', motifId: 'pdf:b~b-1', col: 9, row: 1, repeatX: 1, repeatY: 'fill' },
@@ -74,9 +74,24 @@ describe('designs from an imported layout', () => {
     }
   });
 
-  it('is as tall as the planned rows', () => {
-    const stage = stageOf([a], [{ kind: 'chart', placementId: 'a-1', chartId: 'a' }], 40);
-    expect(designFromLayout(stage)?.height).toBe(40);
+  it('is as tall as the tallest chart, and leaves plain knit filler as background', () => {
+    const knit = chart('fill', ['k']);
+    const stage = stageOf(
+      [a, knit, b],
+      [
+        { kind: 'chart', placementId: 'fill-1', chartId: 'fill', stitches: 3 },
+        { kind: 'chart', placementId: 'a-1', chartId: 'a' },
+        { kind: 'chart', placementId: 'b-1', chartId: 'b' },
+        { kind: 'chart', placementId: 'fill-2', chartId: 'fill', stitches: 2 },
+      ],
+      40,
+    );
+    const design = designFromLayout(stage, { background: (c) => c.id === 'fill' && plainKnit(c) });
+    expect(design).toMatchObject({ width: 12, height: 3 });
+    expect(design?.placements.map((p) => [p.motifId, p.col])).toEqual([
+      ['pdf:a', 4],
+      ['pdf:b', 8],
+    ]);
   });
 
   it('gives nothing for a layout without charts', () => {

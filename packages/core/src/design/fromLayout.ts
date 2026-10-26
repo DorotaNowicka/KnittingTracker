@@ -18,8 +18,6 @@ export const fileMotifs = (charts: readonly Chart[]): Chart[] =>
   charts.map((c) => ({ ...c, id: fileMotifId(c.id) }));
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;
-const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
-const lcm = (a: number, b: number) => (a / gcd(a, b)) * b;
 
 /** Largest grid side the creator allows. */
 const MAX = 1000;
@@ -51,23 +49,33 @@ function reshaped(
   );
 }
 
+/** Whether a chart is nothing but knit, the grid's background anyway. */
+export const plainKnit = (chart: Chart) =>
+  chartToSymbolRows(chart).every((row) => row.every((id) => id === STD.knit));
+
 /**
  * The creator design of a pattern as its layout works it at the resolved size: one tile per chart
  * section, standing on the bottom row and repeating upwards, as wide as the section (in whole
- * repeats of the chart when it divides evenly). The grid is as tall as the planned rows, or as
- * the rows after which all charts line up again. Null when the layout has no charts or is wider
- * than the creator allows.
+ * repeats of the chart when it divides evenly). Charts the caller calls `background` (plain filler
+ * beside a centred pattern) stay background. The grid is as tall as the tallest chart: one repeat to work on.
+ * Null when the layout has no charts or is wider than the creator allows.
  */
-export function designFromLayout(stage: ResolvedPattern): Design | null {
+export function designFromLayout(
+  stage: ResolvedPattern,
+  options: {
+    /** Charts left as background, not tiles (plain filler beside a centred pattern). */
+    readonly background?: (chart: Chart) => boolean;
+  } = {},
+): Design | null {
   const width = stage.stitchCount;
   if (width < 1 || width > MAX) return null;
   const charts = new Map(stage.pattern.charts.map((c) => [c.id, c] as const));
   const motifs: Chart[] = [];
   const placements: Placement[] = [];
-  let rhythm = 1;
+  let tallest = 1;
   for (const zone of [...stage.zones].sort((a, b) => a.firstStitch - b.firstStitch)) {
     const chart = charts.get(zone.chartId);
-    if (!chart) continue;
+    if (!chart || options.background?.(chart)) continue;
     const wide = zone.lastStitch - zone.firstStitch + 1;
     const whole = wide % chart.width === 0;
     const plain = whole && zone.startColumn === chart.width && zone.rowOffset % chart.height === 0;
@@ -96,9 +104,9 @@ export function designFromLayout(stage: ResolvedPattern): Design | null {
       repeatX: whole ? wide / chart.width : 1,
       repeatY: 'fill',
     });
-    rhythm = lcm(rhythm, chart.height);
+    tallest = Math.max(tallest, chart.height);
   }
   if (placements.length === 0) return null;
-  const height = Math.min(MAX, Math.max(1, stage.plannedRows ?? rhythm));
+  const height = Math.min(MAX, tallest);
   return { width, height, motifs, placements, cells: [] };
 }

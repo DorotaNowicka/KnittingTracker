@@ -215,9 +215,13 @@ export function designChart(design: Design, registry: SymbolRegistry, name: stri
 export function applyDesign(pattern: Pattern, registry: SymbolRegistry): Pattern {
   const design = pattern.design;
   if (!design) return pattern;
-  const { expectedStitches: _stated, ...rest } = pattern;
+  const { expectedStitches: _stated, rows: _planned, ...rest } = pattern;
   const name = pattern.name.slice(0, 40) || 'Wzór';
-  const rows = knittedRows(design, registry);
+  // Knitted "until N cm": no planned rows, the chart repeats upwards. It is composed as tall as
+  // it takes every piece to come round again, so each keeps its own rhythm across repeats.
+  const open = pattern.targetCm !== undefined;
+  const rows = knittedRows(open ? repeatingDesign(design) : design, registry);
+  const planned = open ? {} : { rows: design.height };
   const halves = design.halves && design.width >= 2 ? design.halves : null;
   if (!halves) {
     return {
@@ -227,7 +231,7 @@ export function applyDesign(pattern: Pattern, registry: SymbolRegistry): Pattern
         { kind: 'marker', id: 'start' },
         { kind: 'chart', placementId: `${DESIGN_CHART_ID}-1`, chartId: DESIGN_CHART_ID },
       ],
-      rows: design.height,
+      ...planned,
     };
   }
   // RS view: the first half is on the right.
@@ -246,7 +250,31 @@ export function applyDesign(pattern: Pattern, registry: SymbolRegistry): Pattern
       { kind: 'marker', id: 'side', sectionName: halves[1] },
       { kind: 'chart', placementId: `${DESIGN_BACK_CHART_ID}-1`, chartId: DESIGN_BACK_CHART_ID },
     ],
-    rows: design.height,
+    ...planned,
+  };
+}
+
+const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
+const lcm = (a: number, b: number) => (a / gcd(a, b)) * b;
+
+/**
+ * A design made tall enough to repeat seamlessly: the grid's height and every piece's height come
+ * round together (at most 1000 rows), brush stitches repeating with the grid.
+ */
+function repeatingDesign(design: Design): Design {
+  const heights = design.placements.flatMap((p) => {
+    const m = design.motifs.find((x) => x.id === p.motifId);
+    return m ? [m.height] : [];
+  });
+  const height = heights.reduce(lcm, design.height);
+  if (height === design.height || height > 1000) return design;
+  const copies = height / design.height;
+  return {
+    ...design,
+    height,
+    cells: Array.from({ length: copies }, (_, k) =>
+      design.cells.map((c) => ({ ...c, row: c.row + k * design.height })),
+    ).flat(),
   };
 }
 
