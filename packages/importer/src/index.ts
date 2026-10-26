@@ -47,6 +47,13 @@ export type { ParsedDescription, SequenceItem } from './describe/parse';
 export { parseDescription } from './describe/parse';
 export { detectKind, type KindGuess } from './describe/kind';
 export { detectPartOrder, type PartOrder } from './describe/order';
+export {
+  detectBodyPieces,
+  lengthOf,
+  partLengths,
+  PIECED_BODY,
+  type PartLength,
+} from './describe/lengths';
 export type { PdfJsLike } from './pdf/analyze';
 export { loadPdfJs } from './pdf/load';
 export {
