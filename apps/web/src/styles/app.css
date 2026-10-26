@@ -1457,3 +1457,16 @@ input[type='range'] {
   list-style: none;
   font-weight: 600;
 }
+
+/* Row counter: the part is done, on to the next one. */
+.row-counter__done {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  text-align: center;
+}
+
+.row-counter__done .hint {
+  max-width: 32ch;
+}

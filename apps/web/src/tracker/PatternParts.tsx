@@ -411,12 +411,21 @@ export function RowCounter({
   round,
   onAdd,
   onRemove,
+  name,
+  next,
+  onDone,
 }: {
   summary: ProgressSummary;
   planned: number | null;
   round: boolean;
   onAdd(): void;
   onRemove(): void;
+  /** The part being counted (e.g. the bottom rib). */
+  name: string;
+  /** The part knitted after it, if any. */
+  next: { readonly name: string } | null;
+  /** The part is done: finish it and go on to the next one. Absent once it is finished. */
+  onDone?: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -446,6 +455,17 @@ export function RowCounter({
           <Icon name="plus" />
         </button>
       </div>
+      {onDone && (
+        <div className="row-counter__done">
+          <button type="button" className="btn btn--primary" onClick={onDone}>
+            <Icon name="check" size={18} />
+            {t('counter.done', { name })}
+          </button>
+          <p className="hint">
+            {next ? t('counter.thenNext', { name: next.name }) : t('counter.thenEnd')}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

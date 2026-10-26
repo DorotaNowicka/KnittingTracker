@@ -450,7 +450,10 @@ function PreviewStep({ onSize }: { onSize(): void }) {
   );
   const [title, setTitle] = useState(defaultTitle);
   const [fixing, setFixing] = useState(false);
-  const [chosen, setChosen] = useState<string | null>(null);
+  /** The part on screen, and its item (to stay near it when the part goes away). */
+  const [chosen, setChosenState] = useState<{ part: string; item: string } | null>(null);
+  /** Parts the knitter has looked at and said "Zgadza się" to. */
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const sizes = useMemo(() => (s.sizes.length > 0 ? s.sizes : [t('editor.oneSize')]), [s.sizes, t]);
   const input = useMemo(
@@ -489,10 +492,29 @@ function PreviewStep({ onSize }: { onSize(): void }) {
       })),
     )
     .filter((p) => draft.patterns.some((x) => x.id === p.patternId));
-  const main = mainItemId(s.projectKind);
+  // Parts are checked in knitting order, from the lowest number. When the part on screen goes
+  // away (skipped, or the body made in pieces), its item's first part or the next one shows.
+  const itemAt = (id: string) => items.findIndex((it) => it.id === id);
   const part =
-    parts.find((p) => p.patternId === chosen) ?? parts.find((p) => p.item.id === main) ?? parts[0];
+    parts.find((p) => p.patternId === chosen?.part) ??
+    (chosen ? parts.find((p) => itemAt(p.item.id) >= itemAt(chosen.item)) : undefined) ??
+    parts[0];
+  const setChosen = (patternId: string) => {
+    const found = parts.find((p) => p.patternId === patternId);
+    if (found) setChosenState({ part: found.patternId, item: found.item.id });
+  };
   if (!s.result || !part) return null;
+  const at = parts.indexOf(part);
+  const nextToCheck =
+    parts.slice(at + 1).find((p) => !checked.has(p.patternId)) ??
+    parts.slice(0, at).find((p) => !checked.has(p.patternId));
+  /** "Zgadza się": this part is fine; on to the next one still to check. */
+  const agree = (next: PreviewPart) => {
+    setChecked(new Set([...checked, part.patternId]));
+    setChosen(next.patternId);
+    setFixing(false);
+    window.scrollTo?.({ top: 0 });
+  };
 
   /** Create the project; then knit the part, or correct it in the creator (`design`). */
   const create = async (design = false) => {
@@ -501,7 +523,9 @@ function PreviewStep({ onSize }: { onSize(): void }) {
     try {
       const id = await s.createProject(input, design ? part.patternId : undefined);
       useImport.getState().reset();
-      navigate(design ? paths.designer(id, part.patternId) : paths.tracker(id, part.patternId));
+      // Knitting starts with the first part; a correction opens the part in the creator.
+      const first = parts[0]?.patternId ?? part.patternId;
+      navigate(design ? paths.designer(id, part.patternId) : paths.tracker(id, first));
     } finally {
       setBusy(false);
     }
@@ -517,10 +541,19 @@ function PreviewStep({ onSize }: { onSize(): void }) {
               type="button"
               className="preview-tab"
               aria-pressed={p.patternId === part.patternId}
-              onClick={() => setChosen(p.patternId)}
+              onClick={() => {
+                setChosen(p.patternId);
+                setFixing(false);
+              }}
             >
               {p.number !== undefined && <span className="part-button__no">{p.number}</span>}
               {p.label}
+              {checked.has(p.patternId) && (
+                <>
+                  <Icon name="check" size={16} />
+                  <span className="visually-hidden">{` ${t('preview.checkedPart')}`}</span>
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -551,14 +584,29 @@ function PreviewStep({ onSize }: { onSize(): void }) {
             <button type="button" className="btn" onClick={() => setFixing(true)}>
               {t('preview.fix')}
             </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={busy}
-              onClick={() => void create()}
-            >
-              {t('preview.start')}
-            </button>
+            {nextToCheck ? (
+              <button type="button" className="btn btn--primary" onClick={() => agree(nextToCheck)}>
+                {t('preview.agreeNext')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={busy}
+                onClick={() => void create()}
+              >
+                {t('preview.start')}
+              </button>
+            )}
+            {parts.length > 1 && (
+              <p className="hint preview-step__progress">
+                {t('preview.progress', {
+                  done: checked.size,
+                  count: parts.length,
+                })}
+                {nextToCheck && ` ${t('preview.nextIs', { part: nextToCheck.label })}`}
+              </p>
+            )}
           </>
         )}
       </div>

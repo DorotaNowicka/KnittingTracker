@@ -242,4 +242,35 @@ describe('screens', () => {
     await user.click(screen.getByRole('button', { name: 'Dziergaj mimo to' }));
     await waitFor(() => expect(location.pathname).toBe('/projekt/sw/wzor/bottom-rib'));
   });
+
+  it('a row counter part is done with one button that goes on to the next part', async () => {
+    const user = userEvent.setup();
+    let project = blankProject({
+      id: 'rib',
+      name: 'Sweter',
+      kind: 'sweater',
+      sizes: ['M'],
+      now: '2026-10-26T10:00:00.000Z',
+    });
+    // The parts the knitter tracks, in knitting order: the sleeves were left out.
+    for (const [id, name] of [
+      ['bottom-rib', 'Ściągacz dołu'],
+      ['body', 'Korpus'],
+    ] as const) {
+      project = insertPattern(project, { ...blankPattern(id, name), tracking: 'rows' }).project;
+    }
+    await useLibrary.getState().addProject(project);
+    navigate('/projekt/rib/wzor/bottom-rib');
+    render(<App />);
+    const plus = await screen.findByRole('button', { name: 'Dodaj rząd' });
+    await user.click(plus);
+    await user.click(plus);
+    expect(screen.getByText('Zakończy tę część i przejdzie do: Korpus.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Gotowe: Ściągacz dołu' }));
+    await waitFor(() => expect(location.pathname).toBe('/projekt/rib/wzor/body'));
+    expect(useLibrary.getState().project('rib')?.finishedRows).toEqual({ 'bottom-rib': 2 });
+    expect(
+      await screen.findByText('Zakończy tę część — to ostatnia w projekcie.'),
+    ).toBeInTheDocument();
+  });
 });

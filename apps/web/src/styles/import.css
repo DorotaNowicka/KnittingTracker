@@ -1003,3 +1003,14 @@ button.steps__link {
   pointer-events: none;
   opacity: 0.7;
 }
+
+.preview-step__progress {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: right;
+}
+
+.preview-tab svg {
+  margin-left: 2px;
+  color: var(--guide);
+}

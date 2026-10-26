@@ -91,7 +91,17 @@ beforeEach(() => {
 
 const toPreview = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.click(await screen.findByRole('button', { name: /^Dalej/ }));
-  return screen.findByRole('button', { name: 'Zgadza się, zaczynam' });
+  return screen.findByRole('button', { name: /^Zgadza się/ });
+};
+
+/** Say "Zgadza się" to every part in turn; the last one starts the project. */
+const agreeAll = async (user: ReturnType<typeof userEvent.setup>) => {
+  for (let i = 0; i < 10; i++) {
+    const next = screen.queryByRole('button', { name: 'Zgadza się, następna' });
+    if (!next) break;
+    await user.click(next);
+  }
+  await user.click(screen.getByRole('button', { name: 'Zgadza się, zaczynam' }));
 };
 
 const tab = (name: RegExp) =>
@@ -151,6 +161,11 @@ describe('new project from a PDF: parts to track', () => {
     render(<App />);
     await user.click(await screen.findByRole('checkbox', { name: /Dekolt/ }));
     await toPreview(user);
+    // The check starts with the lowest number.
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(
+      '1Ściągacz dołu — rozmiar M',
+    );
+    await user.click(tab(/Korpus/));
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('4Korpus — rozmiar M');
     expect(screen.getByText('4 oczka w okrążeniu')).toBeInTheDocument();
     expect(
@@ -169,6 +184,7 @@ describe('new project from a PDF: parts to track', () => {
     await user.click(tab(/Rękaw$/));
     expect(screen.getByText(/Ta część nie ma schematu/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Pomiń tę część' }));
+    // The next part shows.
     expect(tab(/Korpus/)).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('button', { name: /Rękaw$/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Powstaną 3 wzory/)).toBeInTheDocument();
@@ -203,7 +219,7 @@ describe('new project from a PDF: parts to track', () => {
     expect(tab(/Tył/)).toHaveAttribute('aria-pressed', 'true');
     expect(tab(/Przód/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Zgadza się, zaczynam' }));
+    await agreeAll(user);
     await waitFor(() => expect(useLibrary.getState().projects).toHaveLength(1));
     const project = useLibrary.getState().projects[0];
     expect(project).toMatchObject({ name: 'Jesienny', kind: 'sweater', sizes: ['S', 'M'] });
@@ -216,14 +232,17 @@ describe('new project from a PDF: parts to track', () => {
       ['Ściągacz rękawa', []],
       ['Dekolt / golf', []],
     ]);
-    // The tracker opens on the part that was previewed.
-    await waitFor(() => expect(window.location.pathname).toBe(`/projekt/${project?.id}/wzor/back`));
+    // Knitting starts with the first part.
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(`/projekt/${project?.id}/wzor/bottom-rib`),
+    );
   });
 
   it('opens a part in the creator, its charts laid as tiles and all charts in the library', async () => {
     const user = userEvent.setup();
     render(<App />);
     await toPreview(user);
+    await user.click(tab(/Korpus/));
     await user.click(screen.getByRole('button', { name: 'Popraw' }));
     expect(screen.getByText(/schematy z PDF leżą na siatce jako kafelki/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Otwórz w kreatorze' }));
@@ -250,6 +269,7 @@ describe('new project from a PDF: parts to track', () => {
     useImport.setState({ description: { text, parsed: parseDescription(text) } });
     render(<App />);
     await toPreview(user);
+    await user.click(tab(/Korpus/));
     await user.click(screen.getByRole('button', { name: 'Popraw' }));
     const order = () =>
       within(screen.getByRole('list', { name: 'Kolejność schematów od oczka 1' }))
@@ -279,7 +299,7 @@ describe('new project from a PDF: parts to track', () => {
     expect(screen.getByLabelText('Oczek w okrążeniu')).toHaveValue('20');
 
     await user.click(screen.getByRole('button', { name: 'Wróć do podglądu' }));
-    await user.click(screen.getByRole('button', { name: 'Zgadza się, zaczynam' }));
+    await agreeAll(user);
     await waitFor(() => expect(useLibrary.getState().projects).toHaveLength(1));
     const body = useLibrary.getState().projects[0]?.patterns.find((p) => p.id === 'body');
     expect(body).toMatchObject({ targetCm: 36, expectedStitches: 20 });
@@ -328,6 +348,35 @@ describe('new project from a PDF: parts to track', () => {
     await toPreview(user);
     expect(tab(/Przód/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Tył$/ })).toBeNull();
+  });
+
+  it('checks the parts one by one from the lowest number; only the last one starts', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await toPreview(user);
+    expect(tab(/Ściągacz dołu/)).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Sprawdzone części: 0 z 5. Następna: Rękaw.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Zgadza się, zaczynam' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, następna' }));
+    expect(tab(/Rękaw$/)).toHaveAttribute('aria-pressed', 'true');
+    expect(tab(/Ściągacz dołu/)).toHaveAccessibleName(/Ściągacz dołu ?\(sprawdzona\)/);
+    // Jumping to the last part: after it, the check goes back to the first one left.
+    await user.click(tab(/Dekolt/));
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, następna' }));
+    expect(tab(/Rękaw$/)).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, następna' }));
+    expect(tab(/Korpus/)).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, następna' }));
+    expect(tab(/Ściągacz rękawa/)).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Sprawdzone części: 4 z 5.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, zaczynam' }));
+    await waitFor(() => expect(useLibrary.getState().projects).toHaveLength(1));
+    const project = useLibrary.getState().projects[0];
+    expect(project?.patterns.every((p) => p.ready)).toBe(true);
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(`/projekt/${project?.id}/wzor/bottom-rib`),
+    );
   });
 
   it('starts over with the usual parts when the kind is changed', async () => {

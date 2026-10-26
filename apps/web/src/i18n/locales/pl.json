@@ -689,7 +689,10 @@
     "rowsDone": "Zrobione rzędy",
     "roundsDone": "Zrobione okrążenia",
     "minus": "Odejmij rząd",
-    "plus": "Dodaj rząd"
+    "plus": "Dodaj rząd",
+    "done": "Gotowe: {{name}}",
+    "thenNext": "Zakończy tę część i przejdzie do: {{name}}.",
+    "thenEnd": "Zakończy tę część — to ostatnia w projekcie."
   },
   "project": {
     "continue": "Dziergaj dalej: {{name}}",
@@ -815,7 +818,11 @@
     "changeSize": "Zmień rozmiar",
     "openDesigner": "Otwórz w kreatorze",
     "designerLead": "Popraw wzór w kreatorze: schematy z PDF leżą na siatce jako kafelki, które możesz przesuwać, poszerzać i usuwać, a w bibliotece są obok gotowych wzorów. Projekt zostanie założony.",
-    "designerLeadEmpty": "Narysuj tę część w kreatorze: schematy z PDF będą w bibliotece obok gotowych wzorów. Projekt zostanie założony."
+    "designerLeadEmpty": "Narysuj tę część w kreatorze: schematy z PDF będą w bibliotece obok gotowych wzorów. Projekt zostanie założony.",
+    "agreeNext": "Zgadza się, następna",
+    "checkedPart": "(sprawdzona)",
+    "progress": "Sprawdzone części: {{done}} z {{count}}.",
+    "nextIs": "Następna: {{part}}."
   },
   "parts": {
     "toProject": "Przejdź do projektu",

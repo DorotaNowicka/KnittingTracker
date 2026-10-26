@@ -329,6 +329,16 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
               round={round}
               onAdd={() => dispatch({ type: 'completeRow' })}
               onRemove={() => dispatch({ type: 'set', done: summary.done - 1 })}
+              name={grid.pattern.name}
+              next={nextPattern ? { name: nextPattern.name } : null}
+              {...(finished === undefined
+                ? {
+                    onDone: () =>
+                      void s.finishPattern(summary.rowsCompleted).then(() => {
+                        if (nextPattern) goTo(nextPattern.id);
+                      }),
+                  }
+                : {})}
             />
           ) : (
             <GridCanvas

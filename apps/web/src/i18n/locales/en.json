@@ -637,7 +637,10 @@
     "rowsDone": "Rows done",
     "roundsDone": "Rounds done",
     "minus": "Remove a row",
-    "plus": "Add a row"
+    "plus": "Add a row",
+    "done": "Done: {{name}}",
+    "thenNext": "Finishes this part and goes on to: {{name}}.",
+    "thenEnd": "Finishes this part — the last one in the project."
   },
   "project": {
     "continue": "Continue knitting: {{name}}",
@@ -741,7 +744,11 @@
     "changeSize": "Change size",
     "openDesigner": "Open in the creator",
     "designerLead": "Fix the pattern in the creator: the PDF charts lie on the grid as tiles you can move, widen and remove, and they wait in the library next to the ready-made pieces. The project will be created.",
-    "designerLeadEmpty": "Draw this part in the creator: the PDF charts wait in the library next to the ready-made pieces. The project will be created."
+    "designerLeadEmpty": "Draw this part in the creator: the PDF charts wait in the library next to the ready-made pieces. The project will be created.",
+    "agreeNext": "Looks right, next",
+    "checkedPart": "(checked)",
+    "progress": "Parts checked: {{done}} of {{count}}.",
+    "nextIs": "Next: {{part}}."
   },
   "parts": {
     "toProject": "Go to the project",
