@@ -460,6 +460,28 @@
   list-style: none;
 }
 
+/* A part with its order arrows beside it. */
+.track-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.track-row > .track-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-move {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.track-move .icon-btn {
+  width: 36px;
+  min-width: 36px;
+}
+
 .track-item {
   display: flex;
   align-items: center;

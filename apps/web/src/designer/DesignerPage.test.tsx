@@ -366,6 +366,16 @@ describe('pattern creator', () => {
     expect(within(bar()).getByText('Wklejasz 2 kafelki')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(within(bar()).queryByText(/Wklejasz/)).toBeNull();
+
+    // Ctrl+X takes the selected tile off the grid and keeps it to paste elsewhere.
+    await clickStitch(user, 3);
+    await user.keyboard('{Control>}x{/Control}');
+    await waitFor(() => expect(cols()).toEqual([1]));
+    expect(within(bar()).getByRole('status')).toHaveTextContent('Wycięto 1 kafelek');
+    await user.keyboard('{Control>}v{/Control}');
+    expect(within(bar()).getByText('Wklejasz 1 kafelek')).toBeInTheDocument();
+    await clickStitch(user, 5);
+    await waitFor(() => expect(cols()).toEqual([1, 5]));
   });
 
   it('mirrors the right side onto the left, live: from the panel or a double click on a line', async () => {

@@ -108,6 +108,25 @@ const tab = (name: RegExp) =>
   within(screen.getByRole('group', { name: 'Części do podglądu' })).getByRole('button', { name });
 
 describe('new project from a PDF: parts to track', () => {
+  it('lets the knitter fix a wrongly recognised order with the arrows', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const list = await screen.findByRole('group', { name: 'Co chcesz śledzić?' });
+    const labels = () =>
+      within(list)
+        .getAllByRole('checkbox')
+        .map((c) => c.closest('label')?.textContent);
+    expect(
+      screen.getByRole('button', { name: 'Ściągacz dołu — wcześniej w kolejności' }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Korpus — wcześniej w kolejności' }));
+    await user.click(screen.getByRole('button', { name: 'Korpus — wcześniej w kolejności' }));
+    expect(labels().slice(0, 3)).toEqual(['11. Ściągacz dołu', '22. Korpus', '33. Rękaw ×2']);
+    expect(screen.getByText('Kolejność ustawiona przez Ciebie.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Korpus — później w kolejności' }));
+    expect(labels()[1]).toBe('22. Rękaw ×2');
+  });
+
   it('shows the recognised kind as a drawing with parts numbered in knitting order', async () => {
     render(<App />);
     expect(await screen.findByRole('heading', { level: 2, name: 'Sweter' })).toBeInTheDocument();
@@ -413,7 +432,7 @@ describe('new project from a PDF: size and legend first', () => {
       within(steps)
         .getAllByRole('listitem')
         .map((li) => li.textContent),
-    ).toEqual(['1Rozmiar', '2Legenda', '3Części', '4Podgląd']);
+    ).toEqual(['1Nazwa', '2Rozmiar', '3Legenda', '4Części', '5Podgląd']);
     expect(within(steps).getByText('Rozmiar').closest('li')).toHaveAttribute(
       'aria-current',
       'step',
@@ -435,6 +454,25 @@ describe('new project from a PDF: size and legend first', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'Symbole w schematach' }),
     ).toBeInTheDocument();
+  });
+
+  it('asks for the project name first, then goes on to the size and back', async () => {
+    const user = userEvent.setup();
+    useImport.setState({ step: 'name', projectName: '' });
+    render(<App />);
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Jak nazwiesz projekt?' }),
+    ).toBeInTheDocument();
+    const name = screen.getByLabelText('Nazwa projektu');
+    await user.clear(name);
+    await user.type(name, 'Sweter dla Ani');
+    await user.click(screen.getByRole('button', { name: 'Dalej' }));
+    expect(useImport.getState().projectName).toBe('Sweter dla Ani');
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Który rozmiar dziergasz?' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Wstecz' }));
+    expect(screen.getByLabelText('Nazwa projektu')).toHaveValue('Sweter dla Ani');
   });
 
   it('confirms the legend, then shows the parts; earlier steps can be reopened', async () => {

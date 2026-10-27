@@ -273,4 +273,55 @@ describe('screens', () => {
       await screen.findByText('Zakończy tę część — to ostatnia w projekcie.'),
     ).toBeInTheDocument();
   });
+
+  it('the chart tracker has a Gotowe button in the bottom bar that finishes the part', async () => {
+    const user = userEvent.setup();
+    await useLibrary.getState().addProject(sample());
+    navigate('/projekt/s1/wzor/body');
+    render(<App />);
+    await user.click(await screen.findByTitle('Zakończ tę część i przejdź do następnej'));
+    const dialog = screen.getByRole('dialog', { name: 'Zakończyć wzór „Korpus”?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Zakończ wzór' }));
+    await waitFor(() =>
+      expect(useLibrary.getState().project('s1')?.finishedRows).toHaveProperty('body'),
+    );
+    expect(screen.queryByTitle('Zakończ tę część i przejdź do następnej')).toBeNull();
+  });
+
+  it('a finished project is marked done and can be knitted again after a warning', async () => {
+    const user = userEvent.setup();
+    let project = blankProject({
+      id: 'done',
+      name: 'Czapka',
+      kind: 'hat',
+      sizes: ['M'],
+      now: '2026-10-26T10:00:00.000Z',
+    });
+    for (const [id, name] of [
+      ['rib', 'Ściągacz'],
+      ['crown', 'Denko'],
+    ] as const) {
+      project = insertPattern(project, { ...blankPattern(id, name), tracking: 'rows' }).project;
+    }
+    await useLibrary
+      .getState()
+      .addProject({ ...project, activePatternId: 'crown', finishedRows: { rib: 8, crown: 12 } });
+    render(<App />);
+    const row = (await screen.findByRole('link', { name: /Czapka/ })).closest('li') as HTMLElement;
+    expect(row).toHaveClass('project--done');
+    expect(within(row).getByText('Gotowy')).toBeInTheDocument();
+
+    await user.click(within(row).getByRole('button', { name: 'Zrób jeszcze raz' }));
+    const dialog = screen.getByRole('dialog', { name: 'Zrobić „Czapka” jeszcze raz?' });
+    expect(dialog).toHaveTextContent('Postęp wszystkich części zostanie wyzerowany');
+    await user.click(within(dialog).getByRole('button', { name: 'Anuluj' }));
+    expect(useLibrary.getState().project('done')?.finishedRows).toEqual({ rib: 8, crown: 12 });
+
+    await user.click(within(row).getByRole('button', { name: 'Zrób jeszcze raz' }));
+    await user.click(screen.getByRole('button', { name: 'Wyzeruj i zacznij od nowa' }));
+    await waitFor(() => expect(location.pathname).toBe('/projekt/done/wzor/rib'));
+    const fresh = useLibrary.getState().project('done');
+    expect(fresh?.finishedRows).toBeUndefined();
+    expect(fresh?.activePatternId).toBe('rib');
+  });
 });

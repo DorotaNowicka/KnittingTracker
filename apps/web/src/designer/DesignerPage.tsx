@@ -395,6 +395,16 @@ function Workbench({
     setSelectedIds([]);
     setMessage(null);
   };
+  /** Ctrl/⌘+X: copy the selected tiles, then take them off the grid. */
+  const cut = () => {
+    const copied = copyTiles(design, chosen);
+    if (!copied) return;
+    useTileClip.getState().set(copied);
+    setDesign(removeTiles(design, chosen));
+    setSelectedIds([]);
+    setMessage(null);
+    setInfo(t('designer.cut', { count: copied.items.length }));
+  };
   const cancel = () => {
     setInfo(null);
     setHolding(null);
@@ -409,11 +419,11 @@ function Workbench({
     setInfo(t(on ? 'designer.mirrorOn' : 'designer.mirrorOff', { line: QUARTER_LABEL[quarter] }));
   };
 
-  // Ctrl/⌘+C copies the selected tiles, Ctrl/⌘+V takes the copy in hand, Delete removes the
-  // selected tiles, Escape lets go — unless the knitter is typing in a field.
-  const keys = useRef({ copy, paste, removeSelected, cancel });
+  // Ctrl/⌘+C copies the selected tiles, Ctrl/⌘+X cuts them, Ctrl/⌘+V takes the copy in hand,
+  // Delete removes the selected tiles, Escape lets go — unless the knitter is typing in a field.
+  const keys = useRef({ copy, cut, paste, removeSelected, cancel });
   useEffect(() => {
-    keys.current = { copy, paste, removeSelected, cancel };
+    keys.current = { copy, cut, paste, removeSelected, cancel };
   });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -427,6 +437,7 @@ function Workbench({
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
       if (mod && key === 'c') keys.current.copy();
+      else if (mod && key === 'x') keys.current.cut();
       else if (mod && key === 'v') keys.current.paste();
       else if (!mod && (e.key === 'Delete' || e.key === 'Backspace')) keys.current.removeSelected();
       else if (e.key === 'Escape') keys.current.cancel();
@@ -528,10 +539,6 @@ function Workbench({
         </Link>
         <h1 className="designer__title">{t('designer.title', { name: pattern.name })}</h1>
         <SaveState />
-        <button type="button" className="btn btn--primary btn--small" onClick={onDone}>
-          <Icon name="check" size={18} />
-          {t('designer.done')}
-        </button>
       </header>
 
       <div className="editor__toolbar" role="toolbar" aria-label={t('designer.toolbar')}>
@@ -748,6 +755,13 @@ function Workbench({
       {newPiece && (
         <MotifDialog registry={registry} onSaved={pick} onClose={() => setNewPiece(false)} />
       )}
+      {/* The part is set up: "Gotowe" at the bottom, where a form ends. */}
+      <footer className="designer__footer">
+        <button type="button" className="btn btn--done" onClick={onDone}>
+          <Icon name="check" size={20} />
+          {t('designer.done')}
+        </button>
+      </footer>
     </main>
   );
 }

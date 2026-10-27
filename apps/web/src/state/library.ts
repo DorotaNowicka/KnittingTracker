@@ -58,6 +58,11 @@ interface LibraryState {
   /** Remove one pattern of a project, with its progress. */
   deletePattern(projectId: string, patternId: string): Promise<void>;
   deleteProject(id: string): Promise<void>;
+  /**
+   * Knit a project again: every pattern's progress and finish are cleared and it starts with its
+   * first pattern. The patterns themselves stay as they are.
+   */
+  restartProject(id: string): Promise<void>;
   /** Progress of every pattern of a project, by pattern id. */
   progressOf(projectId: string): Promise<Record<string, StoredProgress>>;
   /** Record progress of the active pattern for the lists (the tracker writes it to storage). */
@@ -176,6 +181,25 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     await queueWrite(id, () => storage.deleteProject(id));
     const { [id]: _removed, ...progress } = get().progress;
     set({ projects: get().projects.filter((p) => p.id !== id), progress });
+  },
+
+  async restartProject(id) {
+    const project = get().project(id);
+    if (!project) return;
+    const storage = await getStorage();
+    await get().updateProject(id, (p) => {
+      const { finishedRows: _finished, ...rest } = p;
+      const first = p.patterns[0]?.id;
+      return {
+        ...rest,
+        ...(first ? { activePatternId: first } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    for (const pattern of project.patterns) {
+      await queueWrite(id, () => storage.deleteProgress(id, pattern.id).catch(() => undefined));
+    }
+    set({ progress: { ...get().progress, [id]: undefined } });
   },
 
   async progressOf(projectId) {

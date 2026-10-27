@@ -1076,7 +1076,24 @@ textarea {
 }
 
 .designer {
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+/* "Gotowe" at the bottom of the creator, always in reach. */
+.designer__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--sp-2) calc(var(--sp-3) + env(safe-area-inset-right))
+    calc(var(--sp-2) + env(safe-area-inset-bottom)) var(--sp-3);
+  border-top: 1px solid var(--rule);
+  background: var(--sheet);
+}
+
+.designer__footer .btn {
+  min-width: 10rem;
 }
 
 /* The bar above the grid: the piece being laid or the selected tile. */

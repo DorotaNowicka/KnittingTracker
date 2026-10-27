@@ -14,6 +14,11 @@
     "back": "Wstecz"
   },
   "projects": {
+    "done": "Gotowy",
+    "again": "Zrób jeszcze raz",
+    "againTitle": "Zrobić „{{name}}” jeszcze raz?",
+    "againBody": "Postęp wszystkich części zostanie wyzerowany i zaczniesz od pierwszej części. Wzory zostają bez zmian. Tego nie da się cofnąć.",
+    "againConfirm": "Wyzeruj i zacznij od nowa",
     "title": "Twoje projekty",
     "empty": {
       "title": "Zacznij pierwszy projekt",
@@ -190,6 +195,8 @@
     "rowsEnd": "Do końca wzoru"
   },
   "actions": {
+    "done": "Gotowe",
+    "doneHint": "Zakończ tę część i przejdź do następnej",
     "label": "Działania",
     "undo": "Cofnij",
     "undoHint": "Cofnij (Ctrl+Z)",
@@ -753,6 +760,11 @@
     "orderHeadings": "Kolejność według nagłówków w opisie: {{words}}.",
     "orderOtherWay": "Kolejność: {{way}} — w opisie jest „{{words}}”.",
     "orderUsual": "Typowa kolejność ({{way}}) — opis jej nie podaje.",
+    "orderByHand": "Kolejność ustawiona przez Ciebie.",
+    "moveUp": "{{part}} — wcześniej w kolejności",
+    "moveDown": "{{part}} — później w kolejności",
+    "nameTitle": "Jak nazwiesz projekt?",
+    "nameHint": "Podpowiadamy nazwę pliku. Zmienisz ją też później.",
     "next": "Dalej",
     "nextCount_one": "Dalej: {{count}} część",
     "nextCount_few": "Dalej: {{count}} części",
@@ -760,6 +772,7 @@
     "nextCount_other": "Dalej: {{count}} części",
     "stepsLabel": "Kroki",
     "step": {
+      "name": "Nazwa",
       "size": "Rozmiar",
       "legend": "Legenda",
       "parts": "Części",
@@ -933,7 +946,7 @@
     "selectedMany_few": "Zaznaczone {{count}} kafelki",
     "selectedMany_many": "Zaznaczonych {{count}} kafelków",
     "selectedMany_other": "Zaznaczone {{count}} kafelka",
-    "selectedManyHint": "Przeciągnij jeden z nich, żeby przesunąć wszystkie. Shift + klik dodaje albo odejmuje kafelek. Ctrl+C kopiuje, Delete usuwa.",
+    "selectedManyHint": "Przeciągnij jeden z nich, żeby przesunąć wszystkie. Shift + klik dodaje albo odejmuje kafelek. Ctrl+C kopiuje, Ctrl+X wycina, Delete usuwa.",
     "copyTile": "Kopiuj",
     "copyTiles": "Kopiuj",
     "paste": "Wklej",
@@ -942,6 +955,10 @@
     "copied_few": "Skopiowano {{count}} kafelki. Wklej przyciskiem albo Ctrl+V.",
     "copied_many": "Skopiowano {{count}} kafelków. Wklej przyciskiem albo Ctrl+V.",
     "copied_other": "Skopiowano {{count}} kafelka. Wklej przyciskiem albo Ctrl+V.",
+    "cut_one": "Wycięto {{count}} kafelek. Wklej przyciskiem albo Ctrl+V.",
+    "cut_few": "Wycięto {{count}} kafelki. Wklej przyciskiem albo Ctrl+V.",
+    "cut_many": "Wycięto {{count}} kafelków. Wklej przyciskiem albo Ctrl+V.",
+    "cut_other": "Wycięto {{count}} kafelka. Wklej przyciskiem albo Ctrl+V.",
     "mirror": "Lustro",
     "mirrorHint": "Lewa strona osi pokazuje odbicie prawej i zmienia się razem z nią; warkocze krzyżują się w drugą stronę. Dwuklik w linię na siatce też włącza i wyłącza lustro.",
     "mirrorAt": "Odbij w {{line}}",

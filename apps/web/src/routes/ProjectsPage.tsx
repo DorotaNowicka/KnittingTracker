@@ -98,11 +98,30 @@ function ProjectRow({ project }: { project: StoredProject }) {
     dialog.current?.close();
     await useLibrary.getState().deleteProject(project.id);
   };
+  // Every part finished: the project is done.
+  const finished =
+    project.patterns.length > 0 &&
+    project.patterns.every((p) => project.finishedRows?.[p.id] !== undefined);
+  const again = useRef<HTMLDialogElement>(null);
+  const restart = async () => {
+    again.current?.close();
+    await useLibrary.getState().restartProject(project.id);
+    const first = project.patterns[0];
+    if (first) navigate(paths.tracker(project.id, first.id));
+  };
 
   return (
-    <li className="project">
+    <li className={`project${finished ? ' project--done' : ''}`}>
       <Link className="project__link" to={paths.project(project.id)}>
-        <span className="project__name">{project.name}</span>
+        <span className="project__name">
+          {project.name}
+          {finished && (
+            <span className="project__done">
+              <Icon name="check" size={16} />
+              {t('projects.done')}
+            </span>
+          )}
+        </span>
         <span className="project__meta">
           {project.patterns.length === 0 ? (
             t('projects.noPatterns')
@@ -113,7 +132,7 @@ function ProjectRow({ project }: { project: StoredProject }) {
             </>
           )}
         </span>
-        {summary && (
+        {summary && !finished && (
           <span className="project__progress">
             <span className="num">
               {t(summary.round ? 'status.round' : 'status.row', { row: summary.s.currentRow })}
@@ -132,6 +151,30 @@ function ProjectRow({ project }: { project: StoredProject }) {
           })}
         </span>
       </Link>
+      {finished && (
+        <button
+          type="button"
+          className="btn btn--small project__again"
+          onClick={() => again.current?.showModal()}
+        >
+          <Icon name="undo" size={18} />
+          {t('projects.again')}
+        </button>
+      )}
+      <dialog ref={again} className="dialog" aria-labelledby={`again-${project.id}`}>
+        <h2 id={`again-${project.id}`} className="dialog__title">
+          {t('projects.againTitle', { name: project.name })}
+        </h2>
+        <p>{t('projects.againBody')}</p>
+        <div className="dialog__actions">
+          <button type="button" className="btn" onClick={() => again.current?.close()}>
+            {t('common.cancel')}
+          </button>
+          <button type="button" className="btn btn--danger" onClick={() => void restart()}>
+            {t('projects.againConfirm')}
+          </button>
+        </div>
+      </dialog>
       <button
         type="button"
         className="icon-btn project__delete"

@@ -448,6 +448,18 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             <span className="action__label">{t('actions.center')}</span>
           </button>
         )}
+        {/* The part is done: finish it (rows worked, on to the next part) from the grid too. */}
+        {showGrid && finished === undefined && (
+          <button
+            type="button"
+            className="action action--done"
+            onClick={() => finishRef.current?.showModal()}
+            title={t('actions.doneHint')}
+          >
+            <Icon name="check" />
+            <span className="action__label">{t('actions.done')}</span>
+          </button>
+        )}
         <button
           type="button"
           className="action action--primary"

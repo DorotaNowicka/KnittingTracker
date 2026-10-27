@@ -38,6 +38,7 @@ import {
   defaultSetup,
   initialElements,
   kindItems,
+  orderedItems,
   type PartSetup,
   withDesignFromLayout,
   type ElementState,
@@ -101,6 +102,10 @@ interface ImportState {
   readonly elements: Elements;
   /** In what order the pattern makes the parts. */
   readonly order: PartOrder;
+  /** The knitter put the parts in her own order (the recognised one was wrong). */
+  readonly orderByHand: boolean;
+  /** Move a part one place earlier (-1) or later (+1) in the knitting order. */
+  moveItem(id: string, delta: -1 | 1): void;
   /** Whether the text makes the body as a back and a front (headings "TYŁ", "PRZÓD"). */
   readonly bodyPieces: { readonly pieces: boolean; readonly evidence: readonly string[] };
   /** Parts the knitter set up in "Popraw" (part id → charts in order, stitches, length). */
@@ -152,7 +157,7 @@ interface ImportState {
   createProject(input: CreateProjectInput, designPart?: string): Promise<string>;
 }
 
-export type ImportStep = 'size' | 'legend' | 'parts' | 'preview';
+export type ImportStep = 'name' | 'size' | 'legend' | 'parts' | 'preview';
 
 export interface CreateProjectInput {
   readonly title: string;
@@ -241,6 +246,7 @@ function partsFor(kind: ProjectKind, text: string, charts: number) {
     elements:
       bodyPieces.pieces && body ? { ...elements, body: { ...body, option: 'pieces' } } : elements,
     order: detectPartOrder(text, kind),
+    orderByHand: false,
     bodyPieces,
     setups: {},
   };
@@ -261,7 +267,7 @@ function kindOf(result: ImportResult, hints: string) {
 const noParts = {
   guess: null,
   ...partsFor('custom', '', 0),
-  step: 'size',
+  step: 'name',
   sizes: [],
   sizeIndex: 0,
 } as const;
@@ -286,6 +292,18 @@ export const useImport = create<ImportState>((set, get) => ({
   setProjectKind(projectKind) {
     const { result, charts } = get();
     set(partsFor(projectKind, result?.text ?? '', charts.length));
+  },
+  moveItem(id, delta) {
+    const { projectKind, order } = get();
+    const ids = orderedItems(projectKind, order.order).map((it) => it.id);
+    const from = ids.indexOf(id);
+    const to = from + delta;
+    const a = ids[from];
+    const b = ids[to];
+    if (from < 0 || a === undefined || b === undefined) return;
+    ids[from] = b;
+    ids[to] = a;
+    set({ order: { ...order, order: ids }, orderByHand: true });
   },
   setPartSetup(partId, setup) {
     set({ setups: { ...get().setups, [partId]: setup } });
@@ -392,7 +410,7 @@ export const useImport = create<ImportState>((set, get) => ({
         legend: result.legend.map((l) => (l.confidence >= 0.6 ? l.symbolId : null)),
         description: { text: result.text, parsed: result.description },
         ...kindOf(result, `${get().projectName}\n${file.name}`),
-        step: 'size',
+        step: 'name',
         sizes: result.description.sizes?.value ?? [],
         sizeIndex: 0,
       });

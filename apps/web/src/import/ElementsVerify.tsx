@@ -50,8 +50,8 @@ export function ElementsVerify() {
   // Nothing to confirm in a legend when the file has neither a legend nor charts.
   const steps: readonly ImportStep[] =
     result && (result.legend.length > 0 || result.charts.length > 0)
-      ? ['size', 'legend', 'parts', 'preview']
-      : ['size', 'parts', 'preview'];
+      ? ['name', 'size', 'legend', 'parts', 'preview']
+      : ['name', 'size', 'parts', 'preview'];
   const at = Math.max(0, steps.indexOf(step));
   const goTo = (next: ImportStep | undefined) => {
     if (!next) return;
@@ -63,7 +63,8 @@ export function ElementsVerify() {
   return (
     <>
       <Steps steps={steps} at={at} onGo={goTo} />
-      {step === 'size' && <SizeStep onNext={next} />}
+      {step === 'name' && <NameStep onNext={next} />}
+      {step === 'size' && <SizeStep onBack={back} onNext={next} />}
       {step === 'legend' && <LegendStep onBack={back} onNext={next} />}
       {step === 'parts' && <PartsStep onBack={back} onNext={next} />}
       {step === 'preview' && <PreviewStep onSize={() => goTo('size')} />}
@@ -107,8 +108,60 @@ function Steps({
   );
 }
 
-/** Step 1: which size is knitted; the sizes come from the description and can be corrected. */
-function SizeStep({ onNext }: { onNext(): void }) {
+/** The project's name: as typed before the import, or the file's name, until the knitter sets it. */
+function useProjectTitle() {
+  const { t } = useTranslation();
+  const typed = useImport((s) => s.projectName);
+  const file = useImport((s) => s.file?.name ?? '');
+  // The typed name is shown as typed (spaces too), so the field does not fight the typing.
+  return (
+    (typed.trim() ? typed.slice(0, 120) : '') ||
+    file.replace(/\.[a-z0-9]+$/i, '').slice(0, 120) ||
+    t('newProject.blankName')
+  );
+}
+
+/** Step 1: the project's name, set before anything else. */
+function NameStep({ onNext }: { onNext(): void }) {
+  const { t } = useTranslation();
+  const ids = useId();
+  const s = useImport();
+  const title = useProjectTitle();
+  return (
+    <section className="verify name-step" aria-labelledby={`${ids}-t`}>
+      <h2 id={`${ids}-t`} className="section-title">
+        {t('elements.nameTitle')}
+      </h2>
+      <TextField
+        label={t('project.name')}
+        value={title}
+        required
+        maxLength={120}
+        hint={t('elements.nameHint')}
+        onCommit={(v) => s.setProjectName(v)}
+      />
+      <div className="form-actions">
+        <button type="button" className="btn" onClick={() => s.reset()}>
+          {t('importer.otherFile')}
+        </button>
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={() => {
+            // The name shown is the name kept, also when it came from the file.
+            s.setProjectName(title.trim());
+            onNext();
+          }}
+        >
+          {t('elements.next')}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** Step 2: which size is knitted; the sizes come from the description and can be corrected. */
+function SizeStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
   const { t } = useTranslation();
   const ids = useId();
   const s = useImport();
@@ -165,8 +218,8 @@ function SizeStep({ onNext }: { onNext(): void }) {
         </button>
       )}
       <div className="form-actions">
-        <button type="button" className="btn" onClick={() => s.reset()}>
-          {t('importer.otherFile')}
+        <button type="button" className="btn" onClick={onBack}>
+          {t('common.back')}
         </button>
         <button type="button" className="btn btn--primary" onClick={onNext}>
           {s.sizes.length > 0
@@ -249,8 +302,9 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
     (it) => it.type === 'choice' && partsOf(it, s.elements[it.id]).length > 1,
   );
   const order = s.order;
-  const orderText =
-    order.source === 'headings'
+  const orderText = s.orderByHand
+    ? t('elements.orderByHand')
+    : order.source === 'headings'
       ? t('elements.orderHeadings', { words: order.evidence.join(', ') })
       : order.source === 'other-way' && info.otherWay
         ? t('elements.orderOtherWay', {
@@ -310,36 +364,59 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
               {t('elements.trackHint')} {info.pair && t('elements.pair')}
             </p>
             <ol className="track-list">
-              {items.map((it) => {
+              {items.map((it, i) => {
                 const on = s.elements[it.id]?.include ?? false;
                 const count = it.type === 'part' && it.count && it.count > 1 ? it.count : 0;
                 return (
                   <li key={it.id}>
-                    <label
-                      className={`track-item${hovered === it.id ? ' is-hover' : ''}${on ? '' : ' is-off'}`}
-                      data-part={it.id}
-                      onPointerEnter={() => setHovered(it.id)}
-                      onPointerLeave={() => setHovered(null)}
-                    >
-                      <span className="track-item__no" aria-hidden="true">
-                        {numbers[it.id]}
+                    <div className="track-row">
+                      <label
+                        className={`track-item${hovered === it.id ? ' is-hover' : ''}${on ? '' : ' is-off'}`}
+                        data-part={it.id}
+                        onPointerEnter={() => setHovered(it.id)}
+                        onPointerLeave={() => setHovered(null)}
+                      >
+                        <span className="track-item__no" aria-hidden="true">
+                          {numbers[it.id]}
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={() => toggle(it.id)}
+                          onFocus={() => setHovered(it.id)}
+                          onBlur={() => setHovered(null)}
+                        />
+                        <span className="track-item__name">
+                          <span className="visually-hidden">{numbers[it.id]}. </span>
+                          {it.label[lang]}
+                          {count > 0 && ` ×${count}`}
+                        </span>
+                        {it.type === 'part' && it.optional && (
+                          <span className="track-item__note">{t('elements.optional')}</span>
+                        )}
+                      </label>
+                      {/* A wrongly recognised order is put right here: the numbers follow. */}
+                      <span className="track-move">
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label={t('elements.moveUp', { part: it.label[lang] })}
+                          disabled={i === 0}
+                          onClick={() => s.moveItem(it.id, -1)}
+                        >
+                          <Icon name="up" size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label={t('elements.moveDown', { part: it.label[lang] })}
+                          disabled={i === items.length - 1}
+                          onClick={() => s.moveItem(it.id, 1)}
+                        >
+                          <Icon name="down" size={18} />
+                        </button>
                       </span>
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() => toggle(it.id)}
-                        onFocus={() => setHovered(it.id)}
-                        onBlur={() => setHovered(null)}
-                      />
-                      <span className="track-item__name">
-                        <span className="visually-hidden">{numbers[it.id]}. </span>
-                        {it.label[lang]}
-                        {count > 0 && ` ×${count}`}
-                      </span>
-                      {it.type === 'part' && it.optional && (
-                        <span className="track-item__note">{t('elements.optional')}</span>
-                      )}
-                    </label>
+                    </div>
                     {it.type === 'choice' && on && <Variant item={it} />}
                   </li>
                 );
@@ -441,14 +518,9 @@ function PreviewStep({ onSize }: { onSize(): void }) {
   const ids = useId();
   const s = useImport();
   const { items, numbers } = useOrder();
-  const defaultTitle = useMemo(
-    () =>
-      s.projectName.slice(0, 120) ||
-      (s.file?.name ?? '').replace(/\.[a-z0-9]+$/i, '').slice(0, 120) ||
-      t('newProject.blankName'),
-    [s.projectName, s.file, t],
-  );
-  const [title, setTitle] = useState(defaultTitle);
+  // The name set in the first step (or the file's); "Popraw" can still change it.
+  const title = useProjectTitle();
+  const setTitle = (v: string) => s.setProjectName(v);
   const [fixing, setFixing] = useState(false);
   /** The part on screen, and its item (to stay near it when the part goes away). */
   const [chosen, setChosenState] = useState<{ part: string; item: string } | null>(null);
@@ -458,12 +530,12 @@ function PreviewStep({ onSize }: { onSize(): void }) {
   const sizes = useMemo(() => (s.sizes.length > 0 ? s.sizes : [t('editor.oneSize')]), [s.sizes, t]);
   const input = useMemo(
     (): CreateProjectInput => ({
-      title: title.trim() || defaultTitle,
+      title: title.trim(),
       sizes,
       sections: [t('importer.front'), t('importer.back')] as const,
       lang,
     }),
-    [title, defaultTitle, sizes, t, lang],
+    [title, sizes, t, lang],
   );
   // Rebuilt whenever anything the project is made of changes.
   const draft = useMemo(

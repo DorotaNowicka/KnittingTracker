@@ -104,6 +104,18 @@ a {
   color: var(--on-danger);
 }
 
+/* "Gotowe": finishing a part or a step, green everywhere. */
+.btn--done {
+  background: var(--success);
+  border-color: var(--success);
+  color: var(--on-success);
+}
+
+.btn--done:hover:not(:disabled) {
+  background: var(--success-hover);
+  border-color: var(--success-hover);
+}
+
 .btn--small {
   min-height: 40px;
   padding: 0 var(--sp-3);
@@ -319,6 +331,30 @@ a {
 .project__name {
   font-size: var(--fs-4);
   font-weight: 700;
+}
+
+/* A finished project glows green, with "knit it again". */
+.project--done {
+  margin: 0 calc(-1 * var(--sp-2));
+  padding: 0 var(--sp-2);
+  border-left: 4px solid var(--success);
+  border-radius: var(--r-control);
+  background: var(--success-soft);
+}
+
+.project__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: var(--sp-2);
+  color: var(--success);
+  font-size: var(--fs-2);
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.project__again {
+  flex-shrink: 0;
 }
 
 .project__meta {
@@ -872,7 +908,7 @@ input[type='range'] {
 /* Action bar: thumb zone, big targets, the row button is the largest. */
 .actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 2.6fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 2.4fr);
   gap: var(--sp-1);
   padding: var(--sp-2) calc(var(--sp-2) + env(safe-area-inset-right))
     calc(var(--sp-2) + env(safe-area-inset-bottom)) calc(var(--sp-2) + env(safe-area-inset-left));
@@ -925,6 +961,14 @@ input[type='range'] {
   background: var(--danger);
 }
 
+.action--done {
+  color: var(--success);
+}
+
+.action--done:hover:not(:disabled) {
+  background: var(--success-soft);
+}
+
 .action--primary {
   /* Fills the rest of the bar, also when a row counter has fewer tools. */
   grid-column: auto / -1;
@@ -936,8 +980,25 @@ input[type='range'] {
 }
 
 @media (max-width: 420px) {
+  /* Six buttons on a phone: tighter tools, and the main button's words may take two lines. */
+  .actions {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.7fr);
+    gap: 2px;
+  }
+
+  .action {
+    padding: var(--sp-1) 2px;
+    font-size: 0.75rem;
+  }
+
   .action--primary {
     font-size: var(--fs-2);
+    line-height: 1.15;
+  }
+
+  .action--primary .action__label {
+    white-space: normal;
+    text-align: center;
   }
 
   .action--primary .icon {
@@ -951,7 +1012,7 @@ input[type='range'] {
 
 @media (min-width: 700px) {
   .actions {
-    grid-template-columns: repeat(4, auto) minmax(14rem, 22rem);
+    grid-template-columns: repeat(5, auto) minmax(14rem, 22rem);
     justify-content: center;
     gap: var(--sp-2);
   }

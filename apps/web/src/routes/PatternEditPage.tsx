@@ -454,7 +454,7 @@ function PatternEditor({ project, pattern }: { project: Project; pattern: Patter
           {/* "Gotowe": the pattern is set up (a garment part gets its ✓); back to the parts. */}
           <button
             type="button"
-            className="btn btn--primary"
+            className="btn btn--done"
             disabled={!report.ok}
             onClick={() => {
               useDraft.getState().updatePattern(pattern.id, (p) => ({ ...p, ready: true }));

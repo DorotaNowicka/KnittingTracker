@@ -330,7 +330,10 @@ export function EditorCanvas(props: Props) {
   );
 }
 
-/** Zoom so the whole grid fits (cells between 12 and 44 px) and centre it. False if not laid out yet. */
+/**
+ * Zoom so the whole grid fits (cells between 12 and 44 px); show its bottom right corner when it
+ * is still larger than the view. False if not laid out yet.
+ */
 function fitView(r: GridRenderer, source: GridSource): boolean {
   const m = r.geometry?.m;
   const cam = r.camera;
@@ -340,6 +343,8 @@ function fitView(r: GridRenderer, source: GridSource): boolean {
   const byW = (cam.width - 2 * m.gutter - 8) / (source.cols + gaps * 1.25);
   const byH = (cam.height - m.header - m.footer - 8) / source.rows;
   r.zoomTo(Math.max(12, Math.min(44, byW, byH)));
-  r.reveal(Math.ceil(source.rows / 2), Math.ceil(source.cols / 2), 'center');
+  // Knitting starts at the bottom right (row 1, stitch 1): a grid wider or taller than the view
+  // opens there; a smaller one stays centred (the camera keeps content in view).
+  r.reveal(1, source.cols, 'center');
   return true;
 }

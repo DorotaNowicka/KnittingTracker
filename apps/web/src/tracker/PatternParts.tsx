@@ -457,7 +457,7 @@ export function RowCounter({
       </div>
       {onDone && (
         <div className="row-counter__done">
-          <button type="button" className="btn btn--primary" onClick={onDone}>
+          <button type="button" className="btn btn--done" onClick={onDone}>
             <Icon name="check" size={18} />
             {t('counter.done', { name })}
           </button>

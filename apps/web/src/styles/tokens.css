@@ -49,6 +49,11 @@
   --no-stitch: #c9ccc4;
   --danger: #a3322a;
   --on-danger: #ffffff;
+  /* "Gotowe": a part or project done (green, white text at 4.5:1 or more). */
+  --success: #23774a;
+  --success-hover: #1c623c;
+  --on-success: #ffffff;
+  --success-soft: #e1f0e6;
   --shadow: 0 6px 24px rgb(30 34 39 / 14%), 0 1px 3px rgb(30 34 39 / 10%);
   color-scheme: light;
 }
@@ -73,6 +78,10 @@
     --no-stitch: #343a42;
     --danger: #f08a80;
     --on-danger: #14181d;
+    --success: #6fd09a;
+    --success-hover: #8adcae;
+    --on-success: #102017;
+    --success-soft: #1f3a2a;
     --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
     color-scheme: dark;
   }
@@ -97,6 +106,10 @@
   --no-stitch: #343a42;
   --danger: #f08a80;
   --on-danger: #14181d;
+  --success: #6fd09a;
+  --success-hover: #8adcae;
+  --on-success: #102017;
+  --success-soft: #1f3a2a;
   --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
   color-scheme: dark;
 }
