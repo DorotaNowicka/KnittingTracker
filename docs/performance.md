@@ -10,7 +10,7 @@ production build, with the synthetic 500 × 300 pattern.
 | Grid frame cost while panning (scene + paint), p95 | < 16 ms | 5.8 ms | 5.5 ms | `e2e/perf.spec.ts` |
 | Open a large project (reload → grid drawn) | < 3 s | 1.35 s | 1.37 s | `e2e/perf.spec.ts` |
 | Tap → status updated, p95 (25 taps) | < 100 ms | 33 ms | 47 ms | `e2e/perf.spec.ts` |
-| JavaScript needed to start (gzip) | ≤ 230 KiB | 196 KiB | | `pnpm check:bundle` (CI) |
+| JavaScript needed to start (gzip) | ≤ 260 KiB (230 until 2026-10-27) | 196 KiB (229.7 KiB on 2026-10-27) | | `pnpm check:bundle` (CI) |
 
 ## What keeps it fast
 

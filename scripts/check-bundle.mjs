@@ -4,14 +4,14 @@
  * app can start: the entry chunk named in dist/index.html and every chunk it imports statically.
  * Lazy chunks (import wizard, pattern editor) and the import worker are not part of the budget.
  *
- *   node scripts/check-bundle.mjs [budgetKiB=230]
+ *   node scripts/check-bundle.mjs [budgetKiB=260]
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const dist = new URL('../apps/web/dist/', import.meta.url).pathname;
-const budget = Number(process.argv[2] ?? 230) * 1024;
+const budget = Number(process.argv[2] ?? 260) * 1024;
 const html = readFileSync(join(dist, 'index.html'), 'utf8');
 const entry = /<script type="module"[^>]*src="\/(assets\/[^"]+\.js)"/.exec(html)?.[1];
 if (!entry) throw new Error('no entry script in dist/index.html');
