@@ -7,7 +7,7 @@ import {
   repairRows,
 } from '../chart/edit';
 import { STD } from '../symbols/library';
-import { shapeRows } from './shaping';
+import { boundOffAbove, shapeRows } from './shaping';
 import type { SymbolRegistry } from '../symbols/registry';
 import {
   CONTINUATION,
@@ -190,9 +190,12 @@ function knittedRows(design: Design, registry: SymbolRegistry): string[][] {
   return rows.map((_, i) => [...(left[i] ?? []), ...(right[i] ?? [])]);
 }
 
-/** The design's grid composed, with its shaping ("no stitch" and the shaping symbols). */
+/**
+ * The design's grid composed, with its shaping ("no stitch" and the shaping symbols) and with
+ * bound-off stitches gone above the "bind off".
+ */
 export const shapedRows = (design: Design, registry: SymbolRegistry): string[][] =>
-  shapeRows(composeDesign(design, registry), design, registry);
+  repairRows(boundOffAbove(shapeRows(composeDesign(design, registry), design, registry)), registry);
 
 /** Rows (from 1) where splitting in halves cuts a symbol in two; empty when not split. */
 export function halfCuts(design: Design, registry: SymbolRegistry): number[] {

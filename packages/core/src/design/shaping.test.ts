@@ -7,7 +7,15 @@ import { createRegistry } from '../symbols/registry';
 import { validateProject } from '../validate/pattern';
 import { applyDesign, blankDesign, designChart } from './compose';
 import { MOTIF_LIBRARY } from './motifs';
-import { shapeRows, startStitches, stitchesPerRow, withShaping } from './shaping';
+import {
+  boundOffAbove,
+  fixBalance,
+  shapeRows,
+  startStitches,
+  stitchBalance,
+  stitchesPerRow,
+  withShaping,
+} from './shaping';
 
 const registry = createRegistry();
 const lib = (id: string) => {
@@ -114,5 +122,68 @@ describe('shaping in the pattern creator', () => {
     const after = chartToSymbolRows(designChart(once, registry, 'x'))[0] ?? [];
     expect(after.slice(1, 21)).toEqual(before);
     expect([after[0], after[21]]).toEqual(['std:none', 'std:none']);
+  });
+
+  it('a stitch bound off is gone above: "no stitch" in its column up to the top', () => {
+    const neck: Design = {
+      ...blankDesign(8, 4),
+      cells: [
+        { row: 2, col: 4, symbolId: 'std:bo' },
+        { row: 2, col: 5, symbolId: 'std:bo' },
+      ],
+    };
+    const rows = chartToSymbolRows(designChart(neck, registry, 'x'));
+    expect(rows.map(line).reverse()).toEqual(
+      ['kkk··kkk', 'kkk··kkk', 'kkk••kkk', 'kkkkkkkk'].map((x) => x.replace(/•/g, 'std:bo')),
+    );
+    expect(stitchBalance(rows, registry)).toEqual([]);
+    expect(
+      boundOffAbove([
+        ['std:bo', 'std:k'],
+        ['std:k', 'std:k'],
+      ]),
+    ).toEqual([
+      ['std:bo', 'std:k'],
+      ['std:none', 'std:k'],
+    ]);
+  });
+
+  it('finds rows that do not add up and puts the missing "no stitch" next to the brush symbol', () => {
+    // Lace adds up: a yarn over for the decrease.
+    const lace: Design = {
+      ...blankDesign(6, 3),
+      cells: [
+        { row: 2, col: 3, symbolId: 'std:yo' },
+        { row: 2, col: 4, symbolId: 'std:k2tog' },
+      ],
+    };
+    expect(stitchBalance(chartToSymbolRows(designChart(lace, registry, 'x')), registry)).toEqual(
+      [],
+    );
+
+    // One k2tog alone in row 2: it takes 7 stitches of the 6 left below.
+    const alone: Design = {
+      ...blankDesign(6, 3),
+      cells: [{ row: 2, col: 4, symbolId: 'std:k2tog' }],
+    };
+    const rows = chartToSymbolRows(designChart(alone, registry, 'x'));
+    const problems = stitchBalance(rows, registry);
+    expect(problems).toEqual([{ row: 2, diff: 1 }]);
+    const fixed = fixBalance(alone, rows, registry, problems[0] ?? { row: 0, diff: 0 });
+    const after = chartToSymbolRows(designChart(fixed, registry, 'x'));
+    // k2tog leans right: the stitch on its left goes, from row 2 up.
+    expect(after.map(line).reverse()).toEqual(['k·kkkk', 'k·/kkk', 'kkkkkk']);
+    expect(stitchBalance(after, registry)).toEqual([]);
+
+    // A make one alone in row 3: "no stitch" below it.
+    const more: Design = { ...blankDesign(5, 3), cells: [{ row: 3, col: 2, symbolId: 'std:m1l' }] };
+    const r2 = chartToSymbolRows(designChart(more, registry, 'x'));
+    const p2 = stitchBalance(r2, registry);
+    expect(p2).toEqual([{ row: 3, diff: -1 }]);
+    const after2 = chartToSymbolRows(
+      designChart(fixBalance(more, r2, registry, p2[0] ?? { row: 0, diff: 0 }), registry, 'x'),
+    );
+    expect(after2.map(line).reverse()).toEqual(['kkkLk', 'kkk·k', 'kkk·k']);
+    expect(stitchBalance(after2, registry)).toEqual([]);
   });
 });

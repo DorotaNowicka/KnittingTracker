@@ -234,3 +234,109 @@ export function withShaping(design: Design, rules: readonly ShapingRule[]): Desi
   const cells = design.cells.map((c) => ({ ...c, col: c.col + shift(c.col) }));
   return { ...next, width, placements, cells };
 }
+
+/**
+ * Bound-off stitches are gone: every cell above a "bind off" in its column is "no stitch". Cells
+ * below are left as they are.
+ */
+export function boundOffAbove(rows: readonly (readonly string[])[]): string[][] {
+  const out = rows.map((r) => [...r]);
+  const width = Math.max(0, ...out.map((r) => r.length));
+  for (let c = 0; c < width; c++) {
+    let gone = false;
+    for (const row of out) {
+      if (gone && c < row.length) row[c] = STD.noStitch;
+      else if (row[c] === STD.bindOff) gone = true;
+    }
+  }
+  return out;
+}
+
+/** A row whose stitches don't add up with the row below. */
+export interface BalanceProblem {
+  /** Row (from 1). */
+  readonly row: number;
+  /**
+   * Stitches the row takes minus those the row below leaves: positive when a decrease has no
+   * "no stitch" next to it, negative when an increase has none below it.
+   */
+  readonly diff: number;
+}
+
+const CONT = '.';
+
+/** What a row takes from the needles and what it leaves on them. */
+function flowOf(row: readonly string[], registry: SymbolRegistry) {
+  let takes = 0;
+  let leaves = 0;
+  for (const id of row) {
+    if (id === CONT) continue;
+    const s = registry.get(id);
+    takes += s ? s.consumes : 1;
+    leaves += s ? s.produces : 1;
+  }
+  return { takes, leaves };
+}
+
+/**
+ * Rows that take a different number of stitches than the row below left, e.g. "2 together"
+ * painted with the brush without a "no stitch" for the stitch it takes away. Lace (a yarn over
+ * for each decrease) adds up.
+ */
+export function stitchBalance(
+  rows: readonly (readonly string[])[],
+  registry: SymbolRegistry,
+): BalanceProblem[] {
+  const out: BalanceProblem[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const below = flowOf(rows[i - 1] ?? [], registry);
+    const here = flowOf(rows[i] ?? [], registry);
+    if (here.takes !== below.leaves) out.push({ row: i + 1, diff: here.takes - below.leaves });
+  }
+  return out;
+}
+
+/** Decreases leaning right (the stitch on their left goes on top and disappears there). */
+const LEANS_RIGHT = new Set<string>([STD.k2tog, STD.p2tog]);
+
+/**
+ * The design with "no stitch" brush cells that make a row add up: next to a decrease, on the side
+ * it leans towards, from that row up; below an increase, under it. Works on the shaped grid as
+ * shown (`rows`, row 1 first, RS view left → right). Unchanged when there is nothing to fix.
+ */
+export function fixBalance(
+  design: Design,
+  rows: readonly (readonly string[])[],
+  registry: SymbolRegistry,
+  problem: BalanceProblem,
+): Design {
+  const row = rows[problem.row - 1];
+  if (!row) return design;
+  const w = design.width;
+  const targets: { col: number; from: number; to: number }[] = [];
+  const free = (c: number) => c >= 0 && c < row.length && row[c] !== STD.noStitch;
+  for (let c = 0; c < row.length && targets.length < Math.abs(problem.diff); c++) {
+    const s = registry.get(row[c] ?? '');
+    if (!s) continue;
+    if (problem.diff > 0 && s.consumes > s.produces) {
+      const order = LEANS_RIGHT.has(s.id) ? [c - 1, c + 1] : [c + 1, c - 1];
+      const side = order.find((x) => free(x) && registry.get(row[x] ?? '')?.family === 'basic');
+      if (side !== undefined) targets.push({ col: side, from: problem.row, to: design.height });
+    } else if (problem.diff < 0 && s.produces > s.consumes && problem.row > 1) {
+      targets.push({ col: c, from: 1, to: problem.row - 1 });
+    }
+  }
+  if (targets.length === 0) return design;
+  const added = targets.flatMap(({ col, from, to }) =>
+    Array.from({ length: to - from + 1 }, (_, k) => ({
+      row: from + k,
+      col: w - col,
+      symbolId: STD.noStitch,
+    })),
+  );
+  const taken = new Set(added.map((c) => `${c.row}:${c.col}`));
+  return {
+    ...design,
+    cells: [...design.cells.filter((c) => !taken.has(`${c.row}:${c.col}`)), ...added],
+  };
+}

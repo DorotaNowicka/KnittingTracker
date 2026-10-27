@@ -11,6 +11,9 @@ import {
   patternRegistry,
   splitsFrontBack,
   startStitches,
+  stitchBalance,
+  fixBalance,
+  chartToSymbolRows,
   type Chart,
   type Design,
   type Pattern,
@@ -330,6 +333,26 @@ function Workbench({
   const guides = useGuides((s) => s.on);
   // Rows where the front | back split cuts a symbol (a cable) in two.
   const cuts = useMemo(() => halfCuts(design, registry), [design, registry]);
+  // Rows whose stitches don't add up with the row below (a decrease painted without its
+  // "no stitch"), on the grid as drawn — not while a tile is held over it.
+  const drawnRows = useMemo(
+    () => chartToSymbolRows(designChart(design, registry, pattern.name)),
+    [design, registry, pattern.name],
+  );
+  const unbalanced = useMemo(() => stitchBalance(drawnRows, registry), [drawnRows, registry]);
+  /** Cells of the shaping symbols in rows that don't add up, flagged on the grid. */
+  const flagged = useMemo(
+    () =>
+      unbalanced.flatMap(({ row }) =>
+        (drawnRows[row - 1] ?? []).flatMap((id, i) => {
+          const s = registry.get(id);
+          return s && s.consumes !== s.produces && s.family !== 'bind-off'
+            ? [{ row, col: i + 1 }]
+            : [];
+        }),
+      ),
+    [unbalanced, drawnRows, registry],
+  );
   const source = useMemo((): GridSource => {
     const base = chartSource(parsed, registry);
     // Halves are drawn apart: the second (back) on the left, the first (front) on the right.
@@ -361,6 +384,7 @@ function Workbench({
     cursor: ghost ? null : cursor,
     selection: rects[0] ?? null,
     selections: rects.slice(1),
+    highlights: flagged,
   });
 
   const conflictText = (conflict: Conflict) =>
@@ -691,6 +715,34 @@ function Workbench({
           setDesign={setDesign}
           onConflict={explain}
         />
+        {unbalanced.length > 0 && (
+          <div className="notice notice--warning designer__balance" role="status">
+            <ul>
+              {unbalanced.slice(0, 3).map((p) => (
+                <li key={p.row}>
+                  <span>
+                    {t(p.diff > 0 ? 'designer.balanceLess' : 'designer.balanceMore', {
+                      row: p.row,
+                      count: Math.abs(p.diff),
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn--small"
+                    onClick={() => setDesign(fixBalance(design, drawnRows, registry, p))}
+                  >
+                    {t('designer.balanceFix', { row: p.row })}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {unbalanced.length > 3 && (
+              <p className="hint">
+                {t('designer.balanceMoreRows', { count: unbalanced.length - 3 })}
+              </p>
+            )}
+          </div>
+        )}
         {cuts.length > 0 && (
           <p className="notice notice--warning designer__cuts" role="status">
             {t('designer.halfCut', {

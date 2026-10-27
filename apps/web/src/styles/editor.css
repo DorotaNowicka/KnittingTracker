@@ -1342,3 +1342,40 @@ textarea {
 .shaping .notice {
   margin: 0;
 }
+
+/* The brush palette in groups (stitches, lace and single decreases, binding off, cables). */
+.palette-groups {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.palette-group__title {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-2);
+  font-weight: 700;
+}
+
+.palette-group .hint {
+  margin: 0 0 var(--sp-2);
+}
+
+/* Rows that don't add up: what is wrong, and a button to fix each. */
+.designer__balance ul {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.designer__balance li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.designer__balance .hint {
+  margin: var(--sp-2) 0 0;
+}

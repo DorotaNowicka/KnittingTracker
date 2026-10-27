@@ -1,9 +1,11 @@
 import {
+  applyDesign,
   applySymbolRows,
   blankChart,
   blankPattern,
   blankProject,
   chartToSymbolRows,
+  createRegistry,
   fileMotifs,
   insertPattern,
 } from '@kt/core';
@@ -367,6 +369,39 @@ describe('pattern creator', () => {
     await user.click(within(panel).getByRole('button', { name: 'Usuń regułę 1' }));
     await waitFor(() => expect(pattern()?.design?.width).toBe(20));
     expect(pattern()?.design?.shaping).toBeUndefined();
+  });
+
+  it('flags a decrease painted without its "no stitch" and fixes the row in one click', async () => {
+    const user = userEvent.setup();
+    await newGrid(user, 6, 3);
+    const painted = (cells: { row: number; col: number; symbolId: string }[]) =>
+      useDraft
+        .getState()
+        .updatePattern(pattern()?.id ?? '', (p) =>
+          p.design ? applyDesign({ ...p, design: { ...p.design, cells } }, createRegistry()) : p,
+        );
+    // The brush palette is grouped.
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Ażur i pojedyncze ujęcia' }),
+    ).toBeInTheDocument();
+    // Lace adds up: no warning.
+    painted([
+      { row: 2, col: 3, symbolId: 'std:yo' },
+      { row: 2, col: 4, symbolId: 'std:k2tog' },
+    ]);
+    await waitFor(() => expect(pattern()?.design?.cells).toHaveLength(2));
+    expect(screen.queryByRole('button', { name: 'Popraw rząd 2' })).toBeNull();
+    // A k2tog alone takes one stitch too many.
+    painted([{ row: 2, col: 4, symbolId: 'std:k2tog' }]);
+    expect(
+      await screen.findByText(/Rząd 2: ubywa 1 oczko, a obok ujęcia nie ma „braku oczka”/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Popraw rząd 2' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Popraw rząd 2' })).toBeNull());
+    const rows = chartToSymbolRows(
+      pattern()?.charts[0] ?? blankChart({ id: 'x', name: 'x' }, 1, 1),
+    );
+    expect(rows.map((r) => r[1])).toEqual(['std:k', 'std:none', 'std:none']);
   });
 
   it('offers the grid size typed for the previous part of the project', async () => {
