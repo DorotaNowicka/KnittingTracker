@@ -380,7 +380,6 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             grid={grid}
             summary={summary}
             onPosition={() => positionRef.current?.showModal()}
-            onFinish={() => finishRef.current?.showModal()}
             onReopen={() => void s.reopenPattern(grid.pattern.id)}
             onNext={goTo}
             onProject={() => projectRef.current?.showModal()}
@@ -448,18 +447,6 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             <span className="action__label">{t('actions.center')}</span>
           </button>
         )}
-        {/* The part is done: finish it (rows worked, on to the next part) from the grid too. */}
-        {showGrid && finished === undefined && (
-          <button
-            type="button"
-            className="action action--done"
-            onClick={() => finishRef.current?.showModal()}
-            title={t('actions.doneHint')}
-          >
-            <Icon name="check" />
-            <span className="action__label">{t('actions.done')}</span>
-          </button>
-        )}
         <button
           type="button"
           className="action action--primary"
@@ -473,6 +460,18 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             {round ? t('actions.roundDone') : t('actions.rowDone')}
           </span>
         </button>
+        {/* The part is done: finish it (rows worked, on to the next part). Last, at the right edge. */}
+        {showGrid && finished === undefined && (
+          <button
+            type="button"
+            className="action action--done"
+            onClick={() => finishRef.current?.showModal()}
+            title={t('actions.doneHint')}
+          >
+            <Icon name="check" />
+            <span className="action__label">{t('actions.done')}</span>
+          </button>
+        )}
       </nav>
       <div className="visually-hidden" aria-live="polite" aria-atomic="true">
         {announcement}

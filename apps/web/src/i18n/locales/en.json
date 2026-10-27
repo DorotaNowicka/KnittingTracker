@@ -627,7 +627,7 @@
     "next": "Next: {{name}}"
   },
   "projectSettings": {
-    "open": "Project",
+    "open": "Swatch",
     "title": "Project settings",
     "name": "Project name",
     "size": "Size: {{size}}",

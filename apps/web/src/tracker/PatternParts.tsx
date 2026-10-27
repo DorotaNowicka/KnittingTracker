@@ -44,7 +44,6 @@ interface PatternPanelProps {
   readonly grid: ResolvedPattern;
   readonly summary: ProgressSummary;
   onPosition(): void;
-  onFinish(): void;
   onReopen(): void;
   onNext(patternId: string): void;
   onProject(): void;
@@ -119,12 +118,8 @@ export function PatternPanel(props: PatternPanelProps) {
           <Icon name="edit" size={18} />
           {t('position.open')}
         </button>
-        {finished === undefined ? (
-          <button type="button" className="btn btn--small" onClick={props.onFinish}>
-            <Icon name="rowDone" size={18} />
-            {t('finish.open')}
-          </button>
-        ) : (
+        {/* Finishing is "Gotowe" (bottom bar or counter); a finished part can be reopened here. */}
+        {finished !== undefined && (
           <button type="button" className="btn btn--small" onClick={props.onReopen}>
             {t('finish.reopen')}
           </button>

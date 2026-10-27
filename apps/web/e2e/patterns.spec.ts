@@ -62,7 +62,8 @@ test.describe('patterns of a project', () => {
     await expect(page.getByTestId('estimate')).toContainText('27 rzędów');
 
     // Finish the open-ended front after 3 rows: the dialog shows the last chart row (5, 6, 1 → 1).
-    await page.getByRole('button', { name: 'Zakończ wzór' }).click();
+    await closePanelOverlay(page);
+    await page.getByTitle('Zakończ tę część i przejdź do następnej').click();
     const finish = page.getByRole('dialog', { name: /Zakończyć wzór/ });
     await expect(finish).toContainText('po 3 rzędach');
     await expect(finish.getByTestId('chart-rows')).toContainText('rząd 1 z 6');

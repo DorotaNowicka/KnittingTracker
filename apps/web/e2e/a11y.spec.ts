@@ -45,13 +45,18 @@ for (const scheme of ['light', 'dark'] as const) {
     await createProjectFromFile(page, stagesPattern, 'Kamizelka', 2);
     const id = projectIdOf(page);
     problems.push(...(await axe(page, 'tracker')));
+    // "Gotowe" in the bottom bar opens the finish dialog.
+    await page.getByTitle('Zakończ tę część i przejdź do następnej').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    problems.push(...(await axe(page, 'finish dialog')));
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     const toggle = page.getByRole('button', { name: 'Pokaż panel' });
     if (await toggle.isVisible()) await toggle.click();
     problems.push(...(await axe(page, 'tracker panel')));
     for (const [open, name] of [
       ['Ustaw pozycję', 'position dialog'],
-      ['Zakończ wzór', 'finish dialog'],
-      ['Projekt', 'project dialog'],
+      ['Próbka', 'project dialog'],
     ] as const) {
       await page.getByRole('button', { name: open, exact: true }).click();
       await expect(page.getByRole('dialog')).toBeVisible();

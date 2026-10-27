@@ -279,7 +279,13 @@ describe('screens', () => {
     await useLibrary.getState().addProject(sample());
     navigate('/projekt/s1/wzor/body');
     render(<App />);
-    await user.click(await screen.findByTitle('Zakończ tę część i przejdź do następnej'));
+    const done = await screen.findByTitle('Zakończ tę część i przejdź do następnej');
+    // "Gotowe" is the last button of the bar; the side panel has no second way to finish.
+    expect(screen.getByRole('navigation', { name: 'Działania' }).lastElementChild).toBe(done);
+    const panel = screen.getByRole('complementary', { hidden: true });
+    expect(within(panel).getByRole('button', { name: 'Próbka', hidden: true })).toBeInTheDocument();
+    expect(within(panel).queryByRole('button', { name: 'Zakończ wzór', hidden: true })).toBeNull();
+    await user.click(done);
     const dialog = screen.getByRole('dialog', { name: 'Zakończyć wzór „Korpus”?' });
     await user.click(within(dialog).getByRole('button', { name: 'Zakończ wzór' }));
     await waitFor(() =>

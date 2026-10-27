@@ -679,7 +679,7 @@
     "next": "Dalej: {{name}}"
   },
   "projectSettings": {
-    "open": "Projekt",
+    "open": "Próbka",
     "title": "Ustawienia projektu",
     "name": "Nazwa projektu",
     "size": "Rozmiar: {{size}}",

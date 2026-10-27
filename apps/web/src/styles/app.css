@@ -907,8 +907,8 @@ input[type='range'] {
 
 /* Action bar: thumb zone, big targets, the row button is the largest. */
 .actions {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 2.4fr);
+  display: flex;
+  align-items: stretch;
   gap: var(--sp-1);
   padding: var(--sp-2) calc(var(--sp-2) + env(safe-area-inset-right))
     calc(var(--sp-2) + env(safe-area-inset-bottom)) calc(var(--sp-2) + env(safe-area-inset-left));
@@ -919,6 +919,8 @@ input[type='range'] {
 
 .action {
   display: flex;
+  flex: 1 1 0;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -961,17 +963,22 @@ input[type='range'] {
   background: var(--danger);
 }
 
+/* "Gotowe" ends the part: last in the bar, at its right edge, with a clear green frame. */
 .action--done {
+  border: 2px solid var(--success);
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .action--done:hover:not(:disabled) {
+  border-color: var(--success-hover);
   background: var(--success-soft);
+  color: var(--success-hover);
 }
 
 .action--primary {
-  /* Fills the rest of the bar, also when a row counter has fewer tools. */
-  grid-column: auto / -1;
+  /* The largest button; with fewer tools (a row counter) it takes the room left. */
+  flex-grow: 2.4;
   flex-direction: row;
   gap: var(--sp-2);
   background: var(--indigo);
@@ -982,8 +989,11 @@ input[type='range'] {
 @media (max-width: 420px) {
   /* Six buttons on a phone: tighter tools, and the main button's words may take two lines. */
   .actions {
-    grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.7fr);
     gap: 2px;
+  }
+
+  .action--primary {
+    flex-grow: 1.7;
   }
 
   .action {
@@ -1010,22 +1020,51 @@ input[type='range'] {
   background: var(--indigo-hover);
 }
 
-@media (min-width: 700px) {
+/* Below this width the tools keep their labels under the icons (a tablet fits them like a phone). */
+@media (min-width: 1000px) {
+  /* Tools and the row button in the middle; "Gotowe" pushed to the right edge. */
   .actions {
-    grid-template-columns: repeat(5, auto) minmax(14rem, 22rem);
-    justify-content: center;
     gap: var(--sp-2);
   }
 
+  .actions::before,
+  .actions::after {
+    flex: 1 1 0;
+    content: '';
+  }
+
+  .actions::after {
+    order: 1;
+  }
+
   .action {
+    flex: 0 1 auto;
     flex-direction: row;
     gap: var(--sp-2);
-    padding: 0 var(--sp-4);
+    padding: 0 var(--sp-3);
     font-size: var(--fs-2);
   }
 
   .action--primary {
+    flex: 0 1 22rem;
+    min-width: 12rem;
     font-size: var(--fs-3);
+  }
+
+  .action--done {
+    flex-shrink: 0;
+    order: 2;
+    padding: 0 var(--sp-5);
+  }
+}
+
+@media (min-width: 1100px) {
+  .action {
+    padding: 0 var(--sp-4);
+  }
+
+  .action--done {
+    padding: 0 var(--sp-5);
   }
 }
 
