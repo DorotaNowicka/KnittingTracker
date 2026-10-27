@@ -183,6 +183,10 @@
   "legend": {
     "title": "Legenda"
   },
+  "panel": {
+    "fold": "Zwiń",
+    "unfold": "Rozwiń"
+  },
   "view": {
     "title": "Widok",
     "cell": "Wielkość kratki",

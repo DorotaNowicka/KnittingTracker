@@ -294,6 +294,39 @@ describe('screens', () => {
     expect(screen.queryByTitle('Zakończ tę część i przejdź do następnej')).toBeNull();
   });
 
+  it('the legend and the row instructions fold away, and stay folded on this device', async () => {
+    const user = userEvent.setup();
+    localStorage.removeItem('kt.section.legend');
+    localStorage.removeItem('kt.section.rowText');
+    await useLibrary.getState().addProject(sample());
+    navigate('/projekt/s1/wzor/body');
+    const { unmount } = render(<App />);
+    const legend = await screen.findByRole('button', { name: 'Legenda', hidden: true });
+    expect(legend).toHaveAttribute('aria-expanded', 'true');
+    const items = () =>
+      document.getElementById(legend.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(items()).not.toHaveAttribute('hidden');
+    await user.click(legend);
+    expect(legend).toHaveAttribute('aria-expanded', 'false');
+    expect(items()).toHaveAttribute('hidden');
+    expect(localStorage.getItem('kt.section.legend')).toBe('closed');
+
+    const instructions = screen.getByRole('button', { name: /^Okrążenie 1|^Rząd 1/, hidden: true });
+    await user.click(instructions);
+    expect(instructions).toHaveAttribute('aria-expanded', 'false');
+
+    // Another visit keeps both folded; one click opens the legend again.
+    unmount();
+    render(<App />);
+    const again = await screen.findByRole('button', { name: 'Legenda', hidden: true });
+    expect(again).toHaveAttribute('aria-expanded', 'false');
+    await user.click(again);
+    expect(again).toHaveAttribute('aria-expanded', 'true');
+    expect(localStorage.getItem('kt.section.legend')).toBe('open');
+    expect(localStorage.getItem('kt.section.rowText')).toBe('closed');
+    localStorage.removeItem('kt.section.rowText');
+  });
+
   it('a finished project is marked done and can be knitted again after a warning', async () => {
     const user = userEvent.setup();
     let project = blankProject({

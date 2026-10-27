@@ -169,6 +169,10 @@
   "legend": {
     "title": "Legend"
   },
+  "panel": {
+    "fold": "Fold",
+    "unfold": "Unfold"
+  },
   "view": {
     "title": "View",
     "cell": "Cell size",

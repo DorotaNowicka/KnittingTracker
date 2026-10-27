@@ -37,6 +37,7 @@ const PATHS = {
   colRemove: 'M8 4h4v16H8zM15 12h6',
   up: 'M12 19V5M6 11l6-6 6 6',
   down: 'M12 5v14M6 13l6 6 6-6',
+  chevron: 'M6 9l6 6 6-6',
   marker: 'M12 3l7 7-7 11-7-11z',
   guides: 'M6 4v3M6 10v4M6 17v3M12 4v16M18 4v3M18 10v4M18 17v3',
   library: 'M4 4h4v16H4zM10 4h4v16h-4zM16 5l3.5-.8 3 15.6-3.5.8z',

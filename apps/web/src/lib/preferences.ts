@@ -75,3 +75,12 @@ export function getGuidesPref(): boolean {
 export function setGuidesPref(on: boolean): void {
   write(GUIDES_KEY, on ? 'on' : 'off');
 }
+
+/** Panel sections the knitter folded away (legend, row instructions): open unless closed. */
+export function getSectionOpenPref(section: string): boolean {
+  return read(`kt.section.${section}`) !== 'closed';
+}
+
+export function setSectionOpenPref(section: string, open: boolean): void {
+  write(`kt.section.${section}`, open ? 'open' : 'closed');
+}
