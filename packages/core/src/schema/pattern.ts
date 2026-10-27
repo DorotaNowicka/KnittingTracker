@@ -165,6 +165,26 @@ export const placementSchema = z.object({
   repeatY: z.union([posInt.max(1000), z.literal('fill')]),
 });
 
+/** A number per size of the project; null = as drawn (the size the grid was drawn in). */
+const perSize = z.array(posInt.max(1000).nullable()).min(1).max(30);
+
+/**
+ * How a design changes in the project's other sizes (it is drawn in one, `base`). Lists are
+ * indexed like the project's sizes. Pieces that are not stretched keep their place relative to
+ * the middle of their half (or of the grid).
+ */
+export const designSizesSchema = z.object({
+  /** Index of the size the grid was drawn in. */
+  base: nonNegInt,
+  width: perSize.optional(),
+  height: perSize.optional(),
+  /** Horizontal repeats of placed pieces (only those with a number of repeats, not `fill`). */
+  repeats: z
+    .array(z.object({ placementId: id, values: perSize }))
+    .max(200)
+    .optional(),
+});
+
 /**
  * A pattern drawn in the creator: a grid of `width` stitches × `height` rows, knit where nothing
  * is placed, with pieces placed in order (later on top) and brush cells on top of everything.
@@ -191,6 +211,8 @@ export const designSchema = z.object({
     .array(z.union([z.literal(1), z.literal(2), z.literal(3)]))
     .max(3)
     .optional(),
+  /** The grid in the project's other sizes ("Rozmiary projektu"). */
+  sizes: designSizesSchema.optional(),
 });
 
 /** A pattern (wzór): one grid of charts worked side by side, with its own progress. */
@@ -282,6 +304,7 @@ export type ChartSegment = Extract<Segment, { kind: 'chart' }>;
 export type MarkerSegment = Extract<Segment, { kind: 'marker' }>;
 export type Pattern = z.infer<typeof patternSchema>;
 export type Design = z.infer<typeof designSchema>;
+export type DesignSizes = z.infer<typeof designSizesSchema>;
 export type Placement = z.infer<typeof placementSchema>;
 export type LegendEntry = z.infer<typeof legendEntrySchema>;
 export type CustomSymbol = z.infer<typeof customSymbolSchema>;

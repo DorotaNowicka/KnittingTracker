@@ -208,6 +208,17 @@ function Garment({ project, kind }: { project: Project; kind: Exclude<ProjectKin
                 );
               })}
             </ol>
+            {tracked.length > 0 && (
+              <div className="parts-sizes">
+                <p>
+                  <b>{t('sizes.title')}:</b>{' '}
+                  {project.sizes.length > 1 ? project.sizes.join(' – ') : t('sizes.oneSizeYet')}
+                </p>
+                <Link to={paths.sizes(project.id)} className="btn">
+                  {t(project.sizes.length > 1 ? 'sizes.edit' : 'sizes.add')}
+                </Link>
+              </div>
+            )}
             {tracked.length > 0 && start && (
               <div className="parts-finish">
                 <p className="parts-finish__summary">

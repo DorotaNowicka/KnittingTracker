@@ -334,3 +334,27 @@ export function toggleMirror(design: Design, quarter: 1 | 2 | 3): Design {
   const { mirrors: _old, ...rest } = design;
   return mirrors.length > 0 ? { ...rest, mirrors } : rest;
 }
+
+/** What goes wrong with a design's tiles: one starting off the grid, or two overlapping. */
+export type TileProblem =
+  | { readonly kind: 'off'; readonly tile: Placement }
+  | { readonly kind: 'overlap'; readonly tile: Placement; readonly with: Placement };
+
+/** Tiles off the grid or over each other (a design in another size can end up like this). */
+export function tileProblems(design: Design): TileProblem[] {
+  const out: TileProblem[] = [];
+  const placed: { p: Placement; r: Rect }[] = [];
+  for (const p of design.placements) {
+    const m = motifOf(design, p);
+    if (!m) continue;
+    const r = areaRect(design, p, m);
+    if (!r || p.col < 1) {
+      out.push({ kind: 'off', tile: p });
+      continue;
+    }
+    const hit = placed.find((x) => meets(x.r, r));
+    if (hit) out.push({ kind: 'overlap', tile: p, with: hit.p });
+    placed.push({ p, r });
+  }
+  return out;
+}

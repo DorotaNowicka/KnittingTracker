@@ -1,5 +1,6 @@
 import { diagnostic, mod, resolveSize, type Diagnostic } from '../basics';
 import { parseChart, type ChartCell, type ParsedChart } from '../chart/parse';
+import { applyDesign } from '../design/compose';
 import type { Chart, ChartSegment, Pattern, ProjectContent } from '../schema/pattern';
 import { createRegistry, type SymbolRegistry } from '../symbols/registry';
 import type { CustomSymbol } from '../schema/pattern';
@@ -192,13 +193,17 @@ export function resolvePattern(
   patternId: string,
   options: ResolveOptions = {},
 ): ResolvedPattern {
-  const pattern = project.patterns.find((s) => s.id === patternId);
-  if (!pattern) throw new Error(`Unknown pattern: ${patternId}`);
+  const stored = project.patterns.find((s) => s.id === patternId);
+  if (!stored) throw new Error(`Unknown pattern: ${patternId}`);
   const sizeIndex = options.sizeIndex ?? project.sizeIndex;
   if (sizeIndex < 0 || sizeIndex >= project.sizes.length) {
     throw new RangeError(`Size index ${sizeIndex} out of range (${project.sizes.length} sizes)`);
   }
-  const registry = options.registry ?? patternRegistry(pattern);
+  const registry = options.registry ?? patternRegistry(stored);
+  // A creator design is stored composed as drawn; another size of it is composed here.
+  const sizes = stored.design?.sizes;
+  const pattern =
+    sizes && sizeIndex !== sizes.base ? applyDesign(stored, registry, sizeIndex) : stored;
   const original = new Map(pattern.charts.map((c) => [c.id, c] as const));
   const charts = effectiveCharts(pattern);
   const parsedCache = new Map<string, ParsedChart>();

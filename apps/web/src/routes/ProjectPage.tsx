@@ -441,6 +441,13 @@ function Sizes({ project }: { project: Project }) {
         {t('editor.sizes')}
       </h2>
       <p className="hint">{t('editor.sizesHint')}</p>
+      {project.patterns.some((p) => p.design) && (
+        <p>
+          <Link to={paths.sizes(project.id)} className="btn btn--small">
+            {t('sizes.table')}
+          </Link>
+        </p>
+      )}
       {project.sizes.length > 1 && (
         <div className="field">
           <label htmlFor={`${ids}-size`}>{t('project.knittedSize')}</label>

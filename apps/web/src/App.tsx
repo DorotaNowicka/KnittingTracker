@@ -18,6 +18,7 @@ const ImportPage = lazy(() =>
 const ProjectPage = lazy(() =>
   import('./routes/ProjectPage').then((m) => ({ default: m.ProjectPage })),
 );
+const SizesPage = lazy(() => import('./routes/SizesPage').then((m) => ({ default: m.SizesPage })));
 const PartsPage = lazy(() => import('./routes/PartsPage').then((m) => ({ default: m.PartsPage })));
 const PatternEditPage = lazy(() =>
   import('./routes/PatternEditPage').then((m) => ({ default: m.PatternEditPage })),
@@ -63,6 +64,10 @@ export function App() {
         </Suspense>
       ) : route.name === 'start' ? (
         <StartPage projectId={route.id} />
+      ) : route.name === 'sizes' ? (
+        <Suspense fallback={loading}>
+          <SizesPage projectId={route.id} />
+        </Suspense>
       ) : route.name === 'parts' ? (
         <Suspense fallback={loading}>
           <PartsPage projectId={route.id} />

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { blankProject, insertPattern, blankPattern } from '../authoring/pattern';
+import {
+  addSize,
+  blankPattern,
+  blankProject,
+  insertPattern,
+  removeSize,
+} from '../authoring/pattern';
 import { applySymbolRows, blankChart, chartToSymbolRows } from '../chart/edit';
 import { resolvePattern } from '../layout/resolve';
 import { designSchema, patternSchema, type Design } from '../schema/pattern';
@@ -9,6 +15,7 @@ import {
   applyDesign,
   blankDesign,
   composeDesign,
+  designAtSize,
   designChart,
   halfCuts,
   mirrorAreas,
@@ -32,6 +39,103 @@ const view = (rows: string[][]) =>
   [...rows]
     .reverse()
     .map((r) => r.map((id) => (id === 'std:k' ? 'k' : id === 'std:p' ? 'p' : id)).join(' '));
+
+describe('a design in the project sizes', () => {
+  // A body in the round drawn in M: 40 stitches, ribbing from stitch 1 to the edge, a cable in
+  // the middle of the front (stitches 9–12) and of the back (29–32), 4 purl stitches at 21–24.
+  const drawn: Design = {
+    ...blankDesign(40, 6),
+    motifs: [lib('rib-1-1'), lib('cable-2-2-left'), lib('purl')],
+    placements: [
+      { id: 'rib', motifId: 'lib:rib-1-1', col: 1, row: 1, repeatX: 'fill', repeatY: 2 },
+      { id: 'front', motifId: 'lib:cable-2-2-left', col: 9, row: 3, repeatX: 1, repeatY: 'fill' },
+      { id: 'back', motifId: 'lib:cable-2-2-left', col: 29, row: 3, repeatX: 1, repeatY: 'fill' },
+      { id: 'purl', motifId: 'lib:purl', col: 21, row: 3, repeatX: 4, repeatY: 'fill' },
+    ],
+    halves: ['Przód', 'Tył'],
+    sizes: {
+      base: 1,
+      width: [32, null, 48],
+      height: [5, null, 8],
+      repeats: [{ placementId: 'purl', values: [2, null, 6] }],
+    },
+  };
+  const at = (d: Design, id: string) => d.placements.find((p) => p.id === id);
+
+  it('keeps the drawn size as it is', () => {
+    expect(designAtSize(drawn, 1)).toBe(drawn);
+    expect(designAtSize({ ...drawn, sizes: undefined }, 2)).toEqual({
+      ...drawn,
+      sizes: undefined,
+    });
+  });
+
+  it('a bigger size: wider and taller, cables stay in the middle of the front and the back', () => {
+    const l = designAtSize(drawn, 2);
+    expect([l.width, l.height]).toEqual([48, 8]);
+    // Front 1–24 (middle 12.5): the cable covers 11–14. Back 25–48 (middle 36.5): 35–38.
+    expect(at(l, 'front')?.col).toBe(11);
+    expect(at(l, 'back')?.col).toBe(35);
+    // The ribbing runs from stitch 1 to the edge, as drawn.
+    expect(at(l, 'rib')).toMatchObject({ col: 1, repeatX: 'fill' });
+    // 6 purl stitches instead of 4, still centred where they were (from the back's start).
+    expect(at(l, 'purl')).toMatchObject({ repeatX: 6 });
+  });
+
+  it('a smaller size, and the tracker resolves every size from the one stored pattern', () => {
+    const s = designAtSize(drawn, 0);
+    expect([s.width, s.height]).toEqual([32, 5]);
+    // Front 1–16 (middle 8.5): 7–10. Back 17–32 (middle 24.5): 23–26.
+    expect([at(s, 'front')?.col, at(s, 'back')?.col]).toEqual([7, 23]);
+
+    const pattern = applyDesign({ ...blankPattern('body', 'Korpus'), design: drawn }, registry);
+    expect(pattern.rows).toEqual([5, 6, 8]);
+    expect(pattern.charts.map((c) => c.width)).toEqual([20, 20]);
+    const project = insertPattern(
+      blankProject({
+        id: 'p',
+        name: 'Sweter',
+        sizes: ['S', 'M', 'L'],
+        now: '2026-10-27T12:00:00.000Z',
+      }),
+      pattern,
+    ).project;
+    expect(validateProject(project).ok).toBe(true);
+    const sizes = [0, 1, 2].map((i) => resolvePattern(project, 'body', { sizeIndex: i, registry }));
+    expect(sizes.map((g) => [g.stitchCount, g.plannedRows])).toEqual([
+      [32, 5],
+      [40, 6],
+      [48, 8],
+    ]);
+    expect(sizes[2]?.sections.map((x) => [x.name, x.firstStitch, x.lastStitch])).toEqual([
+      ['Przód', 1, 24],
+      ['Tył', 25, 48],
+    ]);
+    // The L grid is the L design composed, stitch for stitch.
+    const whole = composeDesign(designAtSize(drawn, 2), registry);
+    expect(sizes[2]?.cellAtCol(4, 48 - 11 + 1 - 3).symbolId).toBe(whole[3]?.[48 - 11 - 3]);
+  });
+
+  it('follows the project sizes: added, removed, and gone with the size it was drawn in', () => {
+    const pattern = applyDesign({ ...blankPattern('body', 'Korpus'), design: drawn }, registry);
+    const project = insertPattern(
+      blankProject({ id: 'p', name: 'P', sizes: ['S', 'M', 'L'], now: '2026-10-27T12:00:00.000Z' }),
+      pattern,
+    ).project;
+    const added = addSize(project, 'XL');
+    expect(added.patterns[0]?.design?.sizes).toEqual({
+      base: 1,
+      width: [32, null, 48, 48],
+      height: [5, null, 8, 8],
+      repeats: [{ placementId: 'purl', values: [2, null, 6, 6] }],
+    });
+    expect(added.patterns[0]?.rows).toEqual([5, 6, 8, 8]);
+    const noS = removeSize(project, 0);
+    expect(noS.patterns[0]?.design?.sizes?.base).toBe(0);
+    expect(noS.patterns[0]?.design?.sizes?.width).toEqual([null, 48]);
+    expect(removeSize(project, 1).patterns[0]?.design?.sizes).toBeUndefined();
+  });
+});
 
 describe('pattern creator designs', () => {
   it('repeats a 2-stitch rib 113 times from the right edge, all the way up', () => {

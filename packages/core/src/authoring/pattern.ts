@@ -5,6 +5,7 @@ import {
   type Chart,
   type ChartSegment,
   type CustomSymbol,
+  type Design,
   type LegendEntry,
   type Pattern,
   type Project,
@@ -184,6 +185,38 @@ const mapSizeValue = (
 ): StoredSizeValue | undefined =>
   value === undefined || typeof value === 'number' ? value : f([...value]);
 
+/**
+ * A design's per-size lists after the project's sizes change. `f` is applied to the positions, so
+ * each new size knows which old size it comes from; when the size the grid was drawn in goes
+ * away, the per-size changes go with it (the grid stays as drawn).
+ */
+function mapDesignSizes(design: Design, f: (list: number[]) => number[]): Design {
+  const s = design.sizes;
+  if (!s) return design;
+  const n = Math.max(
+    s.base + 1,
+    s.width?.length ?? 0,
+    s.height?.length ?? 0,
+    ...(s.repeats ?? []).map((r) => r.values.length),
+  );
+  const from = f(Array.from({ length: n }, (_, i) => i));
+  const base = from.indexOf(s.base);
+  if (base < 0 || from.length === 0) {
+    const { sizes: _gone, ...rest } = design;
+    return rest;
+  }
+  const remap = (list: readonly (number | null)[]) => from.map((i) => list[i] ?? null);
+  return {
+    ...design,
+    sizes: {
+      base,
+      ...(s.width ? { width: remap(s.width) } : {}),
+      ...(s.height ? { height: remap(s.height) } : {}),
+      ...(s.repeats ? { repeats: s.repeats.map((r) => ({ ...r, values: remap(r.values) })) } : {}),
+    },
+  };
+}
+
 function mapPatternSizes(s: Pattern, f: (list: number[]) => number[]): Pattern {
   {
     const rows = mapSizeValue(s.rows, f);
@@ -191,6 +224,7 @@ function mapPatternSizes(s: Pattern, f: (list: number[]) => number[]): Pattern {
     const target = mapSizeValue(s.targetCm, f);
     const next: Pattern = {
       ...s,
+      ...(s.design ? { design: mapDesignSizes(s.design, f) } : {}),
       layout: s.layout.map((seg) => {
         if (seg.kind !== 'chart' || seg.stitches === undefined) return seg;
         const stitches = mapSizeValue(seg.stitches, f);
@@ -239,6 +273,25 @@ export function removeSize(project: Project, index: number): Project {
 
 export function renameSize(project: Project, index: number, label: string): Project {
   return { ...project, sizes: project.sizes.map((s, i) => (i === index ? label : s)) };
+}
+
+/**
+ * A new list of sizes at once. `from[i]` is the old size the new size `i` takes its per-size
+ * numbers from (a new size usually copies the one the project was drawn in).
+ */
+export function replaceSizes(
+  project: Project,
+  sizes: readonly string[],
+  from: readonly number[],
+  sizeIndex: number,
+): Project {
+  if (sizes.length === 0 || from.length !== sizes.length) return project;
+  const next = mapSizeLists(project, (list) => from.map((i) => list[i] ?? list[0] ?? 0));
+  return {
+    ...next,
+    sizes: [...sizes],
+    sizeIndex: Math.max(0, Math.min(sizeIndex, sizes.length - 1)),
+  };
 }
 
 /**

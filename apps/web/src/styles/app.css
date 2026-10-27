@@ -1607,6 +1607,133 @@ input[type='range'] {
   border-top: 1px solid var(--rule);
 }
 
+/* The project's sizes, above "Konfiguracja gotowa": what they are and where to set them. */
+.parts-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--rule);
+}
+
+.parts-sizes p {
+  margin: 0;
+}
+
+.parts-sizes + .parts-finish {
+  margin-top: var(--sp-4);
+}
+
+/* "Rozmiary projektu": one table per part, sizes in columns, the designed size highlighted. */
+.sizes-page__head {
+  max-width: 48rem;
+  margin: var(--sp-4) 0 var(--sp-5);
+}
+
+.sizes-part {
+  margin-bottom: var(--sp-5);
+}
+
+.sizes-part .section-title {
+  margin-bottom: var(--sp-2);
+}
+
+.sizes-part__scroll {
+  overflow-x: auto;
+}
+
+.sizes-table {
+  width: auto;
+  max-width: none;
+  min-width: 100%;
+}
+
+.sizes-table th[scope='row'] {
+  min-width: 9rem;
+  font-weight: 600;
+}
+
+/* On a narrow screen the sizes scroll sideways; what each line is stays in view. */
+.sizes-table th[scope='row'],
+.sizes-table thead th:first-child {
+  position: sticky;
+  z-index: 1;
+  left: 0;
+  background: var(--paper, var(--bg));
+}
+
+@media (max-width: 699px) {
+  .sizes-table th,
+  .sizes-table td {
+    padding: var(--sp-2);
+  }
+
+  .sizes-table thead th {
+    min-width: 4.5rem;
+  }
+
+  .sizes-table__input {
+    width: 4rem;
+  }
+}
+
+@media (min-width: 700px) {
+  .sizes-table th[scope='row'] {
+    min-width: 12rem;
+  }
+}
+
+.sizes-table thead th {
+  min-width: 5.5rem;
+  white-space: nowrap;
+}
+
+.sizes-table .is-drawn {
+  background: var(--zone);
+}
+
+.sizes-table td.is-drawn.num {
+  padding-left: calc(var(--sp-3) + 9px);
+  font-weight: 700;
+}
+
+.sizes-table__drawn,
+.sizes-table__hint {
+  display: block;
+  color: var(--ink-muted);
+  font-size: var(--fs-1);
+  font-weight: 500;
+}
+
+.sizes-table__input {
+  width: 5rem;
+  min-height: var(--target);
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--rule-strong, var(--rule));
+  border-radius: var(--r-control);
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+}
+
+.sizes-table__input::placeholder {
+  color: var(--ink-muted);
+  opacity: 0.75;
+}
+
+.sizes-table__input[aria-invalid='true'] {
+  border-color: var(--danger);
+  outline: 1px solid var(--danger);
+}
+
+.sizes-part__problems {
+  margin-top: var(--sp-2);
+  padding-left: var(--sp-6);
+}
+
 .parts-finish__summary {
   margin: 0;
   font-weight: 600;

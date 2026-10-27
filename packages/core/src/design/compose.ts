@@ -212,16 +212,26 @@ export function designChart(design: Design, registry: SymbolRegistry, name: stri
  * sets the stitch count, so a stated per-size count (from an imported file) is dropped. Patterns
  * without a design are returned unchanged.
  */
-export function applyDesign(pattern: Pattern, registry: SymbolRegistry): Pattern {
-  const design = pattern.design;
-  if (!design) return pattern;
+export function applyDesign(
+  pattern: Pattern,
+  registry: SymbolRegistry,
+  /** Size to compose (the project's other sizes, {@link designAtSize}); default: as drawn. */
+  sizeIndex?: number,
+): Pattern {
+  if (!pattern.design) return pattern;
+  const drawn = pattern.design;
+  const design = sizeIndex === undefined ? drawn : designAtSize(drawn, sizeIndex);
   const { expectedStitches: _stated, rows: _planned, ...rest } = pattern;
   const name = pattern.name.slice(0, 40) || 'Wzór';
   // Knitted "until N cm": no planned rows, the chart repeats upwards. It is composed as tall as
   // it takes every piece to come round again, so each keeps its own rhythm across repeats.
   const open = pattern.targetCm !== undefined;
   const rows = knittedRows(open ? repeatingDesign(design) : design, registry);
-  const planned = open ? {} : { rows: design.height };
+  // Planned rows: the grid's height, per size when the sizes have their own heights.
+  const heights = drawn.sizes?.height;
+  const planned = open
+    ? {}
+    : { rows: heights ? heights.map((h) => h ?? drawn.height) : drawn.height };
   const halves = design.halves && design.width >= 2 ? design.halves : null;
   if (!halves) {
     return {
@@ -276,6 +286,73 @@ function repeatingDesign(design: Design): Design {
       design.cells.map((c) => ({ ...c, row: c.row + k * design.height })),
     ).flat(),
   };
+}
+
+// ── Sizes ─────────────────────────────────────────────────────────────────────────────────
+
+/** Stitches (from the right edge) of the part of a grid a stitch belongs to: a half, or all. */
+function regionsOf(design: Pick<Design, 'width' | 'halves'>) {
+  const w = design.width;
+  if (!design.halves || w < 2) return [{ start: 1, end: w }];
+  const fh = firstHalf(w);
+  return [
+    { start: 1, end: fh },
+    { start: fh + 1, end: w },
+  ];
+}
+
+const middle = (r: { start: number; end: number }) => (r.start + r.end) / 2;
+
+/** Index of the region holding stitch `at` (counted from the right edge). */
+const regionAt = (regions: readonly { start: number; end: number }[], at: number) =>
+  Math.max(
+    0,
+    regions.findIndex((r) => at <= r.end),
+  );
+
+/**
+ * The design in one of the project's sizes: its width, height and pieces' repeats for that size
+ * ({@link Design.sizes}), each piece kept where it was relative to the middle of its half (or of
+ * the grid) — a cable in the middle of the front stays in the middle of the front. A piece that
+ * runs to the edge (`fill`) keeps its distance from the start of its half. The size it was drawn
+ * in (and a design without sizes) is returned as is.
+ */
+export function designAtSize(design: Design, sizeIndex: number): Design {
+  const sizes = design.sizes;
+  if (!sizes || sizeIndex === sizes.base) return design;
+  const width = sizes.width?.[sizeIndex] ?? design.width;
+  const height = sizes.height?.[sizeIndex] ?? design.height;
+  const repeats = new Map(
+    (sizes.repeats ?? []).map((r) => [r.placementId, r.values[sizeIndex] ?? null] as const),
+  );
+  const before = regionsOf(design);
+  const after = regionsOf({ width, halves: design.halves });
+  const placements = design.placements.map((p): Placement => {
+    const motif = design.motifs.find((m) => m.id === p.motifId);
+    if (!motif) return p;
+    if (p.repeatX === 'fill') {
+      const i = regionAt(before, p.col);
+      const shift = (after[i]?.start ?? 1) - (before[i]?.start ?? 1);
+      return { ...p, col: Math.max(1, p.col + shift) };
+    }
+    const repeatX = repeats.get(p.id) ?? p.repeatX;
+    const wide = Math.min(p.repeatX * motif.width, design.width - p.col + 1);
+    const centre = p.col + (wide - 1) / 2;
+    const i = regionAt(before, centre);
+    const from = before[i];
+    const to = after[i];
+    const moved = from && to ? middle(to) + (centre - middle(from)) : centre;
+    const col = Math.round(moved - (repeatX * motif.width - 1) / 2);
+    return { ...p, repeatX, col: Math.max(1, col) };
+  });
+  const cells = design.cells.map((c) => {
+    const i = regionAt(before, c.col);
+    const from = before[i];
+    const to = after[i];
+    const col = from && to ? Math.round(c.col + middle(to) - middle(from)) : c.col;
+    return { ...c, col: Math.max(1, col) };
+  });
+  return { ...design, width, height, placements, cells };
 }
 
 /** A new, empty design (all knit). */

@@ -18,6 +18,8 @@ export type Route =
   | { readonly name: 'parts'; readonly id: string }
   /** Shown once, right after a project is made by hand: one size first, scaling at the end. */
   | { readonly name: 'start'; readonly id: string }
+  /** The sizes of a hand-made project and what changes in each, part by part. */
+  | { readonly name: 'sizes'; readonly id: string }
   /** Tracking one pattern of a project. */
   | { readonly name: 'tracker'; readonly id: string; readonly patternId: string }
   /** Editing one pattern: its charts, layout and legend. */
@@ -44,6 +46,7 @@ export const paths = {
   project: (id: string) => `/projekt/${enc(id)}`,
   parts: (id: string) => `/projekt/${enc(id)}/czesci`,
   start: (id: string) => `/projekt/${enc(id)}/start`,
+  sizes: (id: string) => `/projekt/${enc(id)}/rozmiary`,
   tracker: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}`,
   pattern: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}/edycja`,
   designer: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}/kreator`,
@@ -66,7 +69,7 @@ export function parseRoute(pathname: string): Route {
   if (pathname === '/ustawienia') return { name: 'settings' };
   if (pathname === '/import') return { name: 'import' };
   const m =
-    /^\/projekt\/([^/]+)(?:\/(import|czesci|start)|\/wzor\/([^/]+)(?:\/(edycja|kreator)|\/schemat\/([^/]+))?)?$/.exec(
+    /^\/projekt\/([^/]+)(?:\/(import|czesci|start|rozmiary)|\/wzor\/([^/]+)(?:\/(edycja|kreator)|\/schemat\/([^/]+))?)?$/.exec(
       pathname,
     );
   if (!m) return { name: 'notFound' };
@@ -74,6 +77,7 @@ export function parseRoute(pathname: string): Route {
   if (!id) return { name: 'notFound' };
   if (m[2] === 'czesci') return { name: 'parts', id };
   if (m[2] === 'start') return { name: 'start', id };
+  if (m[2] === 'rozmiary') return { name: 'sizes', id };
   if (m[2]) return { name: 'import', id };
   if (m[3] === undefined) return { name: 'project', id };
   if (!patternId) return { name: 'notFound' };
