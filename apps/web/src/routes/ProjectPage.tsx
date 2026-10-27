@@ -203,14 +203,23 @@ function Patterns({ project }: { project: Project }) {
   const removeRef = useRef<HTMLDialogElement>(null);
   const [removing, setRemoving] = useState<Pattern | null>(null);
 
-  const create = (make: (p: Project) => { project: Project; patternId: string }) => {
+  /** A new pattern opens in the creator; one continuing another's charts in the pattern editor. */
+  const create = (
+    make: (p: Project) => { project: Project; patternId: string },
+    open: 'designer' | 'pattern' = 'designer',
+  ) => {
     let created = '';
     update((p) => {
       const r = make(p);
       created = r.patternId;
       return r.project;
     });
-    if (created) navigate(paths.pattern(project.id, created));
+    if (created)
+      navigate(
+        open === 'designer'
+          ? paths.designer(project.id, created)
+          : paths.pattern(project.id, created),
+      );
   };
 
   const remove = async (pattern: Pattern) => {
@@ -277,7 +286,16 @@ function Patterns({ project }: { project: Project }) {
                   </span>
                 </Link>
                 <div className="card__actions">
-                  <Link className="btn btn--small" to={paths.pattern(project.id, pattern.id)}>
+                  <Link
+                    className="btn btn--small"
+                    to={
+                      // Drawn (or still empty) patterns open in the creator; charts read from a
+                      // file in the pattern editor.
+                      pattern.design || pattern.charts.length === 0
+                        ? paths.designer(project.id, pattern.id)
+                        : paths.pattern(project.id, pattern.id)
+                    }
+                  >
                     <Icon name="edit" size={18} />
                     {t('project.editPattern')}
                   </Link>
@@ -286,12 +304,14 @@ function Patterns({ project }: { project: Project }) {
                     className="btn btn--small"
                     title={t('editor.continueStageHint')}
                     onClick={() =>
-                      create((p) =>
-                        continuePattern(
-                          p,
-                          pattern.id,
-                          t('editor.continueName', { name: pattern.name }).slice(0, 60),
-                        ),
+                      create(
+                        (p) =>
+                          continuePattern(
+                            p,
+                            pattern.id,
+                            t('editor.continueName', { name: pattern.name }).slice(0, 60),
+                          ),
+                        'pattern',
                       )
                     }
                   >

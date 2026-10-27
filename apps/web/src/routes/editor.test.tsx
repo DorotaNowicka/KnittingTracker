@@ -29,7 +29,10 @@ beforeEach(() => {
 
 const pattern = () => useDraft.getState().project?.patterns[0];
 
-/** "Stwórz projekt", then "Dodaj wzór" Korpus: opens the pattern editor of an empty pattern. */
+/**
+ * "Stwórz projekt", then "Dodaj wzór" Korpus: the new pattern opens in the creator; these tests
+ * then go on in the pattern editor of the empty pattern.
+ */
 async function startFromScratch(user: ReturnType<typeof userEvent.setup>) {
   render(<App />);
   await user.click(await screen.findByRole('button', { name: /Stwórz projekt/ }));
@@ -41,9 +44,13 @@ async function startFromScratch(user: ReturnType<typeof userEvent.setup>) {
   await user.type(within(dialog).getByLabelText('Nazwa wzoru'), 'Korpus');
   await user.click(within(dialog).getByRole('button', { name: 'Utwórz wzór' }));
   expect(
+    await screen.findByRole('heading', { level: 1, name: 'Kreator wzoru: Korpus' }),
+  ).toBeInTheDocument();
+  expect(location.pathname).toMatch(/^\/projekt\/[^/]+\/wzor\/korpus\/kreator$/);
+  navigate(location.pathname.replace(/kreator$/, 'edycja'));
+  expect(
     await screen.findByRole('heading', { level: 1, name: 'Wzór: Korpus' }),
   ).toBeInTheDocument();
-  expect(location.pathname).toMatch(/^\/projekt\/[^/]+\/wzor\/korpus\/edycja$/);
 }
 
 describe('project and pattern editor screens', () => {
@@ -88,12 +95,13 @@ describe('project and pattern editor screens', () => {
     const dialog = screen.getByRole('dialog', { name: 'Nowy wzór' });
     await user.type(within(dialog).getByLabelText('Nazwa wzoru'), 'Rękaw');
     await user.click(within(dialog).getByRole('button', { name: 'Utwórz wzór' }));
+    // A new pattern opens in the creator.
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Wzór: Rękaw' }),
+      await screen.findByRole('heading', { level: 1, name: 'Kreator wzoru: Rękaw' }),
     ).toBeInTheDocument();
     expect(useDraft.getState().project?.patterns.map((p) => p.id)).toEqual(['korpus', 'rekaw']);
 
-    await user.click(screen.getByRole('link', { name: 'Mój projekt' }));
+    await user.click(screen.getByRole('link', { name: 'Projekt' }));
     await screen.findByRole('heading', { level: 1, name: 'Mój projekt' });
     await user.click(screen.getByRole('button', { name: 'Usuń wzór Korpus' }));
     const confirm = screen.getByRole('dialog', { name: 'Usunąć wzór „Korpus”?' });

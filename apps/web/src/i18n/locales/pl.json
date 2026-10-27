@@ -905,6 +905,7 @@
   },
   "designer": {
     "back": "Części projektu",
+    "backProject": "Projekt",
     "title": "Kreator wzoru: {{name}}",
     "sizeLead": "Zacznij od siatki: ile oczek ma okrążenie lub rząd i ile rzędów ma ta część. Rozmiar zmienisz później.",
     "suggested": "Wpisaliśmy wymiary z części „{{name}}”. Zmień je, jeśli ta część jest inna.",

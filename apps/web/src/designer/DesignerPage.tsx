@@ -159,7 +159,7 @@ function GridSize({
         <p className="page__back">
           <Link to={back} className="link-back">
             <Icon name="back" size={18} />
-            {t('designer.back')}
+            {t(back.endsWith('/czesci') ? 'designer.back' : 'designer.backProject')}
           </Link>
         </p>
         <h1 className="page__title">{t('designer.title', { name: pattern.name })}</h1>
@@ -560,7 +560,11 @@ function Workbench({
   return (
     <main className="editor designer" id="main">
       <header className="editor__bar">
-        <Link to={back} className="icon-btn" aria-label={t('designer.back')}>
+        <Link
+          to={back}
+          className="icon-btn"
+          aria-label={t(back.endsWith('/czesci') ? 'designer.back' : 'designer.backProject')}
+        >
           <Icon name="back" />
         </Link>
         <h1 className="designer__title">{t('designer.title', { name: pattern.name })}</h1>

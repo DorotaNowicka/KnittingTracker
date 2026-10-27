@@ -829,6 +829,7 @@
   },
   "designer": {
     "back": "Project parts",
+    "backProject": "Project",
     "title": "Pattern creator: {{name}}",
     "sizeLead": "Start with the grid: how many stitches a round or row has and how many rows this part has. You can change it later.",
     "suggested": "We filled in the size of “{{name}}”. Change it if this part is different.",
