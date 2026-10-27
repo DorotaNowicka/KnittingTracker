@@ -329,6 +329,46 @@ describe('pattern creator', () => {
   };
   const cols = () => pattern()?.design?.placements.map((p) => p.col);
 
+  it('shapes the part with rules: decreases inside the grid, increases make it wider', async () => {
+    const user = userEvent.setup();
+    await newGrid(user, 20, 14);
+    await user.click(screen.getByRole('radio', { name: 'Kształt' }));
+    const panel = screen.getByRole('region', { name: 'Kształt: ujęcia i dodania' });
+    await user.click(within(panel).getByRole('button', { name: 'Dodaj regułę' }));
+    // A decrease at both edges from row 5, every 6 rows, 4 times — 2 times fit in 14 rows.
+    await waitFor(() => expect(pattern()?.design?.shaping).toHaveLength(1));
+    expect(pattern()?.design?.width).toBe(20);
+    expect(within(panel).getByText('Ujmuje razem 4 oczka — w rzędach 5, 11.')).toBeInTheDocument();
+    expect(
+      within(panel).getByText(/2 razy wypadają powyżej siatki \(14 rzędów\)/),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByText('Na początku 20 oczek, na końcu 16, najszerzej 20.'),
+    ).toBeInTheDocument();
+    // The symbols stand one stitch in from the edge; they can be changed.
+    const left = within(panel).getByRole('group', { name: 'Symbol po lewej' });
+    expect(within(left).getByRole('radio', { name: '2 razem prawe' })).toBeChecked();
+    const right = within(panel).getByRole('group', { name: 'Symbol po prawej' });
+    expect(within(right).getByRole('radio', { name: '2 razem przekręcone' })).toBeChecked();
+
+    // As increases, the grid grows; the stitches cast on stay 20.
+    await user.selectOptions(within(panel).getByLabelText('Co'), 'increase');
+    await waitFor(() => expect(pattern()?.design?.width).toBe(24));
+    expect(screen.getByLabelText('Oczka na początku')).toHaveValue('20');
+    expect(
+      within(panel).getByText('Na początku 20 oczek, na końcu 24, najszerzej 24.'),
+    ).toBeInTheDocument();
+    const rows = chartToSymbolRows(
+      pattern()?.charts[0] ?? blankChart({ id: 'x', name: 'x' }, 1, 1),
+    );
+    expect(rows[0]?.slice(0, 3)).toEqual(['std:none', 'std:none', 'std:k']);
+    expect(rows[4]?.slice(0, 3)).toEqual(['std:none', 'std:k', 'std:m1r']);
+
+    await user.click(within(panel).getByRole('button', { name: 'Usuń regułę 1' }));
+    await waitFor(() => expect(pattern()?.design?.width).toBe(20));
+    expect(pattern()?.design?.shaping).toBeUndefined();
+  });
+
   it('offers the grid size typed for the previous part of the project', async () => {
     const user = userEvent.setup();
     const id = 'two-parts';

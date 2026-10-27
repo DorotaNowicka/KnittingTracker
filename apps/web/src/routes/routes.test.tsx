@@ -1,4 +1,12 @@
-import { blankPattern, blankProject, insertPattern } from '@kt/core';
+import {
+  applyDesign,
+  blankDesign,
+  blankPattern,
+  blankProject,
+  createRegistry,
+  insertPattern,
+  withShaping,
+} from '@kt/core';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -307,6 +315,39 @@ describe('screens', () => {
       expect(useLibrary.getState().project('s1')?.finishedRows).toHaveProperty('body'),
     );
     expect(screen.queryByTitle('Zakończ tę część i przejdź do następnej')).toBeNull();
+  });
+
+  it('a shaping row shows its symbols and the change in stitches in the tracker', async () => {
+    const user = userEvent.setup();
+    const design = withShaping(blankDesign(20, 6), [
+      {
+        id: 's1',
+        kind: 'decrease',
+        where: 'edges',
+        start: 2,
+        every: 2,
+        times: 2,
+        inset: 1,
+        right: 'std:ssk',
+        left: 'std:k2tog',
+      },
+    ]);
+    const project = insertPattern(
+      blankProject({ id: 'sl', name: 'Rękaw', sizes: ['M'], now: '2026-10-27T12:00:00.000Z' }),
+      applyDesign({ ...blankPattern('sleeve', 'Rękaw'), design }, createRegistry()),
+    ).project;
+    await useLibrary.getState().addProject(project);
+    navigate('/projekt/sl/wzor/sleeve');
+    render(<App />);
+    // Row 1: plain, no badge.
+    await screen.findByTestId('complete-row');
+    expect(screen.queryByRole('img', { name: /W tym rzędzie/ })).toBeNull();
+    await user.click(screen.getByTestId('complete-row'));
+    expect(
+      await screen.findByRole('img', {
+        name: 'W tym rzędzie: 1× 2 razem przekręcone, 1× 2 razem prawe. Zmiana liczby oczek: -2.',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('the legend and the row instructions fold away, and stay folded on this device', async () => {

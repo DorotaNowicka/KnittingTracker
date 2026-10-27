@@ -10,6 +10,7 @@ import {
   parseChart,
   patternRegistry,
   splitsFrontBack,
+  startStitches,
   type Chart,
   type Design,
   type Pattern,
@@ -55,6 +56,7 @@ import {
 } from './designOps';
 import { MotifDialog } from './MotifDialog';
 import { PiecesPanel } from './PiecesPanel';
+import { ShapingPanel } from './ShapingPanel';
 import { TileBar } from './TileBar';
 import { SymbolPalette } from './SymbolPalette';
 
@@ -71,7 +73,7 @@ export function DesignerPage({ projectId, patternId }: { projectId: string; patt
   );
 }
 
-type Tool = 'tiles' | 'brush' | 'eraser' | 'pan';
+type Tool = 'tiles' | 'brush' | 'eraser' | 'pan' | 'shape';
 
 function Designer({ project, pattern }: { project: Project; pattern: Pattern }) {
   const { t } = useTranslation();
@@ -247,6 +249,8 @@ function Workbench({
   const [hover, setHover] = useState<CellPoint | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [newPiece, setNewPiece] = useState(false);
+  /** Rows a shaping rule changes, shown on the grid while the rule is pointed at. */
+  const [shapeRows, setShapeRows] = useState<readonly number[] | null>(null);
   const stroke = useRef<Design | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   /** On a phone the library is below the grid: bring the bar (and the grid) back into view. */
@@ -349,7 +353,10 @@ function Workbench({
       shaded: mirrors.map((m) => ({ firstCol: m.firstCol, lastCol: m.lastCol })),
     };
   }, [parsed, registry, design.width, design.halves, guides, mirrors]);
-  const rects = ghost ? ghost.rects : rectsOf(design, chosen);
+  const rects = [
+    ...(ghost ? ghost.rects : rectsOf(design, chosen)),
+    ...(shapeRows ?? []).map((row) => ({ row1: row, row2: row, col1: 1, col2: design.width })),
+  ];
   const overlay = editorOverlay({
     cursor: ghost ? null : cursor,
     selection: rects[0] ?? null,
@@ -544,13 +551,33 @@ function Workbench({
     stroke.current = next;
     setDesign(next);
   };
-  const canvasTool: CanvasTool = tool === 'pan' ? 'pan' : tool === 'tiles' ? 'select' : 'paint';
-  const tools: { id: Tool; icon: 'select' | 'brush' | 'eraser' | 'hand'; label: string }[] = [
+  const canvasTool: CanvasTool =
+    tool === 'pan' || tool === 'shape' ? 'pan' : tool === 'tiles' ? 'select' : 'paint';
+  const tools: {
+    id: Tool;
+    icon: 'select' | 'brush' | 'eraser' | 'hand' | 'shape';
+    label: string;
+  }[] = [
     { id: 'tiles', icon: 'select', label: t('designer.toolTiles') },
     { id: 'brush', icon: 'brush', label: t('designer.toolBrush') },
     { id: 'eraser', icon: 'eraser', label: t('designer.toolEraser') },
+    // Knitted "until N cm" the grid repeats upwards: no shape there.
+    ...(pattern.targetCm === undefined
+      ? [{ id: 'shape' as const, icon: 'shape' as const, label: t('designer.toolShape') }]
+      : []),
     { id: 'pan', icon: 'hand', label: t('designer.toolPan') },
   ];
+  // With decreases and increases the grid is as wide as the widest row: the knitter types the
+  // stitches cast on, the spare columns for the increases come on top.
+  const spare = design.width - startStitches(design);
+  const shapingPanel = (
+    <ShapingPanel
+      design={design}
+      registry={registry}
+      setDesign={setDesign}
+      onShowRows={setShapeRows}
+    />
+  );
   // Pointing at a quarter line tells how to mirror there.
   const nearLine =
     hover && !holding && !pasting && (tool === 'tiles' || tool === 'pan')
@@ -591,11 +618,11 @@ function Workbench({
         <div className="designer__dims">
           <NumberField
             compact
-            label={t('designer.widthShort')}
-            value={design.width}
+            label={spare > 0 ? t('designer.widthStart') : t('designer.widthShort')}
+            value={design.width - spare}
             min={1}
-            max={1000}
-            onCommit={(w) => setDesign(resizeDesign(design, w, design.height))}
+            max={1000 - spare}
+            onCommit={(w) => w && setDesign(resizeDesign(design, w + spare, design.height))}
           />
           <span aria-hidden="true">×</span>
           <NumberField
@@ -735,6 +762,7 @@ function Workbench({
         </div>
 
         <aside className="editor__panel">
+          {tool === 'shape' && shapingPanel}
           <PiecesPanel
             design={design}
             library={library}
@@ -766,6 +794,7 @@ function Workbench({
               ))}
             </div>
           </section>
+          {tool !== 'shape' && pattern.targetCm === undefined && shapingPanel}
           <section aria-labelledby={`${ids}-brush`}>
             <h2 id={`${ids}-brush`} className="panel__title">
               {t('designer.brush')}

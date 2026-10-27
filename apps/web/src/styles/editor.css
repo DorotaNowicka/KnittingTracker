@@ -1243,3 +1243,102 @@ textarea {
   flex-wrap: wrap;
   gap: var(--sp-2) var(--sp-4);
 }
+
+/* "Kształt": shaping rules, each a small card with its numbers and the two symbols. */
+.shaping__summary {
+  margin: var(--sp-2) 0;
+  font-weight: 600;
+}
+
+.shaping__rules {
+  display: grid;
+  gap: var(--sp-3);
+  margin: var(--sp-2) 0 var(--sp-3);
+  padding: 0;
+  list-style: none;
+}
+
+.shaping__rule {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+}
+
+.shaping__rule:hover,
+.shaping__rule:focus-within {
+  border-color: var(--indigo);
+}
+
+.shaping__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shaping__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2) var(--sp-3);
+  align-items: start;
+}
+
+/* "Oczek od brzegu" with its hint takes a whole line, so the other fields stay in pairs. */
+.shaping__fields > .field:last-child {
+  grid-column: 1 / -1;
+}
+
+.shaping__fields .field {
+  margin: 0;
+}
+
+.shaping__fields select {
+  width: 100%;
+}
+
+.shaping__symbols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.shaping__symbol {
+  display: grid;
+  gap: var(--sp-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.shaping__symbol legend {
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-1);
+  font-weight: 650;
+}
+
+.shaping__choice {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  padding: 2px var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  font-size: var(--fs-1);
+  cursor: pointer;
+}
+
+.shaping__choice:has(input:checked) {
+  border-color: var(--indigo);
+  background: var(--done);
+}
+
+.shaping__choice input {
+  margin: 0;
+}
+
+.shaping .notice {
+  margin: 0;
+}

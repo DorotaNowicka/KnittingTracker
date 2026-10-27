@@ -1758,3 +1758,26 @@ input[type='range'] {
 .row-counter__done .hint {
   max-width: 32ch;
 }
+
+/* A shaping row in the tracker: the symbols to work, how many, and the change in stitches. */
+.shaping-badge {
+  align-self: center;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px var(--sp-3) 2px var(--sp-2);
+  border: 2px solid var(--indigo);
+  border-radius: 999px;
+  background: var(--sheet);
+}
+
+.shaping-badge__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 700;
+}
+
+.shaping-badge__change {
+  font-weight: 800;
+  color: var(--indigo);
+}

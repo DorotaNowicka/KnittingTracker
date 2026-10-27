@@ -8,6 +8,7 @@ import { navigate, paths } from '../lib/router';
 import { useWakeLock } from '../lib/wakeLock';
 import { useSession } from '../state/session';
 import { RowsControl } from '../tracker/RowsControl';
+import { ShapingBadge } from '../tracker/ShapingBadge';
 import { GridCanvas, type ViewRequest } from '../tracker/GridCanvas';
 import { Legend, RowText, ViewControls, type ViewSettings } from '../tracker/PanelParts';
 import {
@@ -250,6 +251,9 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
                 <span className="status__of"> / {s.model.rowLength(summary.currentRow)}</span>
               </span>
             </span>
+          )}
+          {!counter && finished === undefined && (
+            <ShapingBadge grid={grid} row={summary.currentRow} />
           )}
           {grid.pattern.design && grid.plannedRows !== null && (
             <span className="status__item status__item--rows">

@@ -165,6 +165,27 @@ export const placementSchema = z.object({
   repeatY: z.union([posInt.max(1000), z.literal('fill')]),
 });
 
+/**
+ * Shaping of a creator design: stitches decreased or increased at the same places every so many
+ * rows ("1 st at each side every 6 rows, 8 times"). The grid is as wide as the widest row; rows
+ * with fewer stitches show "no stitch" cells where the shape is narrower.
+ */
+export const shapingRuleSchema = z.object({
+  id,
+  kind: z.enum(['decrease', 'increase']),
+  /** At both edges of the grid, or at the sides (a body in halves: both side lines). */
+  where: z.enum(['edges', 'sides']),
+  /** First row (from the bottom) with the change, then every `every` rows, `times` times. */
+  start: posInt.max(1000),
+  every: posInt.max(1000),
+  times: posInt.max(500),
+  /** Stitches between the edge (or the side line) and the symbol. */
+  inset: nonNegInt.max(50),
+  /** Symbols at the right and at the left place of each side (RS view), e.g. ssk / k2tog. */
+  right: id,
+  left: id,
+});
+
 /** A number per size of the project; null = as drawn (the size the grid was drawn in). */
 const perSize = z.array(posInt.max(1000).nullable()).min(1).max(30);
 
@@ -213,6 +234,8 @@ export const designSchema = z.object({
     .optional(),
   /** The grid in the project's other sizes ("Rozmiary projektu"). */
   sizes: designSizesSchema.optional(),
+  /** Decreases and increases; `width` is then the widest row (see `startStitches`). */
+  shaping: z.array(shapingRuleSchema).max(20).optional(),
 });
 
 /** A pattern (wzór): one grid of charts worked side by side, with its own progress. */
@@ -305,6 +328,7 @@ export type MarkerSegment = Extract<Segment, { kind: 'marker' }>;
 export type Pattern = z.infer<typeof patternSchema>;
 export type Design = z.infer<typeof designSchema>;
 export type DesignSizes = z.infer<typeof designSizesSchema>;
+export type ShapingRule = z.infer<typeof shapingRuleSchema>;
 export type Placement = z.infer<typeof placementSchema>;
 export type LegendEntry = z.infer<typeof legendEntrySchema>;
 export type CustomSymbol = z.infer<typeof customSymbolSchema>;

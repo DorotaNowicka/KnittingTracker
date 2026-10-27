@@ -7,6 +7,7 @@ import {
   repairRows,
 } from '../chart/edit';
 import { STD } from '../symbols/library';
+import { shapeRows } from './shaping';
 import type { SymbolRegistry } from '../symbols/registry';
 import {
   CONTINUATION,
@@ -175,7 +176,7 @@ const cutOf = (design: Design) => design.width - firstHalf(design.width);
  * well formed on its own, so a symbol crossing the middle (a cable) becomes knit there.
  */
 function knittedRows(design: Design, registry: SymbolRegistry): string[][] {
-  const rows = composeDesign(design, registry);
+  const rows = shapedRows(design, registry);
   if (!design.halves || design.width < 2) return rows;
   const cut = cutOf(design);
   const left = repairRows(
@@ -189,10 +190,14 @@ function knittedRows(design: Design, registry: SymbolRegistry): string[][] {
   return rows.map((_, i) => [...(left[i] ?? []), ...(right[i] ?? [])]);
 }
 
+/** The design's grid composed, with its shaping ("no stitch" and the shaping symbols). */
+export const shapedRows = (design: Design, registry: SymbolRegistry): string[][] =>
+  shapeRows(composeDesign(design, registry), design, registry);
+
 /** Rows (from 1) where splitting in halves cuts a symbol in two; empty when not split. */
 export function halfCuts(design: Design, registry: SymbolRegistry): number[] {
   if (!design.halves || design.width < 2) return [];
-  const whole = composeDesign(design, registry);
+  const whole = shapedRows(design, registry);
   const knitted = knittedRows(design, registry);
   return whole.flatMap((row, i) => (row.some((id, c) => knitted[i]?.[c] !== id) ? [i + 1] : []));
 }
@@ -271,7 +276,9 @@ const lcm = (a: number, b: number) => (a / gcd(a, b)) * b;
  * A design made tall enough to repeat seamlessly: the grid's height and every piece's height come
  * round together (at most 1000 rows), brush stitches repeating with the grid.
  */
-function repeatingDesign(design: Design): Design {
+function repeatingDesign(withShape: Design): Design {
+  // Knitted until N cm, the grid repeats upwards: a shape does not repeat with it.
+  const { shaping: _none, ...design } = withShape;
   const heights = design.placements.flatMap((p) => {
     const m = design.motifs.find((x) => x.id === p.motifId);
     return m ? [m.height] : [];
