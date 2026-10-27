@@ -34,6 +34,7 @@ async function startFromScratch(user: ReturnType<typeof userEvent.setup>) {
   render(<App />);
   await user.click(await screen.findByRole('button', { name: /Stwórz projekt/ }));
   await user.click(await screen.findByRole('button', { name: 'Własny projekt' }));
+  await user.click(await screen.findByRole('button', { name: 'Zaczynam' }));
   await screen.findByRole('heading', { level: 1, name: 'Mój projekt' });
   await user.click(screen.getByRole('button', { name: 'Dodaj wzór' }));
   const dialog = screen.getByRole('dialog', { name: 'Nowy wzór' });

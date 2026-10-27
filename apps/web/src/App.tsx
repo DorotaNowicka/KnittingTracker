@@ -5,6 +5,7 @@ import { NewProjectKindPage, NewProjectPage } from './routes/NewProjectPage';
 import { NotFoundPage } from './routes/NotFoundPage';
 import { ProjectsPage } from './routes/ProjectsPage';
 import { SettingsPage } from './routes/SettingsPage';
+import { StartPage } from './routes/StartPage';
 import { TrackerPage } from './routes/TrackerPage';
 import { useLibrary } from './state/library';
 import { useUpdate } from './state/update';
@@ -60,6 +61,8 @@ export function App() {
         <Suspense fallback={loading}>
           <ImportPage {...(route.id ? { projectId: route.id } : {})} />
         </Suspense>
+      ) : route.name === 'start' ? (
+        <StartPage projectId={route.id} />
       ) : route.name === 'parts' ? (
         <Suspense fallback={loading}>
           <PartsPage projectId={route.id} />

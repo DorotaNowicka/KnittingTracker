@@ -16,6 +16,8 @@ export type Route =
   | { readonly name: 'project'; readonly id: string }
   /** The garment of a project split into parts; a part opens its pattern. */
   | { readonly name: 'parts'; readonly id: string }
+  /** Shown once, right after a project is made by hand: one size first, scaling at the end. */
+  | { readonly name: 'start'; readonly id: string }
   /** Tracking one pattern of a project. */
   | { readonly name: 'tracker'; readonly id: string; readonly patternId: string }
   /** Editing one pattern: its charts, layout and legend. */
@@ -41,6 +43,7 @@ export const paths = {
   import: (id?: string) => (id ? `/projekt/${enc(id)}/import` : '/import'),
   project: (id: string) => `/projekt/${enc(id)}`,
   parts: (id: string) => `/projekt/${enc(id)}/czesci`,
+  start: (id: string) => `/projekt/${enc(id)}/start`,
   tracker: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}`,
   pattern: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}/edycja`,
   designer: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}/kreator`,
@@ -63,13 +66,14 @@ export function parseRoute(pathname: string): Route {
   if (pathname === '/ustawienia') return { name: 'settings' };
   if (pathname === '/import') return { name: 'import' };
   const m =
-    /^\/projekt\/([^/]+)(?:\/(import|czesci)|\/wzor\/([^/]+)(?:\/(edycja|kreator)|\/schemat\/([^/]+))?)?$/.exec(
+    /^\/projekt\/([^/]+)(?:\/(import|czesci|start)|\/wzor\/([^/]+)(?:\/(edycja|kreator)|\/schemat\/([^/]+))?)?$/.exec(
       pathname,
     );
   if (!m) return { name: 'notFound' };
   const [id, patternId, chartId] = decode([m[1], m[3], m[5]]) ?? [];
   if (!id) return { name: 'notFound' };
   if (m[2] === 'czesci') return { name: 'parts', id };
+  if (m[2] === 'start') return { name: 'start', id };
   if (m[2]) return { name: 'import', id };
   if (m[3] === undefined) return { name: 'project', id };
   if (!patternId) return { name: 'notFound' };

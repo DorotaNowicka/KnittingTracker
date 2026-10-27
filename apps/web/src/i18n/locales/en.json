@@ -52,6 +52,17 @@
     "kindTitle": "What are you knitting?",
     "kindFor": "Project: {{name}}"
   },
+  "start": {
+    "title": "One size first",
+    "lead": "Design every part in the size you knit. You can add scaling for the other sizes at the end, once all the parts are ready.",
+    "scaleTitle": "What scaling changes",
+    "scaleWidth": "The width of each part — stitches in a round or a row.",
+    "scaleLength": "The length of a part — rows or centimetres, e.g. the body to the armholes.",
+    "scaleRepeats": "Horizontal repeats of patterns that stretch: ribbing, plain knit, plain purl.",
+    "scaleFixed": "Patterns of a fixed width, e.g. cables, stay the same — only their place moves, so they stay centred.",
+    "dimensions": "The grid width and height typed for one part are suggested for the next one.",
+    "go": "Let's start"
+  },
   "settings": {
     "title": "Settings",
     "theme": "Theme",
@@ -790,6 +801,8 @@
     "back": "Project parts",
     "title": "Pattern creator: {{name}}",
     "sizeLead": "Start with the grid: how many stitches a round or row has and how many rows this part has. You can change it later.",
+    "suggested": "We filled in the size of “{{name}}”. Change it if this part is different.",
+    "suggestedNoName": "We filled in the size of the previous part. Change it if this part is different.",
     "width": "Width (stitches)",
     "widthHint": "E.g. 226 stitches in a round of the body.",
     "height": "Height (rows)",

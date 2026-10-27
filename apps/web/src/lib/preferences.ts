@@ -76,6 +76,35 @@ export function setGuidesPref(on: boolean): void {
   write(GUIDES_KEY, on ? 'on' : 'off');
 }
 
+/** The grid size typed for the last part of a project, suggested for its next part. */
+export interface LastGrid {
+  readonly width: number;
+  readonly height: number;
+  readonly name: string;
+}
+
+const LAST_GRID_KEY = (projectId: string) => `kt.lastGrid.${projectId}`;
+const gridSide = (n: unknown): n is number =>
+  typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 1000;
+
+export function getLastGrid(projectId: string): LastGrid | null {
+  try {
+    const v: unknown = JSON.parse(read(LAST_GRID_KEY(projectId)) ?? 'null');
+    if (v && typeof v === 'object') {
+      const { width, height, name } = v as Record<string, unknown>;
+      if (gridSide(width) && gridSide(height))
+        return { width, height, name: typeof name === 'string' ? name.slice(0, 120) : '' };
+    }
+  } catch {
+    /* not JSON: ignore */
+  }
+  return null;
+}
+
+export function setLastGrid(projectId: string, grid: LastGrid): void {
+  write(LAST_GRID_KEY(projectId), JSON.stringify(grid));
+}
+
 /** Panel sections the knitter folded away (legend, row instructions): open unless closed. */
 export function getSectionOpenPref(section: string): boolean {
   return read(`kt.section.${section}`) !== 'closed';

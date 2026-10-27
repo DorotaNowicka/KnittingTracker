@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { PatternGate, SaveState } from '../editor/DraftGate';
 import { EditorCanvas, type CanvasTool, type CellPoint } from '../editor/EditorCanvas';
 import { Link } from '../lib/Link';
+import { getLastGrid, setLastGrid, type LastGrid } from '../lib/preferences';
 import { navigate, paths } from '../lib/router';
 import { useDraft } from '../state/draft';
 import { useGuides } from '../state/guides';
@@ -101,37 +102,55 @@ function Designer({ project, pattern }: { project: Project; pattern: Pattern }) 
   ) : (
     <GridSize
       pattern={pattern}
+      suggested={suggestedGrid(project, pattern.id)}
       back={back}
       onDone={() => void finish()}
-      onCreate={(w, h) =>
+      onCreate={(w, h) => {
+        setLastGrid(project.id, { width: w, height: h, name: pattern.name });
         setDesign({
           ...blankDesign(w, h),
           // A body in the round has a front and a back: shown apart from the start.
           ...(splitsFrontBack(project.kind, pattern.id)
             ? { halves: [t('importer.front'), t('importer.back')] as [string, string] }
             : {}),
-        })
-      }
+        });
+      }}
     />
   );
+}
+
+/**
+ * The size to offer for a new grid: what was typed for the previous part of this project (on this
+ * device), else the grid of another part that already has one.
+ */
+function suggestedGrid(project: Project, patternId: string): LastGrid | null {
+  const typed = getLastGrid(project.id);
+  if (typed) return typed;
+  const other = project.patterns.filter((p) => p.id !== patternId && p.design).at(-1);
+  return other?.design
+    ? { width: other.design.width, height: other.design.height, name: other.name }
+    : null;
 }
 
 /** First step: how big the grid is (stitches × rows). */
 function GridSize({
   pattern,
+  suggested,
   back,
   onCreate,
   onDone,
 }: {
   pattern: Pattern;
+  /** Filled in from the previous part; the knitter can change it. */
+  suggested: LastGrid | null;
   back: string;
   onCreate(width: number, height: number): void;
   /** Done without a grid: the part is tracked by counting rows. */
   onDone(): void;
 }) {
   const { t } = useTranslation();
-  const [width, setWidth] = useState<number | undefined>(undefined);
-  const [height, setHeight] = useState<number | undefined>(undefined);
+  const [width, setWidth] = useState<number | undefined>(suggested?.width);
+  const [height, setHeight] = useState<number | undefined>(suggested?.height);
   const replaces = pattern.charts.length > 0;
   return (
     <>
@@ -163,6 +182,13 @@ function GridSize({
             onCommit={setHeight}
           />
         </div>
+        {suggested && (
+          <p className="notice">
+            {suggested.name
+              ? t('designer.suggested', { name: suggested.name })
+              : t('designer.suggestedNoName')}
+          </p>
+        )}
         {replaces && <p className="notice notice--warning">{t('designer.replaces')}</p>}
         <div className="form-actions">
           <button

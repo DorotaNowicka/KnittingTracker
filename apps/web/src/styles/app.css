@@ -253,6 +253,28 @@ a {
   font-weight: 700;
 }
 
+/* "Najpierw jeden rozmiar": what scaling at the end will change, on a sheet. */
+.start-page .lead {
+  margin: var(--sp-4) 0;
+}
+
+.start-page__scale {
+  max-width: 62ch;
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-left: 4px solid var(--indigo);
+  border-radius: var(--r-sheet);
+  background: var(--sheet);
+}
+
+.start-page__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-left: 1.2em;
+  line-height: 1.45;
+}
+
 /* Empty state: a sheet of chart paper with an invitation. */
 .empty {
   padding: var(--sp-6) var(--sp-5);

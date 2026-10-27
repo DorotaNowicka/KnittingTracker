@@ -329,6 +329,37 @@ describe('pattern creator', () => {
   };
   const cols = () => pattern()?.design?.placements.map((p) => p.col);
 
+  it('offers the grid size typed for the previous part of the project', async () => {
+    const user = userEvent.setup();
+    const id = 'two-parts';
+    const base = blankProject({
+      id,
+      name: 'Sweter',
+      sizes: ['M'],
+      patternName: 'Korpus',
+      now: '2026-10-27T10:00:00.000Z',
+    });
+    await useLibrary
+      .getState()
+      .addProject(insertPattern(base, blankPattern('sleeve', 'Rękaw')).project);
+    navigate(paths.designer(id, 'pattern-1'), { replace: true });
+    render(<App />);
+    expect(await screen.findByLabelText('Szerokość (oczka)')).toHaveValue('');
+    expect(screen.queryByText(/Wpisaliśmy wymiary/)).toBeNull();
+    await user.type(screen.getByLabelText('Szerokość (oczka)'), '40');
+    await user.type(screen.getByLabelText('Wysokość (rzędy)'), '30');
+    await user.click(screen.getByRole('button', { name: 'Utwórz siatkę' }));
+    await screen.findByRole('region', { name: 'Biblioteka wzorów' });
+
+    navigate(paths.designer(id, 'sleeve'));
+    expect(await screen.findByLabelText('Szerokość (oczka)')).toHaveValue('40');
+    expect(screen.getByLabelText('Wysokość (rzędy)')).toHaveValue('30');
+    expect(
+      screen.getByText('Wpisaliśmy wymiary z części „Korpus”. Zmień je, jeśli ta część jest inna.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Utwórz siatkę' })).toBeEnabled();
+  });
+
   it('selects several tiles with Shift, copies them together, pastes them in hand, Delete removes', async () => {
     const user = userEvent.setup();
     useTileClip.setState({ clip: null });

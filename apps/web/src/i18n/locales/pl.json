@@ -54,6 +54,17 @@
     "kindTitle": "Co dziergasz?",
     "kindFor": "Projekt: {{name}}"
   },
+  "start": {
+    "title": "Najpierw jeden rozmiar",
+    "lead": "Zaprojektuj wszystkie części w rozmiarze, który dziergasz. Skalowanie dla innych rozmiarów będziesz mogła dodać na końcu, gdy wszystkie części będą gotowe.",
+    "scaleTitle": "Co się zmieni przy skalowaniu",
+    "scaleWidth": "Szerokość każdej części — liczba oczek w okrążeniu lub w rzędzie.",
+    "scaleLength": "Długość części — liczba rzędów albo centymetry, np. korpus do pach.",
+    "scaleRepeats": "Liczba powtórzeń w poziomie wzorów, które się rozciągają: ściągacza, samych prawych, samych lewych.",
+    "scaleFixed": "Wzory o stałej szerokości, np. warkocze, zostaną takie same — przesunie się tylko ich miejsce, żeby dalej były na środku.",
+    "dimensions": "Szerokość i wysokość siatki wpisane przy jednej części podpowiemy przy następnej.",
+    "go": "Zaczynam"
+  },
   "settings": {
     "title": "Ustawienia",
     "theme": "Motyw",
@@ -864,6 +875,8 @@
     "back": "Części projektu",
     "title": "Kreator wzoru: {{name}}",
     "sizeLead": "Zacznij od siatki: ile oczek ma okrążenie lub rząd i ile rzędów ma ta część. Rozmiar zmienisz później.",
+    "suggested": "Wpisaliśmy wymiary z części „{{name}}”. Zmień je, jeśli ta część jest inna.",
+    "suggestedNoName": "Wpisaliśmy wymiary z poprzedniej części. Zmień je, jeśli ta część jest inna.",
     "width": "Szerokość (oczka)",
     "widthHint": "Np. 226 oczek w okrążeniu korpusu.",
     "height": "Wysokość (rzędy)",

@@ -101,6 +101,17 @@ describe('screens', () => {
     await user.click(screen.getByRole('button', { name: /Stwórz projekt/ }));
     await user.click(await screen.findByRole('button', { name: 'Kardigan' }));
 
+    // Once, first: one size now, scaling for the other sizes at the end.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Najpierw jeden rozmiar' }),
+    ).toBeInTheDocument();
+    expect(location.pathname).toMatch(/^\/projekt\/[^/]+\/start$/);
+    expect(
+      screen.getByText(/Skalowanie dla innych rozmiarów będziesz mogła dodać na końcu/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/ściągacza, samych prawych, samych lewych/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Zaczynam' }));
+
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Sweter testowy' }),
     ).toBeInTheDocument();
@@ -124,9 +135,12 @@ describe('screens', () => {
     navigate('/nowy/rodzaj', { replace: true });
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Skarpetki' }));
+    expect(await screen.findByText('Projekt: Skarpetki')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Zaczynam' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Skarpetki' })).toBeInTheDocument();
     navigate('/nowy/rodzaj');
     await user.click(await screen.findByRole('button', { name: 'Własny projekt' }));
+    await user.click(await screen.findByRole('button', { name: 'Zaczynam' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Mój projekt' }),
     ).toBeInTheDocument();
@@ -139,6 +153,7 @@ describe('screens', () => {
     navigate('/nowy/rodzaj', { replace: true });
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Sweter' }));
+    await user.click(await screen.findByRole('button', { name: 'Zaczynam' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Części' })).toBeInTheDocument();
     const parts = screen.getAllByRole('button', { name: /\+ stwórz wzór/ });
     expect(parts.map((b) => b.textContent)).toEqual([
