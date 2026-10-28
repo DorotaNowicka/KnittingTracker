@@ -6,6 +6,7 @@ import {
   initialProgress,
   reduceProgress,
   resolvePattern,
+  setLegendEntry,
   type Gauge,
   type ProgressAction,
   type ProgressState,
@@ -55,6 +56,8 @@ interface SessionState {
   setDesignRows(rows: number): Promise<void>;
   /** Rename the project or set the knitter's own gauge (null removes it). */
   updateProject(change: { name?: string; gauge?: Gauge | null }): Promise<void>;
+  /** The knitter's own name for a symbol in this pattern's legend ('' = the pattern's wording). */
+  setLegendName(symbolId: string, name: string): Promise<void>;
 }
 
 /** Progress writes are queued so they reach storage in order, even when taps come fast. */
@@ -231,6 +234,14 @@ export const useSession = create<SessionState>((set, get) => {
           updatedAt: new Date().toISOString(),
         };
       });
+    },
+    async setLegendName(symbolId, name) {
+      const { patternId } = get();
+      if (!patternId) return;
+      await change((p) => ({
+        ...mapPattern(p, patternId, (pattern) => setLegendEntry(pattern, symbolId, { name })),
+        updatedAt: new Date().toISOString(),
+      }));
     },
   };
 });

@@ -1,4 +1,4 @@
-import { canRedo, canUndo, summarize } from '@kt/core';
+import { canRedo, canUndo, nextMarkedRow, rowNotesAt, summarize } from '@kt/core';
 import { visibleRowCount } from '@kt/grid-renderer';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -335,6 +335,11 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
               onRemove={() => dispatch({ type: 'set', done: summary.done - 1 })}
               name={grid.pattern.name}
               next={nextPattern ? { name: nextPattern.name } : null}
+              marks={{
+                row: summary.currentRow,
+                notes: rowNotesAt(grid.pattern, summary.currentRow),
+                next: nextMarkedRow(grid.pattern, summary.currentRow, grid.plannedRows),
+              }}
               {...(finished === undefined
                 ? {
                     onDone: () =>
@@ -389,7 +394,9 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             onProject={() => projectRef.current?.showModal()}
           />
           {showGrid && <RowText grid={grid} row={summary.currentRow} next={next} />}
-          {showGrid && <Legend grid={grid} />}
+          {showGrid && (
+            <Legend grid={grid} onRename={(id, name) => void s.setLegendName(id, name)} />
+          )}
           <ViewControls
             view={view}
             sections={sections}

@@ -290,7 +290,8 @@
     "wsProblem": "brak opisu na lewą stronę"
   },
   "legend": {
-    "title": "Legenda"
+    "title": "Legenda",
+    "rename": "Twoja nazwa dla: {{name}}"
   },
   "panel": {
     "fold": "Zwiń",
@@ -370,6 +371,7 @@
     "legend": "Legenda",
     "legendHint": "Wpisz numer i opis symbolu tak, jak w Twoim wzorze. Pokażemy je przy siatce podczas dziergania.",
     "legendEmpty": "Symbole pojawią się tu, gdy narysujesz schemat.",
+    "legendName": "Twoja nazwa",
     "legendNumber": "Numer",
     "legendNumberHint": "W DROPS zwykle {{n}}",
     "legendText": "Opis z Twojego wzoru",
@@ -652,6 +654,9 @@
     "found_other": "Znaleziono {{count}} schematu. Sprawdź je z oryginałem.",
     "legend": "Legenda z pliku",
     "legendHint": "Każdemu symbolowi z legendy przypisaliśmy symbol z biblioteki. Popraw, jeśli coś się nie zgadza, i rozpoznaj ponownie.",
+    "legendName": "Nazwa",
+    "legendNameEmpty": "Nazwa symbolu",
+    "legendFromFile": "Z pliku: {{text}}",
     "symbol": "Symbol",
     "notStitch": "To nie jest oczko",
     "rerun": "Rozpoznaj ponownie z tymi symbolami",
@@ -812,7 +817,18 @@
     "plus": "Dodaj rząd",
     "done": "Gotowe: {{name}}",
     "thenNext": "Zakończy tę część i przejdzie do: {{name}}.",
-    "thenEnd": "Zakończy tę część — to ostatnia w projekcie."
+    "thenEnd": "Zakończy tę część — to ostatnia w projekcie.",
+    "markRow": "Rząd {{row}} — wyróżniony",
+    "markRound": "Okrążenie {{row}} — wyróżnione",
+    "markNoMessage": "Ten rząd jest wyróżniony.",
+    "nextMark_one": "Następne wyróżnienie: rząd {{row}} (za {{count}} rząd).",
+    "nextMark_few": "Następne wyróżnienie: rząd {{row}} (za {{count}} rzędy).",
+    "nextMark_many": "Następne wyróżnienie: rząd {{row}} (za {{count}} rzędów).",
+    "nextMark_other": "Następne wyróżnienie: rząd {{row}} (za {{count}} rzędu).",
+    "nextMarkRound_one": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążenie).",
+    "nextMarkRound_few": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążenia).",
+    "nextMarkRound_many": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążeń).",
+    "nextMarkRound_other": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążenia)."
   },
   "project": {
     "continue": "Dziergaj dalej: {{name}}",
@@ -1190,5 +1206,29 @@
     "inRow_few": "{{count}} oczka w rzędzie",
     "inRow_many": "{{count}} oczek w rzędzie",
     "inRow_other": "{{count}} oczka w rzędzie"
+  },
+  "rowNotes": {
+    "title": "Wyróżnij rzędy",
+    "counterTitle": "Tylko licznik rzędów? Wyróżnij rzędy",
+    "counterHint": "Np. dziurka na guzik co 10 rzędów albo zmiana koloru w rzędzie 24 — licznik pokaże komunikat i podświetli ten rząd.",
+    "empty": "Brak wyróżnionych rzędów. Dodaj, jeśli w którymś rzędzie trzeba coś zrobić inaczej — licznik przypomni o tym komunikatem.",
+    "emptyRound": "Brak wyróżnionych okrążeń. Dodaj, jeśli w którymś okrążeniu trzeba coś zrobić inaczej — licznik przypomni o tym komunikatem.",
+    "add": "Dodaj wyróżnienie",
+    "which": "Wyróżnienie {{n}}",
+    "modeRows": "W wybranych rzędach",
+    "modeEvery": "Co kilka rzędów",
+    "modeEveryRound": "Co kilka okrążeń",
+    "list": "Rzędy",
+    "listRound": "Okrążenia",
+    "listPlaceholder": "np. 4, 12, 20-22",
+    "listHint": "Numery po przecinku, zakres przez myślnik.",
+    "listError": "Wpisz numery rzędów, np. 4, 12, 20-22.",
+    "every": "Co ile rzędów",
+    "everyRound": "Co ile okrążeń",
+    "from": "Od rzędu",
+    "fromRound": "Od okrążenia",
+    "message": "Komunikat",
+    "messagePlaceholder": "np. Zrób dziurkę na guzik",
+    "remove": "Usuń"
   }
 }

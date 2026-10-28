@@ -1,4 +1,4 @@
-import { rowInstructions, type ResolvedPattern, type StitchLocation } from '@kt/core';
+import { legendLabel, rowInstructions, type ResolvedPattern, type StitchLocation } from '@kt/core';
 import { CELL_PX_MAX } from '@kt/grid-renderer';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -100,7 +100,7 @@ export function RowText({
               aria-current={current ? 'step' : undefined}
             >
               <span className="num row-text__count">{tok.count}×</span>
-              <span>{tok.wsText ? tok.wsText[l] : s.label[l]}</span>
+              <span>{tok.wsText ? tok.wsText[l] : legendLabel(grid.pattern, s, l)}</span>
               {tok.problem && <span className="row-text__problem">{t('rowText.wsProblem')}</span>}
             </li>
           );
@@ -110,8 +110,18 @@ export function RowText({
   );
 }
 
-/** Legend for the symbols used in this pattern, drawn with the grid's own glyphs. */
-export function Legend({ grid }: { grid: ResolvedPattern }) {
+/**
+ * Legend for the symbols used in this pattern, drawn with the grid's own glyphs. Each name is a
+ * text field: the pattern's own wording (or the standard label) shows as its placeholder, and
+ * whatever the knitter types replaces it everywhere in the tracker.
+ */
+export function Legend({
+  grid,
+  onRename,
+}: {
+  grid: ResolvedPattern;
+  onRename?: (symbolId: string, name: string) => void;
+}) {
   const { t, i18n } = useTranslation();
   const l = lang(i18n.language);
   const used = useMemo(() => {
@@ -126,21 +136,86 @@ export function Legend({ grid }: { grid: ResolvedPattern }) {
         {used.map((s) => {
           const entry = grid.pattern.legend.find((e) => e.symbolId === s.id);
           const number = entry?.number ?? s.numbers?.['drops'];
+          const fallback = entry?.text || s.label[l];
           return (
             <li key={s.id} className="legend__item">
               <SymbolGlyph glyph={s.glyph} width={s.width} />
               <span className="legend__text">
                 <span className="legend__label">
-                  {s.label[l]}
+                  {onRename ? (
+                    <LegendName
+                      value={entry?.name ?? ''}
+                      placeholder={fallback}
+                      label={t('legend.rename', { name: fallback })}
+                      onCommit={(name) => onRename(s.id, name)}
+                    />
+                  ) : (
+                    legendLabel(grid.pattern, s, l)
+                  )}
                   {number && <span className="legend__number num">{number}</span>}
                 </span>
-                <span className="legend__desc">{entry?.text ?? s.description[l]}</span>
+                {/* The pattern's wording, when it is not already the (placeholder) name. */}
+                {entry?.text ? (
+                  (entry.name || entry.text.length > 32) && (
+                    <span className="legend__desc">{entry.text}</span>
+                  )
+                ) : (
+                  <span className="legend__desc">{s.description[l]}</span>
+                )}
               </span>
             </li>
           );
         })}
       </ul>
     </Foldable>
+  );
+}
+
+/** A name field that saves when the knitter leaves it (or presses Enter), not on every key. */
+function LegendName({
+  value,
+  placeholder,
+  label,
+  onCommit,
+}: {
+  value: string;
+  placeholder: string;
+  label: string;
+  onCommit: (name: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  const [seen, setSeen] = useState(value);
+  if (value !== seen) {
+    setSeen(value);
+    setText(value);
+  }
+  const cancelled = useRef(false);
+  const commit = () => {
+    if (cancelled.current) {
+      cancelled.current = false;
+      setText(value);
+      return;
+    }
+    if (text.trim() !== value) onCommit(text);
+  };
+  return (
+    <input
+      type="text"
+      className="legend__name"
+      value={text}
+      placeholder={placeholder}
+      aria-label={label}
+      maxLength={80}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        if (e.key === 'Escape') {
+          cancelled.current = true;
+          e.currentTarget.blur();
+        }
+      }}
+    />
   );
 }
 

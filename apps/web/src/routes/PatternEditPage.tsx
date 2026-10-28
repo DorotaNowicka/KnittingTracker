@@ -26,6 +26,7 @@ import { ChartThumb } from '../editor/ChartThumb';
 import { PatternGate, SaveState } from '../editor/DraftGate';
 import { PatternPreview } from '../editor/PatternPreview';
 import { LegendEditor } from '../editor/LegendEditor';
+import { RowNotesEditor } from '../editor/RowNotesEditor';
 import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
 import { useDraft } from '../state/draft';
@@ -262,6 +263,15 @@ function PatternEditor({ project, pattern }: { project: Project; pattern: Patter
             </div>
           </div>
         </section>
+
+        {current?.stitchCount === 0 && (
+          <section className="editor-section" aria-labelledby={`${ids}-notes`}>
+            <h2 id={`${ids}-notes`} className="section-title">
+              {t('rowNotes.title')}
+            </h2>
+            <RowNotesEditor pattern={pattern} update={(f) => update(pattern.id, f)} />
+          </section>
+        )}
 
         <Charts project={project} pattern={pattern} />
 

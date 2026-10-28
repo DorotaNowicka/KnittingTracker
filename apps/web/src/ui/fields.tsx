@@ -17,6 +17,7 @@ interface TextProps {
   readonly multiline?: boolean;
   readonly hint?: ReactNode;
   readonly className?: string;
+  readonly placeholder?: string;
 }
 
 export function TextField({
@@ -28,6 +29,7 @@ export function TextField({
   multiline,
   hint,
   className,
+  placeholder,
 }: TextProps) {
   const { t } = useTranslation();
   const id = useId();
@@ -56,6 +58,7 @@ export function TextField({
     id,
     value: text,
     maxLength,
+    placeholder,
     'aria-invalid': error ? true : undefined,
     'aria-describedby': describedBy || undefined,
   } as const;

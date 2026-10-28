@@ -95,7 +95,10 @@ export const customSymbolSchema = z.object({
 export const legendEntrySchema = z.object({
   symbolId: id,
   number: z.string().max(20).optional(),
+  /** The pattern's own wording of the symbol (from the file's legend). */
   text: z.string().max(500).optional(),
+  /** The knitter's own name for the symbol, shown instead of the wording. */
+  name: z.string().max(80).optional(),
 });
 
 /** Reserved chart character: continuation of the multi-cell symbol anchored to its left. */
@@ -238,6 +241,18 @@ export const designSchema = z.object({
   shaping: z.array(shapingRuleSchema).max(20).optional(),
 });
 
+/**
+ * A row the knitter wants to be told about ("buttonhole", "change colour"): listed rows, or every
+ * N rows starting at `from` (default: row N itself). Rows count from 1 within the pattern.
+ */
+export const rowNoteSchema = z.object({
+  id,
+  rows: z.array(posInt.max(100000)).max(200).optional(),
+  every: posInt.max(10000).optional(),
+  from: posInt.max(100000).optional(),
+  message: z.string().max(200),
+});
+
 /** A pattern (wzór): one grid of charts worked side by side, with its own progress. */
 export const patternSchema = z.object({
   id,
@@ -268,6 +283,8 @@ export const patternSchema = z.object({
   design: designSchema.optional(),
   /** The knitter has set this pattern up and said so ("Gotowe"): it is ready to knit. */
   ready: z.boolean().optional(),
+  /** Rows to highlight in the row counter, each with a message. */
+  rowNotes: z.array(rowNoteSchema).max(20).optional(),
 });
 
 /** What a project is (the "what are you knitting" choice); `custom` = anything else. */
@@ -329,6 +346,7 @@ export type Pattern = z.infer<typeof patternSchema>;
 export type Design = z.infer<typeof designSchema>;
 export type DesignSizes = z.infer<typeof designSizesSchema>;
 export type ShapingRule = z.infer<typeof shapingRuleSchema>;
+export type RowNote = z.infer<typeof rowNoteSchema>;
 export type Placement = z.infer<typeof placementSchema>;
 export type LegendEntry = z.infer<typeof legendEntrySchema>;
 export type CustomSymbol = z.infer<typeof customSymbolSchema>;

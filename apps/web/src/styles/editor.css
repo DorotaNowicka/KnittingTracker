@@ -1379,3 +1379,64 @@ textarea {
 .designer__balance .hint {
   margin: var(--sp-2) 0 0;
 }
+
+/* "Wyróżnij rzędy": highlighted rows of a row-counter part. */
+.row-notes {
+  display: grid;
+  gap: var(--sp-3);
+  justify-items: start;
+}
+
+.row-notes__list {
+  display: grid;
+  gap: var(--sp-3);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row-notes__item {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--marker);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+}
+
+.row-notes__when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.row-notes__when > legend {
+  width: 100%;
+  margin-bottom: var(--sp-1);
+  font-weight: 700;
+}
+
+.row-notes__every {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.row-notes__rows input,
+.row-notes__message input {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.row-notes__remove {
+  justify-self: start;
+}
+
+.designer-notes {
+  margin-top: var(--sp-5);
+}

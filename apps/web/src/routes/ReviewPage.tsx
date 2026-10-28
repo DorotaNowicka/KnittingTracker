@@ -15,6 +15,7 @@ import { withDesignFromLayout } from '../import/elements';
 import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
 import { useDraft } from '../state/draft';
+import { RowNotesEditor } from '../editor/RowNotesEditor';
 import { Icon } from '../ui/Icon';
 import { AppHeader } from './AppHeader';
 
@@ -158,7 +159,14 @@ function Review({ project }: { project: Project }) {
           {stage && stage.stitchCount > 0 ? (
             <PatternPreview stage={stage} />
           ) : (
-            <p className="hint">{t('review.counter')}</p>
+            <>
+              <p className="hint">{t('review.counter')}</p>
+              <h3 className="subsection-title">{t('rowNotes.title')}</h3>
+              <RowNotesEditor
+                pattern={part}
+                update={(f) => useDraft.getState().updatePattern(part.id, f)}
+              />
+            </>
           )}
         </section>
 

@@ -6,6 +6,7 @@ import {
   type ProgressSummary,
   type ResolvedPattern,
   type RowModel,
+  type RowNote,
 } from '@kt/core';
 import { useId, useMemo, useState, type FormEvent, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -409,6 +410,7 @@ export function RowCounter({
   name,
   next,
   onDone,
+  marks,
 }: {
   summary: ProgressSummary;
   planned: number | null;
@@ -421,10 +423,31 @@ export function RowCounter({
   next: { readonly name: string } | null;
   /** The part is done: finish it and go on to the next one. Absent once it is finished. */
   onDone?: () => void;
+  /** Highlighted rows ("Wyróżnij rzędy"): the notes of the row being worked, the next one. */
+  marks?: {
+    readonly row: number;
+    readonly notes: readonly RowNote[];
+    readonly next: number | null;
+  };
 }) {
   const { t } = useTranslation();
+  const marked = marks && marks.notes.length > 0 && summary.next !== null;
+  const rowWord = round ? 'counter.markRound' : 'counter.markRow';
   return (
-    <div className="row-counter">
+    <div className={`row-counter${marked ? ' row-counter--marked' : ''}`}>
+      {marked && (
+        <div className="row-counter__mark" role="status" data-testid="row-mark">
+          <p className="row-counter__mark-row">
+            <Icon name="marker" size={18} />
+            {t(rowWord, { row: marks.row })}
+          </p>
+          <ul>
+            {marks.notes.map((n) => (
+              <li key={n.id}>{n.message.trim() || t('counter.markNoMessage')}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="row-counter__label">{t(round ? 'counter.roundsDone' : 'counter.rowsDone')}</p>
       <p className="row-counter__value num" data-testid="row-counter">
         {summary.done}
@@ -450,6 +473,14 @@ export function RowCounter({
           <Icon name="plus" />
         </button>
       </div>
+      {marks && marks.next !== null && summary.next !== null && (
+        <p className="hint row-counter__next-mark">
+          {t(round ? 'counter.nextMarkRound' : 'counter.nextMark', {
+            row: marks.next,
+            count: marks.next - marks.row,
+          })}
+        </p>
+      )}
       {onDone && (
         <div className="row-counter__done">
           <button type="button" className="btn btn--done" onClick={onDone}>

@@ -70,6 +70,7 @@ export {
 
 export * from './authoring/pattern';
 export * from './authoring/kinds';
+export * from './authoring/rowNotes';
 export * from './design/compose';
 export * from './design/shaping';
 export * from './design/motifs';

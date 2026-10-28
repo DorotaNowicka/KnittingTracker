@@ -67,11 +67,15 @@ Progress is **not** part of project files; it travels in backups.
   "firstRowSide": "RS",             // flat patterns may start on the wrong side
   "charts": [ /* Chart[], ids unique within the pattern */ ],
   "symbols": [ /* pattern-defined symbols (user:*) */ ],
-  "legend": [{ "symbolId": "cable:2-2-lc", "number": "C4", "text": "…" }],
+  "legend": [{ "symbolId": "cable:2-2-lc", "number": "C4", "text": "…", "name": "warkocz" }],
   "rows": 120,                      // optional: omit for open-ended patterns ("until 42 cm")
   "targetCm": [40, 42],             // optional, open-ended patterns: length to knit
   "expectedStitches": [250, 262],   // optional cross-check against the pattern text
   "tracking": "stitches",           // optional: "rows" = row counter only (ribbing, stockinette)
+  "rowNotes": [                     // optional, max 20: rows the row counter highlights
+    { "id": "note", "every": 10, "from": 4, "message": "Buttonhole" },
+    { "id": "note-2", "rows": [24], "message": "Change colour" }
+  ],
   "modifications": [],              // optional: the knitter's chart replacements, see below
   "layout": [
     { "kind": "marker", "id": "start", "sectionName": "Front" },
@@ -84,7 +88,11 @@ Progress is **not** part of project files; it travels in backups.
 ```
 
 - `symbols` have the same shape as built-ins: width, consumes/produces, optional knit/purl `flow`,
-  WS behaviour, vector glyph, labels. `legend` links a symbol to the number/wording of the source.
+  WS behaviour, vector glyph, labels. `legend` links a symbol to the number/wording of the source;
+  `name` is the knitter's own name for it, shown instead of that wording.
+- `rowNotes`: each note marks the listed `rows`, or every `every` rows starting at `from` (default:
+  row `every`). Rows count from 1 within the pattern. The row counter colours a marked row and shows
+  the `message`.
 - `modifications`: `{ "kind": "replaceChart", "chartId": "A.1", "chart": { … } }` shows other
   content for a chart everywhere it is placed (e.g. "A.1 in plain knit") without changing the chart
   as drawn or the stitch count.

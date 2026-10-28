@@ -100,6 +100,7 @@ describe('import session', () => {
     expect(useImport.getState().description.parsed.sizes?.value).toEqual(['S', 'M']);
     useImport.getState().updateChart(0, { name: 'C.1' });
     useImport.getState().setLegend(0, 'std:p');
+    useImport.getState().setLegendName(0, '  lewe  ');
     const created = await useImport.getState().create({
       title: 'Test',
       sizes: ['S', 'M'],
@@ -112,7 +113,7 @@ describe('import session', () => {
     const pattern = project?.patterns.find((p) => p.id === created.patternId);
     expect(pattern?.name).toBe('Korpus');
     expect(pattern?.charts[0]?.name).toBe('C.1');
-    expect(pattern?.legend).toEqual([{ symbolId: 'std:p', text: 'lewe oczko' }]);
+    expect(pattern?.legend).toEqual([{ symbolId: 'std:p', text: 'lewe oczko', name: 'lewe' }]);
     expect(pattern?.expectedStitches).toEqual([8, 10]);
     expect(pattern?.layout.filter((s) => s.kind === 'chart')).toHaveLength(3);
   });

@@ -25,6 +25,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PatternGate, SaveState } from '../editor/DraftGate';
 import { EditorCanvas, type CanvasTool, type CellPoint } from '../editor/EditorCanvas';
+import { RowNotesEditor } from '../editor/RowNotesEditor';
 import { Link } from '../lib/Link';
 import { getLastGrid, setLastGrid, type LastGrid } from '../lib/preferences';
 import { navigate, paths } from '../lib/router';
@@ -216,6 +217,16 @@ function GridSize({
             {t('designer.doneWithoutGrid')}
           </button>
         </div>
+        <details className="fix designer-notes" open={(pattern.rowNotes?.length ?? 0) > 0}>
+          <summary>
+            <b>{t('rowNotes.counterTitle')}</b>
+            <span>{t('rowNotes.counterHint')}</span>
+          </summary>
+          <RowNotesEditor
+            pattern={pattern}
+            update={(f) => useDraft.getState().updatePattern(pattern.id, f)}
+          />
+        </details>
       </main>
     </>
   );

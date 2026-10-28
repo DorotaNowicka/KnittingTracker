@@ -1,6 +1,7 @@
 import {
   patternRegistry,
   removeCustomSymbol,
+  legendLabel,
   setLegendEntry,
   upsertCustomSymbol,
   usedSymbolIds,
@@ -53,11 +54,19 @@ export function LegendEditor({ pattern }: { pattern: Pattern }) {
                 <SymbolGlyph glyph={s.glyph} width={s.width} cell={28} />
                 <div className="legend-editor__body">
                   <p className="legend-editor__name">
-                    {s.label[lang]}
+                    {legendLabel(pattern, s, lang)}
                     {custom && <span className="tag">{t('symbol.own')}</span>}
                   </p>
                   <p className="hint">{s.description[lang]}</p>
                   <div className="legend-editor__fields">
+                    <TextField
+                      label={t('editor.legendName')}
+                      value={entry?.name ?? ''}
+                      maxLength={80}
+                      placeholder={entry?.text || s.label[lang]}
+                      className="field--compact field--grow"
+                      onCommit={(name) => update((p) => setLegendEntry(p, s.id, { name }))}
+                    />
                     <TextField
                       label={t('editor.legendNumber')}
                       value={entry?.number ?? ''}

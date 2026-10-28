@@ -27,6 +27,7 @@ import {
   removePattern,
   removeSize,
   renameSize,
+  legendLabel,
   setLegendEntry,
   setSizeValue,
   sizeValueAt,
@@ -233,12 +234,25 @@ describe('symbols and legend', () => {
   it('sets, edits and clears legend entries in place', () => {
     let p = setLegendEntry(blank(), 'std:k', { number: '1', text: ' prawe ' });
     p = setLegendEntry(p, 'std:p', { text: 'lewe' });
-    p = setLegendEntry(p, 'std:k', { number: '1' });
+    p = setLegendEntry(p, 'std:k', { text: '' });
     expect(p.legend).toEqual([
       { symbolId: 'std:k', number: '1' },
       { symbolId: 'std:p', text: 'lewe' },
     ]);
-    expect(setLegendEntry(p, 'std:p', {}).legend).toHaveLength(1);
+    expect(setLegendEntry(p, 'std:p', { text: '' }).legend).toHaveLength(1);
+  });
+
+  it('keeps the other fields when only the name changes, and labels by name, text, standard', () => {
+    let p = setLegendEntry(blank(), 'std:k', { number: '1', text: 'oczko prawe' });
+    p = setLegendEntry(p, 'std:k', { name: '  prawe  ' });
+    expect(p.legend).toEqual([
+      { symbolId: 'std:k', number: '1', text: 'oczko prawe', name: 'prawe' },
+    ]);
+    const k = { id: 'std:k', label: { pl: 'Prawe oczko', en: 'Knit' } };
+    expect(legendLabel(p, k, 'pl')).toBe('prawe');
+    p = setLegendEntry(p, 'std:k', { name: '' });
+    expect(legendLabel(p, k, 'pl')).toBe('oczko prawe');
+    expect(legendLabel(blank(), k, 'en')).toBe('Knit');
   });
 
   it('adds custom symbols and refuses to remove used ones', () => {

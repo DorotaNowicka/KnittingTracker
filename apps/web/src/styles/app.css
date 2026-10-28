@@ -1989,3 +1989,90 @@ body {
   font-size: var(--fs-1);
   line-height: 1.35;
 }
+
+/* The knitter's own name for a symbol: reads as the label until focused. */
+.legend__text {
+  min-width: 0;
+}
+
+.legend input.legend__name {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 2px var(--sp-1);
+  margin-left: calc(-1 * var(--sp-1));
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 650;
+  text-overflow: ellipsis;
+}
+
+.legend input.legend__name::placeholder {
+  color: var(--ink);
+  opacity: 1;
+}
+
+.legend input.legend__name:hover {
+  border-color: var(--rule);
+}
+
+.legend input.legend__name:focus {
+  border-color: var(--indigo);
+  background: var(--sheet);
+  outline: none;
+}
+
+.legend input.legend__name:focus::placeholder {
+  color: var(--ink-muted);
+}
+
+/* A highlighted row ("Wyróżnij rzędy"): the whole counter lights up in the marker colour. */
+.row-counter--marked {
+  border: 3px solid var(--marker);
+  border-radius: var(--r-sheet);
+  background: color-mix(in srgb, var(--marker) 18%, var(--sheet));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--marker) 22%, transparent);
+}
+
+.row-counter--marked .row-counter__value {
+  color: color-mix(in srgb, var(--marker) 55%, var(--ink));
+}
+
+.row-counter__mark {
+  display: grid;
+  gap: var(--sp-1);
+  max-width: 34rem;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-control);
+  background: var(--marker);
+  color: #1a1408;
+  font-size: var(--fs-3);
+  font-weight: 650;
+  text-align: center;
+}
+
+.row-counter__mark-row {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.row-counter__mark ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row-counter__next-mark {
+  margin: 0;
+}

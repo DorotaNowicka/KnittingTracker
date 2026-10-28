@@ -16,6 +16,7 @@ import { useImport } from '../import/session';
 import { navigate } from '../lib/router';
 import { createMemoryStorage } from '../lib/storage';
 import { sampleProject } from '../sample/sampleProject';
+import { useDraft } from '../state/draft';
 import { setStorageForTests, useLibrary } from '../state/library';
 import { useNewProject } from '../state/newProject';
 
@@ -348,6 +349,104 @@ describe('screens', () => {
         name: 'W tym rzędzie: 1× 2 razem przekręcone, 1× 2 razem prawe. Zmiana liczby oczek: -2.',
       }),
     ).toBeInTheDocument();
+  });
+
+  it('the knitter renames a symbol in the tracker legend; the pattern wording is the placeholder', async () => {
+    const user = userEvent.setup();
+    await useLibrary.getState().addProject(sample());
+    navigate('/projekt/s1/wzor/body');
+    render(<App />);
+    const [field] = await screen.findAllByRole('textbox', {
+      name: /^Twoja nazwa dla:/,
+      hidden: true,
+    });
+    if (!field) throw new Error('no legend name field');
+    expect(field).toHaveValue('');
+    const placeholder = field.getAttribute('placeholder') ?? '';
+    expect(placeholder).not.toBe('');
+    await user.type(field, 'moje oczko{Enter}');
+    await waitFor(() =>
+      expect(
+        useLibrary
+          .getState()
+          .project('s1')
+          ?.patterns.find((p) => p.id === 'body')
+          ?.legend.some((e) => e.name === 'moje oczko'),
+      ).toBe(true),
+    );
+    expect(field).toHaveValue('moje oczko');
+    // Escape drops what was typed; clearing the field brings back the pattern's wording.
+    await user.clear(field);
+    await user.type(field, 'inne{Escape}');
+    expect(field).toHaveValue('moje oczko');
+    await user.clear(field);
+    await user.tab();
+    await waitFor(() =>
+      expect(
+        useLibrary
+          .getState()
+          .project('s1')
+          ?.patterns.find((p) => p.id === 'body')
+          ?.legend.some((e) => e.name),
+      ).toBe(false),
+    );
+  });
+
+  it('a row counter lights up highlighted rows with their message', async () => {
+    const user = userEvent.setup();
+    const project = insertPattern(
+      blankProject({ id: 'hl', name: 'Kardigan', sizes: ['M'], now: '2026-10-28T10:00:00.000Z' }),
+      {
+        ...blankPattern('band', 'Listwa'),
+        construction: 'flat',
+        tracking: 'rows',
+        rowNotes: [
+          { id: 'a', every: 3, message: 'Zrób dziurkę na guzik' },
+          { id: 'b', rows: [2], message: '' },
+        ],
+      },
+    ).project;
+    await useLibrary.getState().addProject(project);
+    navigate('/projekt/hl/wzor/band');
+    render(<App />);
+    const plus = await screen.findByRole('button', { name: 'Dodaj rząd' });
+    expect(screen.queryByTestId('row-mark')).toBeNull();
+    expect(screen.getByText('Następne wyróżnienie: rząd 2 (za 1 rząd).')).toBeInTheDocument();
+    await user.click(plus);
+    expect(await screen.findByTestId('row-mark')).toHaveTextContent('Ten rząd jest wyróżniony.');
+    await user.click(plus);
+    const mark = await screen.findByTestId('row-mark');
+    expect(mark).toHaveTextContent('Rząd 3 — wyróżniony');
+    expect(mark).toHaveTextContent('Zrób dziurkę na guzik');
+    expect(mark.closest('.row-counter')).toHaveClass('row-counter--marked');
+    expect(screen.getByText('Następne wyróżnienie: rząd 6 (za 3 rzędy).')).toBeInTheDocument();
+    await user.click(plus);
+    expect(screen.queryByTestId('row-mark')).toBeNull();
+  });
+
+  it('highlighted rows are set up on the settings page of a part without a chart', async () => {
+    const user = userEvent.setup();
+    const project = insertPattern(
+      blankProject({ id: 'hs', name: 'Szal', sizes: ['M'], now: '2026-10-28T10:00:00.000Z' }),
+      { ...blankPattern('main', 'Szal'), construction: 'flat', tracking: 'rows' },
+    ).project;
+    await useLibrary.getState().addProject(project);
+    navigate('/projekt/hs/wzor/main/edycja');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Wyróżnij rzędy' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Dodaj wyróżnienie' }));
+    await user.click(screen.getByRole('radio', { name: 'W wybranych rzędach' }));
+    const list = screen.getByRole('textbox', { name: 'Rzędy' });
+    await user.type(list, '4, x');
+    expect(screen.getByText('Wpisz numery rzędów, np. 4, 12, 20-22.')).toBeInTheDocument();
+    await user.clear(list);
+    await user.type(list, '4, 10-12');
+    await user.type(screen.getByRole('textbox', { name: 'Komunikat' }), 'Zmień kolor');
+    await waitFor(() =>
+      expect(useDraft.getState().project?.patterns[0]?.rowNotes).toEqual([
+        { id: 'note', rows: [4, 10, 11, 12], message: 'Zmień kolor' },
+      ]),
+    );
   });
 
   it('the legend and the row instructions fold away, and stay folded on this device', async () => {

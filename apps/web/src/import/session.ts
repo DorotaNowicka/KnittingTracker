@@ -89,6 +89,8 @@ interface ImportState {
   readonly charts: readonly ChartDraft[];
   /** Chosen symbol per legend entry (null = not a stitch symbol). */
   readonly legend: readonly (string | null)[];
+  /** The knitter's own name per legend entry ('' = the file's wording). */
+  readonly legendNames: readonly string[];
   readonly description: { text: string; parsed: ParsedDescription };
   readonly error: string | null;
   /** Name typed on the "new project" screen; proposed for the project the import creates. */
@@ -135,6 +137,7 @@ interface ImportState {
   run(corners?: readonly (readonly [number, number])[]): Promise<void>;
   rerun(symbols: readonly string[]): Promise<void>;
   setLegend(index: number, symbolId: string | null): void;
+  setLegendName(index: number, name: string): void;
   updateChart(index: number, change: Partial<ChartDraft>): void;
   setDescription(text: string, parsed?: ParsedDescription): void;
   addDescriptionPdf(file: CheckedFile): Promise<void>;
@@ -200,17 +203,24 @@ export function draftOf(rec: RecognizedChart, name: string): ChartDraft {
 
 const blank = { text: '', parsed: parseDescription('') };
 
-type Checked = Pick<ImportState, 'result' | 'legend' | 'description'>;
+type Checked = Pick<ImportState, 'result' | 'legend' | 'legendNames' | 'description'>;
 
-/** Chosen legend symbols, one entry per symbol (the first wording wins). */
-function legendEntries({ result, legend }: Checked): LegendEntry[] {
+/** Chosen legend symbols, one entry per symbol (the first wording wins), with the knitter's names. */
+function legendEntries({ result, legend, legendNames }: Checked): LegendEntry[] {
   const registry = createRegistry();
   const seen = new Set<string>();
   return (result?.legend ?? []).flatMap((item, i) => {
     const symbolId = legend[i];
     if (!symbolId || !registry.has(symbolId) || seen.has(symbolId)) return [];
     seen.add(symbolId);
-    return [{ symbolId, ...(item.text ? { text: item.text.slice(0, 500) } : {}) }];
+    const name = legendNames[i]?.trim().slice(0, 80);
+    return [
+      {
+        symbolId,
+        ...(item.text ? { text: item.text.slice(0, 500) } : {}),
+        ...(name ? { name } : {}),
+      },
+    ];
   });
 }
 
@@ -285,6 +295,7 @@ export const useImport = create<ImportState>((set, get) => ({
   result: null,
   charts: [],
   legend: [],
+  legendNames: [],
   description: blank,
   error: null,
   projectName: '',
@@ -413,6 +424,7 @@ export const useImport = create<ImportState>((set, get) => ({
         result,
         charts: result.charts.map((c, i) => draftOf(c.recognized, c.name ?? `Schemat ${i + 1}`)),
         legend: result.legend.map((l) => (l.confidence >= 0.6 ? l.symbolId : null)),
+        legendNames: result.legend.map(() => ''),
         description: { text: result.text, parsed: result.description },
         ...kindOf(result, `${get().projectName}\n${file.name}`),
         step: 'name',
@@ -449,6 +461,12 @@ export const useImport = create<ImportState>((set, get) => ({
     set({ legend: get().legend.map((v, i) => (i === index ? symbolId : v)) });
   },
 
+  setLegendName(index, name) {
+    const names = [...get().legendNames];
+    names[index] = name.slice(0, 80);
+    set({ legendNames: names });
+  },
+
   updateChart(index, change) {
     set({ charts: get().charts.map((c, i) => (i === index ? { ...c, ...change } : c)) });
   },
@@ -473,6 +491,7 @@ export const useImport = create<ImportState>((set, get) => ({
       result: null,
       charts: [],
       legend: [],
+      legendNames: [],
       description: blank,
       error: null,
       ...noParts,

@@ -514,21 +514,38 @@ export function usedSymbolIds(pattern: Pattern): string[] {
 export function setLegendEntry(
   pattern: Pattern,
   symbolId: string,
-  entry: { readonly number?: string; readonly text?: string },
+  /** Fields left out keep their value; an empty one is removed. */
+  entry: { readonly number?: string; readonly text?: string; readonly name?: string },
 ): Pattern {
-  const number = entry.number?.trim() ?? '';
-  const text = entry.text?.trim() ?? '';
+  const old = pattern.legend.find((e) => e.symbolId === symbolId);
+  const number = (entry.number ?? old?.number ?? '').trim();
+  const text = (entry.text ?? old?.text ?? '').trim();
+  const name = (entry.name ?? old?.name ?? '').trim().slice(0, 80);
   const rest = pattern.legend.filter((e) => e.symbolId !== symbolId);
-  if (!number && !text) return { ...pattern, legend: rest };
+  if (!number && !text && !name) return { ...pattern, legend: rest };
   const next: LegendEntry = {
     symbolId,
     ...(number ? { number } : {}),
     ...(text ? { text } : {}),
+    ...(name ? { name } : {}),
   };
   const index = pattern.legend.findIndex((e) => e.symbolId === symbolId);
   const legend = [...rest];
   legend.splice(index < 0 ? legend.length : index, 0, next);
   return { ...pattern, legend };
+}
+
+/**
+ * What a symbol is called in this pattern: the knitter's own name, else the pattern's wording
+ * (from the file's legend), else the symbol's standard label.
+ */
+export function legendLabel(
+  pattern: Pick<Pattern, 'legend'>,
+  symbol: { readonly id: string; readonly label: { readonly pl: string; readonly en: string } },
+  lang: 'pl' | 'en',
+): string {
+  const entry = pattern.legend.find((e) => e.symbolId === symbol.id);
+  return entry?.name || entry?.text || symbol.label[lang];
 }
 
 export function upsertCustomSymbol(pattern: Pattern, symbol: CustomSymbol): Pattern {

@@ -264,7 +264,8 @@
     "wsProblem": "no wrong-side instruction"
   },
   "legend": {
-    "title": "Legend"
+    "title": "Legend",
+    "rename": "Your name for: {{name}}"
   },
   "panel": {
     "fold": "Fold",
@@ -342,6 +343,7 @@
     "legend": "Legend",
     "legendHint": "Enter each symbol's number and description as in your pattern. They're shown next to the grid while knitting.",
     "legendEmpty": "Symbols show up here once you draw a chart.",
+    "legendName": "Your name",
     "legendNumber": "Number",
     "legendNumberHint": "Usually {{n}} in DROPS",
     "legendText": "Description from your pattern",
@@ -616,6 +618,9 @@
     "found_other": "Found {{count}} charts. Check them against the original.",
     "legend": "Legend from the file",
     "legendHint": "Each legend symbol got a library symbol. Correct any that don't match and recognise again.",
+    "legendName": "Name",
+    "legendNameEmpty": "Symbol name",
+    "legendFromFile": "From the file: {{text}}",
     "symbol": "Symbol",
     "notStitch": "Not a stitch",
     "rerun": "Recognise again with these symbols",
@@ -748,7 +753,14 @@
     "plus": "Add a row",
     "done": "Done: {{name}}",
     "thenNext": "Finishes this part and goes on to: {{name}}.",
-    "thenEnd": "Finishes this part — the last one in the project."
+    "thenEnd": "Finishes this part — the last one in the project.",
+    "markRow": "Row {{row}} — highlighted",
+    "markRound": "Round {{row}} — highlighted",
+    "markNoMessage": "This row is highlighted.",
+    "nextMark_one": "Next highlight: row {{row}} (in {{count}} row).",
+    "nextMark_other": "Next highlight: row {{row}} (in {{count}} rows).",
+    "nextMarkRound_one": "Next highlight: round {{row}} (in {{count}} round).",
+    "nextMarkRound_other": "Next highlight: round {{row}} (in {{count}} rounds)."
   },
   "project": {
     "continue": "Continue knitting: {{name}}",
@@ -1070,5 +1082,29 @@
     "inRound_other": "{{count}} stitches in a round",
     "inRow_one": "{{count}} stitch in a row",
     "inRow_other": "{{count}} stitches in a row"
+  },
+  "rowNotes": {
+    "title": "Highlight rows",
+    "counterTitle": "Row counter only? Highlight rows",
+    "counterHint": "E.g. a buttonhole every 10 rows or a colour change in row 24 — the counter shows your message and lights up that row.",
+    "empty": "No highlighted rows. Add one if a row needs something different — the counter will remind you with a message.",
+    "emptyRound": "No highlighted rounds. Add one if a round needs something different — the counter will remind you with a message.",
+    "add": "Add a highlight",
+    "which": "Highlight {{n}}",
+    "modeRows": "In chosen rows",
+    "modeEvery": "Every few rows",
+    "modeEveryRound": "Every few rounds",
+    "list": "Rows",
+    "listRound": "Rounds",
+    "listPlaceholder": "e.g. 4, 12, 20-22",
+    "listHint": "Numbers separated by commas, ranges with a dash.",
+    "listError": "Type row numbers, e.g. 4, 12, 20-22.",
+    "every": "Every how many rows",
+    "everyRound": "Every how many rounds",
+    "from": "Starting at row",
+    "fromRound": "Starting at round",
+    "message": "Message",
+    "messagePlaceholder": "e.g. Make a buttonhole",
+    "remove": "Remove"
   }
 }

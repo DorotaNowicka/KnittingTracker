@@ -138,6 +138,15 @@
   grid-column: 1 / -1;
 }
 
+/* The name sits next to the file's icon: its wording as a placeholder, the knitter's own above. */
+.legend-review__item .legend-review__name {
+  grid-column: auto;
+}
+
+.legend-review__name input {
+  width: 100%;
+}
+
 @media (min-width: 760px) {
   .legend-review__item {
     grid-template-columns: 7rem minmax(0, 1fr) 16rem auto;

@@ -14,6 +14,7 @@ export function LegendReview({ items }: { items: readonly LegendItem[] }) {
   const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const ids = useId();
   const chosen = useImport((s) => s.legend);
+  const names = useImport((s) => s.legendNames);
   const result = useImport((s) => s.result);
   const symbols = [...new Set(chosen.filter((x): x is string => !!x))];
   const changed = result
@@ -29,7 +30,26 @@ export function LegendReview({ items }: { items: readonly LegendItem[] }) {
         {items.map((item, i) => (
           <li key={i} className="legend-review__item">
             <IconImage item={item} />
-            <p className="legend-review__text">{item.text}</p>
+            {/* The file's wording is the name; the knitter can type her own instead. */}
+            <div className="field field--compact legend-review__name">
+              <label htmlFor={`${ids}-n${i}`}>{t('importer.legendName')}</label>
+              <input
+                id={`${ids}-n${i}`}
+                value={names[i] ?? ''}
+                placeholder={item.text || t('importer.legendNameEmpty')}
+                title={item.text || undefined}
+                maxLength={80}
+                autoComplete="off"
+                aria-describedby={item.text.length > 32 ? `${ids}-t${i}` : undefined}
+                onChange={(e) => useImport.getState().setLegendName(i, e.target.value)}
+              />
+              {/* A long wording does not fit in the field: shown whole below it. */}
+              {item.text.length > 32 && (
+                <p id={`${ids}-t${i}`} className="hint">
+                  {t('importer.legendFromFile', { text: item.text })}
+                </p>
+              )}
+            </div>
             <div className="field field--compact">
               <label htmlFor={`${ids}-s${i}`}>{t('importer.symbol')}</label>
               <select
