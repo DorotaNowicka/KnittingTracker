@@ -115,6 +115,8 @@ describe('import session', () => {
     expect(pattern?.charts[0]?.name).toBe('C.1');
     expect(pattern?.legend).toEqual([{ symbolId: 'std:p', text: 'lewe oczko', name: 'lewe' }]);
     expect(pattern?.expectedStitches).toEqual([8, 10]);
+    // The file's text goes with the project, for the panel beside the grid.
+    expect(project?.description).toContain('Razem = 8-10 oczek.');
     expect(pattern?.layout.filter((s) => s.kind === 'chart')).toHaveLength(3);
   });
 

@@ -517,6 +517,7 @@ export const useImport = create<ImportState>((set, get) => ({
       sectionNames: sections,
     };
     const now = new Date().toISOString();
+    const text = fileText(get());
     if (target) {
       // Pending edits of the open project are written first, so nothing is lost.
       await useDraft.getState().flush();
@@ -524,11 +525,14 @@ export const useImport = create<ImportState>((set, get) => ({
       await library.updateProject(target.id, (p) => {
         const r = insertPattern(p, buildPattern(draft));
         patternId = r.patternId;
-        return { ...r.project, updatedAt: now };
+        // A project without a description takes this file's text; one that has it keeps its own.
+        const described = !r.project.description && text ? { description: text } : {};
+        return { ...r.project, ...described, updatedAt: now };
       });
       return patternId ? { projectId: target.id, patternId } : null;
     }
-    const project = buildProject({ ...draft, projectId: newId(), title, now });
+    const built = buildProject({ ...draft, projectId: newId(), title, now });
+    const project = text ? { ...built, description: text } : built;
     await library.addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');
@@ -557,7 +561,12 @@ export const useImport = create<ImportState>((set, get) => ({
         }),
       ),
     });
-    return { ...built, sizeIndex: Math.min(state.chosenSize(), sizes.length - 1) };
+    const text = fileText(state);
+    return {
+      ...built,
+      sizeIndex: Math.min(state.chosenSize(), sizes.length - 1),
+      ...(text ? { description: text } : {}),
+    };
   },
 
   async createProject(input, designPart, approved = []) {
@@ -583,6 +592,11 @@ export const useImport = create<ImportState>((set, get) => ({
     return project.id;
   },
 }));
+
+/** The file's text, kept with the project: the tracker and the creator show it beside the grid. */
+function fileText(state: Pick<ImportState, 'description' | 'result'>): string {
+  return (state.description.text || state.result?.text || '').trim().slice(0, 100000);
+}
 
 /** The symbol a new or unknown cell gets. */
 export const FALLBACK = STD.knit;

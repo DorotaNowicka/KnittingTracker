@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { PatternGate, SaveState } from '../editor/DraftGate';
 import { EditorCanvas, type CanvasTool, type CellPoint } from '../editor/EditorCanvas';
 import { RowNotesEditor } from '../editor/RowNotesEditor';
+import { PatternDescription } from '../ui/PatternDescription';
 import { Link } from '../lib/Link';
 import { getLastGrid, setLastGrid, type LastGrid } from '../lib/preferences';
 import { navigate, paths } from '../lib/router';
@@ -830,6 +831,7 @@ function Workbench({
 
         <aside className="editor__panel">
           {tool === 'shape' && shapingPanel}
+          <PatternDescription project={project} patternId={pattern.id} />
           <PiecesPanel
             design={design}
             library={library}

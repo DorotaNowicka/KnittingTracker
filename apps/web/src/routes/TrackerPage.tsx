@@ -7,6 +7,7 @@ import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
 import { useWakeLock } from '../lib/wakeLock';
 import { Celebration } from '../tracker/Celebration';
+import { PatternDescription } from '../ui/PatternDescription';
 import { useSession } from '../state/session';
 import { RowsControl } from '../tracker/RowsControl';
 import { ShapingBadge } from '../tracker/ShapingBadge';
@@ -399,6 +400,7 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
           {showGrid && (
             <Legend grid={grid} onRename={(id, name) => void s.setLegendName(id, name)} />
           )}
+          <PatternDescription project={project} patternId={grid.pattern.id} />
           <ViewControls
             view={view}
             sections={sections}

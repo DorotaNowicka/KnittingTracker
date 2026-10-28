@@ -2,7 +2,7 @@ import type { KindItem } from '@kt/core';
 import { descriptionBlocks, type DescriptionBlock } from '@kt/importer';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Icon } from '../ui/Icon';
+import { DescriptionPaper } from '../ui/DescriptionPaper';
 import type { Elements } from './elements';
 import { trackedPartsOf } from './elements';
 import { useImport } from './session';
@@ -102,19 +102,22 @@ export function DescriptionMap({
         </span>
       </summary>
       <p className="hint">{t('describeMap.hint')}</p>
-      {/* The whole text, as on paper: each part's piece marked with its own highlighter. A long
-          text scrolls in its box, which therefore takes the keyboard focus (to scroll it). */}
-      <div
-        className="description-paper"
-        role="region"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrolling region must be reachable by keyboard
-        tabIndex={0}
-        aria-label={t('describeMap.paper')}
-      >
-        {placed.map((p, i) => (
-          <Block key={i} placed={p} />
-        ))}
-      </div>
+      <DescriptionPaper
+        label={t('describeMap.paper')}
+        entries={placed.map((p) => ({
+          block: p.block,
+          state: p.item
+            ? p.tracked
+              ? 'part'
+              : 'untracked'
+            : p.block.type === 'general' || p.block.type === 'intro'
+              ? 'general'
+              : 'loose',
+          number: p.number,
+          label: p.label,
+          note: p.item && !p.tracked ? t('describeMap.untracked') : undefined,
+        }))}
+      />
       {toParts.length > 0 && withoutText.length > 0 && (
         <p className="hint description-map__missing">
           {t('describeMap.withoutText', {
@@ -123,56 +126,5 @@ export function DescriptionMap({
         </p>
       )}
     </details>
-  );
-}
-
-/** Highlighter colours, one per part by its number in knitting order. */
-const HIGHLIGHTERS = 7;
-
-function Block({ placed }: { placed: Placed }) {
-  const { t } = useTranslation();
-  const { block, item, number, label, tracked } = placed;
-  const state = item
-    ? tracked
-      ? 'part'
-      : 'untracked'
-    : block.type === 'general' || block.type === 'intro'
-      ? 'general'
-      : 'loose';
-  const tag =
-    state === 'part' || state === 'untracked'
-      ? label
-      : state === 'general'
-        ? t(block.type === 'intro' ? 'describeMap.intro' : 'describeMap.general')
-        : t('describeMap.loose');
-  const colour = state === 'part' ? ((number ?? 1) - 1) % HIGHLIGHTERS : null;
-  const body = (
-    <>
-      {block.heading && <b className="description-paper__heading">{block.heading}</b>}
-      {block.heading && block.text && '\n'}
-      {block.text}
-    </>
-  );
-  return (
-    <p
-      className={`description-paper__block description-paper__block--${state}`}
-      data-hl={colour ?? undefined}
-    >
-      <span className="description-paper__tag">
-        {state === 'loose' && <Icon name="marker" size={12} />}
-        {(state === 'part' || state === 'untracked') && number !== undefined && (
-          <span className="description-paper__no">{number}</span>
-        )}
-        {tag}
-        {state === 'untracked' && (
-          <span className="description-paper__note"> · {t('describeMap.untracked')}</span>
-        )}
-      </span>
-      {state === 'part' ? (
-        <mark>{body}</mark>
-      ) : (
-        <span className="description-paper__text">{body}</span>
-      )}
-    </p>
   );
 }

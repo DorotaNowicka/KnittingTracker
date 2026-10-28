@@ -1126,6 +1126,10 @@
     "loose": "No part",
     "untracked": "you don't track this part — tick it above if it should be in the project",
     "withoutText": "No description piece: {{parts}}.",
-    "paper": "Pattern description with the parts marked"
+    "paper": "Pattern description with the parts marked",
+    "panelTitle": "Pattern description",
+    "panelHint": "The file's whole description. This part's pieces are highlighted and scrolled to the top; the others are dimmed.",
+    "panelNoPart": "The file's whole description. This part has no piece of its own in it.",
+    "notInProject": "this part is not in the project"
   }
 }

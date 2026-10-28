@@ -310,6 +310,8 @@ export const projectSchema = z.object({
   revision: nonNegInt,
   designer: z.string().max(120).optional(),
   notes: z.string().max(5000).optional(),
+  /** The pattern text of the imported file, shown beside the grid with each part's piece marked. */
+  description: z.string().max(100000).optional(),
   /** Garment sizes; per-size numbers in patterns are indexed by position in this list. */
   sizes: z.array(z.string().min(1).max(20)).min(1),
   sizeIndex: nonNegInt,

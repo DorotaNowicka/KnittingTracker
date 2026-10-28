@@ -1,59 +1,13 @@
 import { legendLabel, rowInstructions, type ResolvedPattern, type StitchLocation } from '@kt/core';
 import { CELL_PX_MAX } from '@kt/grid-renderer';
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getSectionOpenPref, setSectionOpenPref } from '../lib/preferences';
+import { Foldable } from '../ui/Foldable';
 import { Icon } from '../ui/Icon';
 import { SymbolGlyph } from '../ui/SymbolGlyph';
 
 type Lang = 'pl' | 'en';
 const lang = (l: string): Lang => (l.startsWith('en') ? 'en' : 'pl');
-
-/**
- * A panel section whose title folds it away. The choice is remembered on this device, per kind of
- * section, so a knitter who knows the symbols keeps the legend closed in every pattern.
- */
-function Foldable({
-  id,
-  title,
-  children,
-}: {
-  id: 'legend' | 'rowText';
-  title: ReactNode;
-  children: ReactNode;
-}) {
-  const { t } = useTranslation();
-  const ids = useId();
-  const [open, setOpen] = useState(() => getSectionOpenPref(id));
-  const toggle = () => {
-    setSectionOpenPref(id, !open);
-    setOpen(!open);
-  };
-  return (
-    <section
-      className={`panel__section foldable${open ? '' : ' is-closed'}`}
-      aria-labelledby={`${ids}-t`}
-    >
-      <h2 className="panel__title">
-        <button
-          type="button"
-          id={`${ids}-t`}
-          className="foldable__toggle"
-          aria-expanded={open}
-          aria-controls={`${ids}-c`}
-          title={open ? t('panel.fold') : t('panel.unfold')}
-          onClick={toggle}
-        >
-          <span>{title}</span>
-          <Icon name="chevron" size={22} />
-        </button>
-      </h2>
-      <div id={`${ids}-c`} hidden={!open}>
-        {children}
-      </div>
-    </section>
-  );
-}
 
 /** Current row as text (DR-12): the instructions in work order, with the next stitch highlighted. */
 export function RowText({

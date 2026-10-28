@@ -1252,6 +1252,10 @@
     "loose": "Bez części",
     "untracked": "tej części nie śledzisz — zaznacz ją wyżej, jeśli ma być w projekcie",
     "withoutText": "Bez fragmentu opisu: {{parts}}.",
-    "paper": "Opis wzoru z zaznaczonymi częściami"
+    "paper": "Opis wzoru z zaznaczonymi częściami",
+    "panelTitle": "Opis wzoru",
+    "panelHint": "Cały opis z pliku. Fragmenty tej części są zakreślone i przewinięte na górę; pozostałe są przygaszone.",
+    "panelNoPart": "Cały opis z pliku. Ta część nie ma w nim swojego fragmentu.",
+    "notInProject": "tej części nie ma w projekcie"
   }
 }

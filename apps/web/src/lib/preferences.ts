@@ -134,8 +134,10 @@ export function setLastGrid(projectId: string, grid: LastGrid): void {
 }
 
 /** Panel sections the knitter folded away (legend, row instructions): open unless closed. */
-export function getSectionOpenPref(section: string): boolean {
-  return read(`kt.section.${section}`) !== 'closed';
+/** Is a foldable section open? `fallback` until the knitter has folded or opened it once. */
+export function getSectionOpenPref(section: string, fallback = true): boolean {
+  const value = read(`kt.section.${section}`);
+  return value === null ? fallback : value !== 'closed';
 }
 
 export function setSectionOpenPref(section: string, open: boolean): void {

@@ -487,6 +487,33 @@ describe('screens', () => {
     );
   });
 
+  it('the pattern description sits folded in the panel; the pieces of this part are marked', async () => {
+    const user = userEvent.setup();
+    localStorage.removeItem('kt.section.description');
+    const base = sample();
+    await useLibrary.getState().addProject({
+      ...base,
+      kind: 'sweater',
+      description: 'MATERIAŁY:\nWłóczka.\nKORPUS:\nNabrać 180 oczek.\nKIESZEŃ:\nNabrać 20 oczek.',
+    });
+    navigate('/projekt/s1/wzor/body');
+    render(<App />);
+    const toggle = await screen.findByRole('button', { name: 'Opis wzoru', hidden: true });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    const paper = screen.getByRole('region', {
+      name: 'Opis wzoru z zaznaczonymi częściami',
+      hidden: true,
+    });
+    const current = paper.querySelector('.description-paper__block.is-current');
+    expect(current).toHaveTextContent('KORPUS:');
+    expect(current?.querySelector('mark')).not.toBeNull();
+    expect(paper).toHaveTextContent('Bez części');
+    expect(localStorage.getItem('kt.section.description')).toBe('open');
+    localStorage.removeItem('kt.section.description');
+  });
+
   it('the legend and the row instructions fold away, and stay folded on this device', async () => {
     const user = userEvent.setup();
     localStorage.removeItem('kt.section.legend');
