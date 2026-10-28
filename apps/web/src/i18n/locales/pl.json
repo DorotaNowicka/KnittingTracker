@@ -653,12 +653,10 @@
     "found_many": "Znaleziono {{count}} schematów. Sprawdź je z oryginałem.",
     "found_other": "Znaleziono {{count}} schematu. Sprawdź je z oryginałem.",
     "legend": "Legenda z pliku",
-    "legendHint": "Każdemu symbolowi z legendy przypisaliśmy symbol z biblioteki. Popraw, jeśli coś się nie zgadza, i rozpoznaj ponownie.",
+    "legendHint": "Tak symbole nazywa Twój plik. Wpisz własną nazwę, jeśli wolisz inną — zobaczysz ją w legendzie i w instrukcji rzędu.",
     "legendName": "Nazwa",
     "legendNameEmpty": "Nazwa symbolu",
     "legendFromFile": "Z pliku: {{text}}",
-    "symbol": "Symbol",
-    "notStitch": "To nie jest oczko",
     "rerun": "Rozpoznaj ponownie z tymi symbolami",
     "symbols": "Symbole w schematach",
     "symbolsHint": "Plik nie ma legendy. Zaznacz symbole, które występują w schematach: im mniej, tym pewniejsze rozpoznanie.",
@@ -816,19 +814,15 @@
     "minus": "Odejmij rząd",
     "plus": "Dodaj rząd",
     "done": "Gotowe: {{name}}",
-    "thenNext": "Zakończy tę część i przejdzie do: {{name}}.",
-    "thenEnd": "Zakończy tę część — to ostatnia w projekcie.",
-    "markRow": "Rząd {{row}} — wyróżniony",
-    "markRound": "Okrążenie {{row}} — wyróżnione",
+    "thenNext": "„Gotowe” na dole zakończy tę część i przejdzie do: {{name}}.",
+    "thenEnd": "„Gotowe” na dole zakończy tę część — to ostatnia w projekcie.",
+    "markRow": "Teraz robisz rząd {{row}}",
+    "markRound": "Teraz robisz okrążenie {{row}}",
     "markNoMessage": "Ten rząd jest wyróżniony.",
-    "nextMark_one": "Następne wyróżnienie: rząd {{row}} (za {{count}} rząd).",
-    "nextMark_few": "Następne wyróżnienie: rząd {{row}} (za {{count}} rzędy).",
-    "nextMark_many": "Następne wyróżnienie: rząd {{row}} (za {{count}} rzędów).",
-    "nextMark_other": "Następne wyróżnienie: rząd {{row}} (za {{count}} rzędu).",
-    "nextMarkRound_one": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążenie).",
-    "nextMarkRound_few": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążenia).",
-    "nextMarkRound_many": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążeń).",
-    "nextMarkRound_other": "Następne wyróżnienie: okrążenie {{row}} (za {{count}} okrążenia)."
+    "nowRow": "teraz robisz rząd {{row}}",
+    "nowRound": "teraz robisz okrążenie {{row}}",
+    "nextMark": "Następne wyróżnienie: rząd {{row}} — zaczniesz go, gdy licznik pokaże {{count}}.",
+    "nextMarkRound": "Następne wyróżnienie: okrążenie {{row}} — zaczniesz je, gdy licznik pokaże {{count}}."
   },
   "project": {
     "continue": "Dziergaj dalej: {{name}}",
@@ -1230,5 +1224,11 @@
     "message": "Komunikat",
     "messagePlaceholder": "np. Zrób dziurkę na guzik",
     "remove": "Usuń"
+  },
+  "celebration": {
+    "title": "Gratulacje!",
+    "body": "Skończyłaś ostatnią część projektu „{{name}}”.",
+    "undo": "Cofnij — wróć do projektu",
+    "projects": "Lista projektów"
   }
 }

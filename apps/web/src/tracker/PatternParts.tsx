@@ -400,16 +400,19 @@ export function ProjectDialog({
   );
 }
 
-/** Row counter for patterns tracked by rows only and drawn without a chart (DR-9). */
+/**
+ * Row counter for patterns tracked by rows only and drawn without a chart (DR-9). The big number
+ * is the rows already done; the row being worked is said in words under it, so a highlighted row
+ * ("Wyróżnij rzędy") is never read as the number on the counter.
+ */
 export function RowCounter({
   summary,
   planned,
   round,
   onAdd,
   onRemove,
-  name,
   next,
-  onDone,
+  finishing,
   marks,
 }: {
   summary: ProgressSummary;
@@ -417,12 +420,10 @@ export function RowCounter({
   round: boolean;
   onAdd(): void;
   onRemove(): void;
-  /** The part being counted (e.g. the bottom rib). */
-  name: string;
   /** The part knitted after it, if any. */
   next: { readonly name: string } | null;
-  /** The part is done: finish it and go on to the next one. Absent once it is finished. */
-  onDone?: () => void;
+  /** The part is still open: "Gotowe" in the bottom bar finishes it. */
+  finishing: boolean;
   /** Highlighted rows ("Wyróżnij rzędy"): the notes of the row being worked, the next one. */
   marks?: {
     readonly row: number;
@@ -431,15 +432,15 @@ export function RowCounter({
   };
 }) {
   const { t } = useTranslation();
-  const marked = marks && marks.notes.length > 0 && summary.next !== null;
-  const rowWord = round ? 'counter.markRound' : 'counter.markRow';
+  const working = summary.next !== null;
+  const marked = marks && marks.notes.length > 0 && working;
   return (
     <div className={`row-counter${marked ? ' row-counter--marked' : ''}`}>
       {marked && (
         <div className="row-counter__mark" role="status" data-testid="row-mark">
           <p className="row-counter__mark-row">
             <Icon name="marker" size={18} />
-            {t(rowWord, { row: marks.row })}
+            {t(round ? 'counter.markRound' : 'counter.markRow', { row: marks.row })}
           </p>
           <ul>
             {marks.notes.map((n) => (
@@ -453,6 +454,11 @@ export function RowCounter({
         {summary.done}
         {planned !== null && <span className="row-counter__of"> / {planned}</span>}
       </p>
+      {working && !marked && (
+        <p className="row-counter__now">
+          {t(round ? 'counter.nowRound' : 'counter.nowRow', { row: summary.currentRow })}
+        </p>
+      )}
       <div className="row-counter__buttons">
         <button
           type="button"
@@ -467,25 +473,30 @@ export function RowCounter({
           type="button"
           className="btn btn--primary row-counter__btn"
           onClick={onAdd}
-          disabled={summary.next === null}
+          disabled={!working}
           aria-label={t('counter.plus')}
         >
           <Icon name="plus" />
         </button>
       </div>
-      {marks && marks.next !== null && summary.next !== null && (
+      {marks && marks.next !== null && working && (
         <p className="hint row-counter__next-mark">
           {t(round ? 'counter.nextMarkRound' : 'counter.nextMark', {
             row: marks.next,
-            count: marks.next - marks.row,
+            count: marks.next - 1,
           })}
         </p>
       )}
-      {onDone && (
+      {finishing && (
         <div className="row-counter__done">
-          <button type="button" className="btn btn--done" onClick={onDone}>
-            <Icon name="check" size={18} />
-            {t('counter.done', { name })}
+          <button
+            type="button"
+            className="btn btn--primary row-counter__complete"
+            onClick={onAdd}
+            disabled={!working}
+          >
+            <Icon name="rowDone" size={18} />
+            {round ? t('actions.roundDone') : t('actions.rowDone')}
           </button>
           <p className="hint">
             {next ? t('counter.thenNext', { name: next.name }) : t('counter.thenEnd')}

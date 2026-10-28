@@ -289,13 +289,45 @@ describe('screens', () => {
     const plus = await screen.findByRole('button', { name: 'Dodaj rząd' });
     await user.click(plus);
     await user.click(plus);
-    expect(screen.getByText('Zakończy tę część i przejdzie do: Korpus.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Gotowe: Ściągacz dołu' }));
-    await waitFor(() => expect(location.pathname).toBe('/projekt/rib/wzor/body'));
-    expect(useLibrary.getState().project('rib')?.finishedRows).toEqual({ 'bottom-rib': 2 });
     expect(
-      await screen.findByText('Zakończy tę część — to ostatnia w projekcie.'),
+      screen.getByText('„Gotowe” na dole zakończy tę część i przejdzie do: Korpus.'),
     ).toBeInTheDocument();
+    // The counter has "Ukończ okrążenie" by the count; "Gotowe" is the bar's main button.
+    const bar = screen.getByRole('navigation', { name: 'Działania' });
+    expect(within(bar).queryByTestId('complete-row')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /^Ukończ (okrążenie|rząd)$/ }));
+    expect(screen.getByTestId('row-counter')).toHaveTextContent('3');
+    await user.click(within(bar).getByRole('button', { name: 'Gotowe: Ściągacz dołu' }));
+    await waitFor(() => expect(location.pathname).toBe('/projekt/rib/wzor/body'));
+    expect(useLibrary.getState().project('rib')?.finishedRows).toEqual({ 'bottom-rib': 3 });
+    expect(
+      await screen.findByText('„Gotowe” na dole zakończy tę część — to ostatnia w projekcie.'),
+    ).toBeInTheDocument();
+  });
+
+  it('finishing the last part shows congratulations; Cofnij opens the part again', async () => {
+    const user = userEvent.setup();
+    const project = insertPattern(
+      blankProject({ id: 'end', name: 'Czapka', sizes: ['M'], now: '2026-10-28T10:00:00.000Z' }),
+      { ...blankPattern('top', 'Denko'), tracking: 'rows' },
+    ).project;
+    await useLibrary.getState().addProject(project);
+    navigate('/projekt/end/wzor/top');
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Dodaj rząd' }));
+    await user.click(screen.getByRole('button', { name: 'Gotowe: Denko' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Gratulacje!' });
+    expect(dialog).toHaveTextContent('Skończyłaś ostatnią część projektu „Czapka”.');
+    expect(useLibrary.getState().project('end')?.finishedRows).toEqual({ top: 1 });
+    await user.click(within(dialog).getByRole('button', { name: 'Cofnij — wróć do projektu' }));
+    await waitFor(() => expect(useLibrary.getState().project('end')?.finishedRows).toBeUndefined());
+    expect(screen.queryByRole('dialog', { name: 'Gratulacje!' })).toBeNull();
+    expect(location.pathname).toBe('/projekt/end/wzor/top');
+
+    await user.click(screen.getByRole('button', { name: 'Gotowe: Denko' }));
+    const again = await screen.findByRole('dialog', { name: 'Gratulacje!' });
+    await user.click(within(again).getByRole('button', { name: 'Lista projektów' }));
+    await waitFor(() => expect(location.pathname).toBe('/'));
   });
 
   it('the chart tracker has a Gotowe button in the bottom bar that finishes the part', async () => {
@@ -411,15 +443,21 @@ describe('screens', () => {
     render(<App />);
     const plus = await screen.findByRole('button', { name: 'Dodaj rząd' });
     expect(screen.queryByTestId('row-mark')).toBeNull();
-    expect(screen.getByText('Następne wyróżnienie: rząd 2 (za 1 rząd).')).toBeInTheDocument();
+    expect(screen.getByText('teraz robisz rząd 1')).toBeInTheDocument();
+    expect(
+      screen.getByText('Następne wyróżnienie: rząd 2 — zaczniesz go, gdy licznik pokaże 1.'),
+    ).toBeInTheDocument();
     await user.click(plus);
     expect(await screen.findByTestId('row-mark')).toHaveTextContent('Ten rząd jest wyróżniony.');
     await user.click(plus);
     const mark = await screen.findByTestId('row-mark');
-    expect(mark).toHaveTextContent('Rząd 3 — wyróżniony');
+    expect(mark).toHaveTextContent('Teraz robisz rząd 3');
+    expect(screen.getByTestId('row-counter')).toHaveTextContent('2');
     expect(mark).toHaveTextContent('Zrób dziurkę na guzik');
     expect(mark.closest('.row-counter')).toHaveClass('row-counter--marked');
-    expect(screen.getByText('Następne wyróżnienie: rząd 6 (za 3 rzędy).')).toBeInTheDocument();
+    expect(
+      screen.getByText('Następne wyróżnienie: rząd 6 — zaczniesz go, gdy licznik pokaże 5.'),
+    ).toBeInTheDocument();
     await user.click(plus);
     expect(screen.queryByTestId('row-mark')).toBeNull();
   });

@@ -9,17 +9,14 @@ import { useImport } from './session';
 /** Sections of the import check shared by the new-project and add-a-pattern screens. */
 const registry = createRegistry();
 
+/**
+ * The file's legend: each symbol as cut out of the file, with its wording as the name. The
+ * knitter can type her own name; which library symbol it is was recognised from the file.
+ */
 export function LegendReview({ items }: { items: readonly LegendItem[] }) {
-  const { t, i18n } = useTranslation();
-  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
+  const { t } = useTranslation();
   const ids = useId();
-  const chosen = useImport((s) => s.legend);
   const names = useImport((s) => s.legendNames);
-  const result = useImport((s) => s.result);
-  const symbols = [...new Set(chosen.filter((x): x is string => !!x))];
-  const changed = result
-    ? symbols.slice().sort().join() !== [...result.symbols].sort().join()
-    : false;
   return (
     <section className="editor-section" aria-labelledby={`${ids}-lg`}>
       <h2 id={`${ids}-lg`} className="section-title">
@@ -50,46 +47,9 @@ export function LegendReview({ items }: { items: readonly LegendItem[] }) {
                 </p>
               )}
             </div>
-            <div className="field field--compact">
-              <label htmlFor={`${ids}-s${i}`}>{t('importer.symbol')}</label>
-              <select
-                id={`${ids}-s${i}`}
-                value={chosen[i] ?? ''}
-                onChange={(e) => useImport.getState().setLegend(i, e.target.value || null)}
-              >
-                <option value="">{t('importer.notStitch')}</option>
-                {registry
-                  .all()
-                  .filter((d) => d.width === item.cells)
-                  .map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.label[lang]}
-                      {d.numbers?.['drops'] ? ` (${d.numbers['drops']})` : ''}
-                    </option>
-                  ))}
-              </select>
-            </div>
-            {chosen[i] && (
-              <span className="legend-review__glyph" aria-hidden="true">
-                <SymbolGlyph
-                  glyph={registry.require(chosen[i] ?? 'std:k').glyph}
-                  width={item.cells}
-                  cell={22}
-                />
-              </span>
-            )}
           </li>
         ))}
       </ul>
-      {changed && symbols.length > 0 && (
-        <button
-          type="button"
-          className="btn"
-          onClick={() => void useImport.getState().rerun(symbols)}
-        >
-          {t('importer.rerun')}
-        </button>
-      )}
     </section>
   );
 }

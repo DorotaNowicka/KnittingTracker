@@ -617,12 +617,10 @@
     "found_one": "Found {{count}} chart. Check it against the original.",
     "found_other": "Found {{count}} charts. Check them against the original.",
     "legend": "Legend from the file",
-    "legendHint": "Each legend symbol got a library symbol. Correct any that don't match and recognise again.",
+    "legendHint": "This is what your file calls each symbol. Type your own name if you prefer — you will see it in the legend and the row instructions.",
     "legendName": "Name",
     "legendNameEmpty": "Symbol name",
     "legendFromFile": "From the file: {{text}}",
-    "symbol": "Symbol",
-    "notStitch": "Not a stitch",
     "rerun": "Recognise again with these symbols",
     "symbols": "Symbols in the charts",
     "symbolsHint": "The file has no legend. Tick the symbols used in the charts: the fewer, the surer the result.",
@@ -752,15 +750,15 @@
     "minus": "Remove a row",
     "plus": "Add a row",
     "done": "Done: {{name}}",
-    "thenNext": "Finishes this part and goes on to: {{name}}.",
-    "thenEnd": "Finishes this part — the last one in the project.",
-    "markRow": "Row {{row}} — highlighted",
-    "markRound": "Round {{row}} — highlighted",
+    "thenNext": "“Done” at the bottom finishes this part and goes on to: {{name}}.",
+    "thenEnd": "“Done” at the bottom finishes this part — it is the last one in the project.",
+    "markRow": "Now working row {{row}}",
+    "markRound": "Now working round {{row}}",
     "markNoMessage": "This row is highlighted.",
-    "nextMark_one": "Next highlight: row {{row}} (in {{count}} row).",
-    "nextMark_other": "Next highlight: row {{row}} (in {{count}} rows).",
-    "nextMarkRound_one": "Next highlight: round {{row}} (in {{count}} round).",
-    "nextMarkRound_other": "Next highlight: round {{row}} (in {{count}} rounds)."
+    "nowRow": "now working row {{row}}",
+    "nowRound": "now working round {{row}}",
+    "nextMark": "Next highlight: row {{row}} — you start it when the counter shows {{count}}.",
+    "nextMarkRound": "Next highlight: round {{row}} — you start it when the counter shows {{count}}."
   },
   "project": {
     "continue": "Continue knitting: {{name}}",
@@ -1106,5 +1104,11 @@
     "message": "Message",
     "messagePlaceholder": "e.g. Make a buttonhole",
     "remove": "Remove"
+  },
+  "celebration": {
+    "title": "Congratulations!",
+    "body": "You finished the last part of “{{name}}”.",
+    "undo": "Undo — back to the project",
+    "projects": "Project list"
   }
 }

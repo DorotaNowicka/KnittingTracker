@@ -6,6 +6,7 @@ import { getWakeLockPref } from '../lib/preferences';
 import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
 import { useWakeLock } from '../lib/wakeLock';
+import { Celebration } from '../tracker/Celebration';
 import { useSession } from '../state/session';
 import { RowsControl } from '../tracker/RowsControl';
 import { ShapingBadge } from '../tracker/ShapingBadge';
@@ -64,6 +65,8 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
   const [view, setView] = useState<ViewSettings>(() => loadView(projectId, patternId));
   const [panelOpen, setPanelOpen] = useState(() => matchMedia('(min-width: 1100px)').matches);
   const [request, setRequest] = useState<ViewRequest | null>(null);
+  /** The last part was just finished: the congratulations screen is up. */
+  const [celebrate, setCelebrate] = useState(false);
   const positionRef = useRef<HTMLDialogElement>(null);
   const finishRef = useRef<HTMLDialogElement>(null);
   const projectRef = useRef<HTMLDialogElement>(null);
@@ -184,6 +187,13 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
   const finished = project.finishedRows?.[grid.pattern.id];
   const complete = next === null || finished !== undefined;
   const nextPattern = nextPatternOf(project, grid.pattern.id);
+  /** Finish this part: on to the next one, or — the last part — congratulations. */
+  const finishPart = (rows: number, nextId?: string | null) => {
+    void s.finishPattern(rows).then(() => {
+      if (nextId) goTo(nextId);
+      else setCelebrate(true);
+    });
+  };
   const showGrid = grid.stitchCount > 0;
 
   return (
@@ -333,21 +343,13 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
               round={round}
               onAdd={() => dispatch({ type: 'completeRow' })}
               onRemove={() => dispatch({ type: 'set', done: summary.done - 1 })}
-              name={grid.pattern.name}
               next={nextPattern ? { name: nextPattern.name } : null}
+              finishing={finished === undefined}
               marks={{
                 row: summary.currentRow,
                 notes: rowNotesAt(grid.pattern, summary.currentRow),
                 next: nextMarkedRow(grid.pattern, summary.currentRow, grid.plannedRows),
               }}
-              {...(finished === undefined
-                ? {
-                    onDone: () =>
-                      void s.finishPattern(summary.rowsCompleted).then(() => {
-                        if (nextPattern) goTo(nextPattern.id);
-                      }),
-                  }
-                : {})}
             />
           ) : (
             <GridCanvas
@@ -458,19 +460,34 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             <span className="action__label">{t('actions.center')}</span>
           </button>
         )}
-        <button
-          type="button"
-          className="action action--primary"
-          onClick={() => dispatch({ type: 'completeRow' })}
-          disabled={complete}
-          title={t('actions.rowDoneHint')}
-          data-testid="complete-row"
-        >
-          <Icon name="rowDone" />
-          <span className="action__label">
-            {round ? t('actions.roundDone') : t('actions.rowDone')}
-          </span>
-        </button>
+        {/* A row counter has its own "row done" by the count; the bar finishes the part. */}
+        {!showGrid && finished === undefined ? (
+          <button
+            type="button"
+            className="action action--done action--wide"
+            onClick={() => finishPart(summary.rowsCompleted, nextPattern?.id ?? null)}
+            title={
+              nextPattern ? t('counter.thenNext', { name: nextPattern.name }) : t('counter.thenEnd')
+            }
+          >
+            <Icon name="check" />
+            <span className="action__label">{t('counter.done', { name: grid.pattern.name })}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="action action--primary"
+            onClick={() => dispatch({ type: 'completeRow' })}
+            disabled={complete}
+            title={t('actions.rowDoneHint')}
+            data-testid="complete-row"
+          >
+            <Icon name="rowDone" />
+            <span className="action__label">
+              {round ? t('actions.roundDone') : t('actions.rowDone')}
+            </span>
+          </button>
+        )}
         {/* The part is done: finish it (rows worked, on to the next part). Last, at the right edge. */}
         {showGrid && finished === undefined && (
           <button
@@ -499,12 +516,19 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
         grid={grid}
         summary={summary}
         next={nextPattern}
-        onFinish={(rows, nextId) => {
-          void s.finishPattern(rows).then(() => {
-            if (nextId) goTo(nextId);
-          });
-        }}
+        onFinish={finishPart}
       />
+      {celebrate && (
+        <Celebration
+          project={project.name}
+          onUndo={() => {
+            setCelebrate(false);
+            void s.reopenPattern(grid.pattern.id);
+          }}
+          onProjects={() => navigate(paths.projects())}
+          onClose={() => setCelebrate(false)}
+        />
+      )}
       <ProjectDialog
         key={project.id}
         dialogRef={projectRef}
