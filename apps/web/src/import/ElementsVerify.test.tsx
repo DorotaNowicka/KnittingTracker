@@ -415,8 +415,8 @@ describe('new project from a PDF: parts to track', () => {
     // Something went to no part: the list is open.
     expect(map).toHaveAttribute('open');
     expect(map).toHaveTextContent('2 fragmenty przypisane do części. 2 bez części.');
-    const items = within(map).getAllByRole('listitem');
-    expect(items.map((li) => li.querySelector('.description-map__chip')?.textContent)).toEqual([
+    const items = [...map.querySelectorAll('.description-paper__block')];
+    expect(items.map((b) => b.querySelector('.description-paper__tag')?.textContent)).toEqual([
       'Początek opisu',
       'Ogólne',
       '4Korpus',
@@ -425,6 +425,10 @@ describe('new project from a PDF: parts to track', () => {
       'Bez części',
     ]);
     expect(items[4]).toHaveTextContent('KIESZEŃ:');
+    // Parts are highlighted, each in its own colour; text that went nowhere is not.
+    expect(items[2]?.querySelector('mark')).toHaveTextContent('KORPUS: Nabrać 180 oczek.');
+    expect(items[3]?.getAttribute('data-hl')).not.toBe(items[2]?.getAttribute('data-hl'));
+    expect(items[4]?.querySelector('mark')).toBeNull();
     expect(map).toHaveTextContent('Bez fragmentu opisu: 1. Ściągacz dołu');
     // A part the knitter does not track: its piece says so.
     await user.click(screen.getByRole('checkbox', { name: /Rękaw/ }));

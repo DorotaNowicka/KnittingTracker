@@ -1113,7 +1113,7 @@
   },
   "describeMap": {
     "title": "Description from the file — what went to which part",
-    "hint": "We split the pattern description at its headings. Check that every part got its piece and that nothing important was left without a part.",
+    "hint": "The whole pattern description: each part's piece is highlighted in its colour, with its number and name before it. Text with no highlight went to no part.",
     "summary_one": "{{count}} piece went to a part.",
     "summary_other": "{{count}} pieces went to parts.",
     "noHeadings": "The description has no part headings — no piece went to a particular part.",
@@ -1126,7 +1126,6 @@
     "loose": "No part",
     "untracked": "you don't track this part — tick it above if it should be in the project",
     "withoutText": "No description piece: {{parts}}.",
-    "more": "Show all",
-    "less": "Show less"
+    "paper": "Pattern description with the parts marked"
   }
 }

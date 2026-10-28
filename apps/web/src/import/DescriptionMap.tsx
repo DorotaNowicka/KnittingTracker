@@ -1,6 +1,6 @@
 import type { KindItem } from '@kt/core';
 import { descriptionBlocks, type DescriptionBlock } from '@kt/importer';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '../ui/Icon';
 import type { Elements } from './elements';
@@ -102,11 +102,19 @@ export function DescriptionMap({
         </span>
       </summary>
       <p className="hint">{t('describeMap.hint')}</p>
-      <ol className="description-map__list">
+      {/* The whole text, as on paper: each part's piece marked with its own highlighter. A long
+          text scrolls in its box, which therefore takes the keyboard focus (to scroll it). */}
+      <div
+        className="description-paper"
+        role="region"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrolling region must be reachable by keyboard
+        tabIndex={0}
+        aria-label={t('describeMap.paper')}
+      >
         {placed.map((p, i) => (
           <Block key={i} placed={p} />
         ))}
-      </ol>
+      </div>
       {toParts.length > 0 && withoutText.length > 0 && (
         <p className="hint description-map__missing">
           {t('describeMap.withoutText', {
@@ -118,12 +126,12 @@ export function DescriptionMap({
   );
 }
 
+/** Highlighter colours, one per part by its number in knitting order. */
+const HIGHLIGHTERS = 7;
+
 function Block({ placed }: { placed: Placed }) {
   const { t } = useTranslation();
-  const [whole, setWhole] = useState(false);
   const { block, item, number, label, tracked } = placed;
-  const lines = block.text.split('\n').filter((l) => l.trim() !== '');
-  const long = lines.length > 3 || block.text.length > 260;
   const state = item
     ? tracked
       ? 'part'
@@ -131,39 +139,40 @@ function Block({ placed }: { placed: Placed }) {
     : block.type === 'general' || block.type === 'intro'
       ? 'general'
       : 'loose';
+  const tag =
+    state === 'part' || state === 'untracked'
+      ? label
+      : state === 'general'
+        ? t(block.type === 'intro' ? 'describeMap.intro' : 'describeMap.general')
+        : t('describeMap.loose');
+  const colour = state === 'part' ? ((number ?? 1) - 1) % HIGHLIGHTERS : null;
+  const body = (
+    <>
+      {block.heading && <b className="description-paper__heading">{block.heading}</b>}
+      {block.heading && block.text && '\n'}
+      {block.text}
+    </>
+  );
   return (
-    <li className={`description-map__item description-map__item--${state}`}>
-      <p className="description-map__where">
-        {state === 'part' || state === 'untracked' ? (
-          <span className="description-map__chip">
-            {number !== undefined && <span className="description-map__no">{number}</span>}
-            {label}
-          </span>
-        ) : state === 'general' ? (
-          <span className="description-map__chip">
-            {t(block.type === 'intro' ? 'describeMap.intro' : 'describeMap.general')}
-          </span>
-        ) : (
-          <span className="description-map__chip">
-            <Icon name="marker" size={14} />
-            {t('describeMap.loose')}
-          </span>
+    <p
+      className={`description-paper__block description-paper__block--${state}`}
+      data-hl={colour ?? undefined}
+    >
+      <span className="description-paper__tag">
+        {state === 'loose' && <Icon name="marker" size={12} />}
+        {(state === 'part' || state === 'untracked') && number !== undefined && (
+          <span className="description-paper__no">{number}</span>
         )}
+        {tag}
         {state === 'untracked' && (
-          <span className="description-map__note">{t('describeMap.untracked')}</span>
+          <span className="description-paper__note"> · {t('describeMap.untracked')}</span>
         )}
-      </p>
-      {block.heading && <p className="description-map__heading">{block.heading}</p>}
-      {lines.length > 0 && (
-        <p className={`description-map__text${long && !whole ? ' is-clamped' : ''}`}>
-          {lines.join('\n')}
-        </p>
+      </span>
+      {state === 'part' ? (
+        <mark>{body}</mark>
+      ) : (
+        <span className="description-paper__text">{body}</span>
       )}
-      {long && (
-        <button type="button" className="link-btn" onClick={() => setWhole(!whole)}>
-          {whole ? t('describeMap.less') : t('describeMap.more')}
-        </button>
-      )}
-    </li>
+    </p>
   );
 }

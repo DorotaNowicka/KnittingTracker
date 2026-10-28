@@ -1048,108 +1048,145 @@ button.steps__link {
   margin: var(--sp-4) 0 var(--sp-3);
 }
 
-/* "Opis z pliku": the pattern text by part, what went nowhere stands out. */
+/* "Opis z pliku": the whole pattern text, each part's piece marked like with a highlighter. */
 .description-map {
   margin-top: var(--sp-5);
+  /* Highlighter inks; mixed into the sheet so they stay readable on dark themes too. */
+  --hl-0: #ffe14d;
+  --hl-1: #7ee07a;
+  --hl-2: #ff8fc8;
+  --hl-3: #7cc4ff;
+  --hl-4: #ffad5c;
+  --hl-5: #c3a1ff;
+  --hl-6: #5fe0d2;
+  --hl-mix: 55%;
 }
 
-.description-map__list {
-  display: grid;
-  gap: var(--sp-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
+:root[data-theme='dark'] .description-map,
+:root[data-theme='indigo'] .description-map,
+:root[data-theme='lamp'] .description-map,
+:root[data-theme='yarn-night'] .description-map {
+  --hl-mix: 32%;
 }
 
-.description-map__item {
-  display: grid;
-  gap: var(--sp-1);
-  padding: var(--sp-2) var(--sp-3);
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .description-map {
+    --hl-mix: 32%;
+  }
+}
+
+.description-paper {
+  max-height: min(70vh, 40rem);
+  overflow-y: auto;
+  padding: var(--sp-4);
   border: 1px solid var(--rule);
-  border-left: 4px solid var(--indigo);
   border-radius: var(--r-control);
   background: var(--sheet);
+  font-size: var(--fs-2);
+  line-height: 1.75;
 }
 
-.description-map__item--general {
-  border-left-color: var(--rule-strong);
+.description-paper:focus-visible {
+  outline: 3px solid var(--indigo);
+  outline-offset: 2px;
 }
 
-.description-map__item--untracked {
-  border-left-color: var(--rule);
-  opacity: 0.85;
+.description-paper__block {
+  margin: 0 0 var(--sp-3);
+  white-space: pre-line;
 }
 
-.description-map__item--loose {
-  border-color: var(--marker);
-  border-left-width: 4px;
-  background: color-mix(in srgb, var(--marker) 12%, var(--sheet));
+.description-paper__block:last-child {
+  margin-bottom: 0;
 }
 
-.description-map__where {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-1) var(--sp-2);
-  margin: 0;
+.description-paper__heading {
+  font-weight: 750;
 }
 
-.description-map__chip {
+.description-paper mark {
+  padding: 0.1em 0.15em;
+  border-radius: 0.2em;
+  background: color-mix(in srgb, var(--hl) var(--hl-mix), var(--sheet));
+  color: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.description-paper__block[data-hl='0'] {
+  --hl: var(--hl-0);
+}
+.description-paper__block[data-hl='1'] {
+  --hl: var(--hl-1);
+}
+.description-paper__block[data-hl='2'] {
+  --hl: var(--hl-2);
+}
+.description-paper__block[data-hl='3'] {
+  --hl: var(--hl-3);
+}
+.description-paper__block[data-hl='4'] {
+  --hl: var(--hl-4);
+}
+.description-paper__block[data-hl='5'] {
+  --hl: var(--hl-5);
+}
+.description-paper__block[data-hl='6'] {
+  --hl: var(--hl-6);
+}
+
+/* The tag sits before the piece, in the piece's own ink. */
+.description-paper__tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 1px var(--sp-2);
+  gap: 5px;
+  margin-right: var(--sp-2);
+  padding: 0 var(--sp-2);
   border-radius: 999px;
   background: var(--paper);
+  color: var(--ink-muted);
   font-size: var(--fs-1);
   font-weight: 700;
+  line-height: 1.6;
+  vertical-align: 0.1em;
+  white-space: nowrap;
 }
 
-.description-map__item--part .description-map__chip {
-  background: var(--indigo);
-  color: var(--on-indigo);
+.description-paper__block--part .description-paper__tag {
+  background: color-mix(in srgb, var(--hl) calc(var(--hl-mix) + 25%), var(--sheet));
+  color: var(--ink);
 }
 
-.description-map__item--loose .description-map__chip {
+.description-paper__no {
+  font-variant-numeric: tabular-nums;
+}
+
+.description-paper__no::after {
+  content: '.';
+}
+
+.description-paper__block--general .description-paper__text,
+.description-paper__block--untracked .description-paper__text {
+  color: var(--ink-muted);
+}
+
+.description-paper__note {
+  font-weight: 500;
+  white-space: normal;
+}
+
+.description-paper__block--untracked .description-paper__tag {
+  white-space: normal;
+}
+
+/* Text that went to no part: not highlighted, flagged in the marker colour. */
+.description-paper__block--loose .description-paper__tag {
   background: var(--marker);
   color: #1a1408;
 }
 
-.description-map__no {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.3em;
-  height: 1.3em;
-  border-radius: 50%;
-  background: color-mix(in srgb, currentColor 22%, transparent);
-  font-size: 0.85em;
-}
-
-.description-map__note {
-  color: var(--ink-muted);
-  font-size: var(--fs-1);
-}
-
-.description-map__heading {
-  margin: 0;
-  font-weight: 700;
-}
-
-.description-map__text {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: var(--fs-2);
-  white-space: pre-line;
-}
-
-.description-map__text.is-clamped {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.description-map__item .link-btn {
-  justify-self: start;
-  font-size: var(--fs-1);
+.description-paper__block--loose .description-paper__text {
+  text-decoration: underline wavy var(--marker);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
 }

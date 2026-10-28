@@ -1233,7 +1233,7 @@
   },
   "describeMap": {
     "title": "Opis z pliku — co trafiło do której części",
-    "hint": "Podzieliliśmy opis wzoru według nagłówków. Sprawdź, czy każda część dostała swój fragment i czy nic ważnego nie zostało bez części.",
+    "hint": "Cały opis wzoru: fragment każdej części jest zakreślony jej kolorem, a przed nim stoi jej numer i nazwa. Tekst niezakreślony nie trafił do żadnej części.",
     "summary_one": "{{count}} fragment przypisany do części.",
     "summary_few": "{{count}} fragmenty przypisane do części.",
     "summary_many": "{{count}} fragmentów przypisanych do części.",
@@ -1252,7 +1252,6 @@
     "loose": "Bez części",
     "untracked": "tej części nie śledzisz — zaznacz ją wyżej, jeśli ma być w projekcie",
     "withoutText": "Bez fragmentu opisu: {{parts}}.",
-    "more": "Pokaż całość",
-    "less": "Zwiń"
+    "paper": "Opis wzoru z zaznaczonymi częściami"
   }
 }
