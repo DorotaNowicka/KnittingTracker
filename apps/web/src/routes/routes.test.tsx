@@ -497,7 +497,7 @@ describe('screens', () => {
       description: 'MATERIAŁY:\nWłóczka.\nKORPUS:\nNabrać 180 oczek.\nKIESZEŃ:\nNabrać 20 oczek.',
     });
     navigate('/projekt/s1/wzor/body');
-    render(<App />);
+    const { unmount } = render(<App />);
     const toggle = await screen.findByRole('button', { name: 'Opis wzoru', hidden: true });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await user.click(toggle);
@@ -510,8 +510,14 @@ describe('screens', () => {
     expect(current).toHaveTextContent('KORPUS:');
     expect(current?.querySelector('mark')).not.toBeNull();
     expect(paper).toHaveTextContent('Bez części');
-    expect(localStorage.getItem('kt.section.description')).toBe('open');
-    localStorage.removeItem('kt.section.description');
+    // Not remembered: the next visit starts folded again.
+    expect(localStorage.getItem('kt.section.description')).toBeNull();
+    unmount();
+    render(<App />);
+    expect(await screen.findByRole('button', { name: 'Opis wzoru', hidden: true })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   });
 
   it('the legend and the row instructions fold away, and stay folded on this device', async () => {

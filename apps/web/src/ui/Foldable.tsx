@@ -12,6 +12,7 @@ export function Foldable({
   title,
   children,
   defaultOpen = true,
+  remember = true,
 }: {
   id: 'legend' | 'rowText' | 'description';
   title: ReactNode;
@@ -19,12 +20,16 @@ export function Foldable({
   children: ReactNode | ((open: boolean) => ReactNode);
   /** Open until the knitter folds it (the default), or folded until she opens it. */
   defaultOpen?: boolean;
+  /** Keep the knitter's choice on this device; false: every page load starts at `defaultOpen`. */
+  remember?: boolean;
 }) {
   const { t } = useTranslation();
   const ids = useId();
-  const [open, setOpen] = useState(() => getSectionOpenPref(id, defaultOpen));
+  const [open, setOpen] = useState(() =>
+    remember ? getSectionOpenPref(id, defaultOpen) : defaultOpen,
+  );
   const toggle = () => {
-    setSectionOpenPref(id, !open);
+    if (remember) setSectionOpenPref(id, !open);
     setOpen(!open);
   };
   return (

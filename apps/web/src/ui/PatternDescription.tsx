@@ -7,7 +7,8 @@ import { Foldable } from './Foldable';
 
 /**
  * "Opis wzoru" in the panel beside the grid (tracker and creator): the file's whole text, folded
- * until opened; when opened it is scrolled to the first piece of the part on screen.
+ * on every page load (not remembered); when opened it is scrolled to the first piece of the part
+ * on screen.
  */
 export function PatternDescription({
   project,
@@ -29,7 +30,12 @@ export function PatternDescription({
   if (!project.description?.trim()) return null;
   const hasOwn = entries.some((e) => e.current);
   return (
-    <Foldable id="description" title={t('describeMap.panelTitle')} defaultOpen={false}>
+    <Foldable
+      id="description"
+      title={t('describeMap.panelTitle')}
+      defaultOpen={false}
+      remember={false}
+    >
       {(open) => (
         <>
           <p className="hint">
