@@ -127,8 +127,24 @@
     "themes": {
       "system": "Match system",
       "light": "Light",
-      "dark": "Dark"
+      "dark": "Dark",
+      "moss": "Moss",
+      "indigo": "Indigo",
+      "lamp": "By the lamp",
+      "yarn": "Yarn ball",
+      "yarn-night": "Yarn ball at night"
     },
+    "themeHints": {
+      "system": "Light or dark, like your device",
+      "light": "Linen paper, graphite and indigo",
+      "dark": "Graphite for the evening",
+      "moss": "Undyed wool and green tweed",
+      "indigo": "Indigo-dyed cotton, dark",
+      "lamp": "Amber, little blue light",
+      "yarn": "Oatmeal wool and a ginger kitten",
+      "yarn-night": "The kitten on dark wool"
+    },
+    "premium": "Premium",
     "language": "Language",
     "wakeLock": "Keep the screen on while knitting",
     "wakeLockHint": "Works while a project is open. Some browsers don't support it.",

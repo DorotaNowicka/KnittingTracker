@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { slug } from './files';
-import { getLanguagePref, getThemePref, getWakeLockPref, setThemePref } from './preferences';
+import {
+  getLanguagePref,
+  getThemePref,
+  getWakeLockPref,
+  isThemePref,
+  setThemePref,
+  THEMES,
+} from './preferences';
 import { parseRoute, paths } from './router';
 
 describe('router', () => {
@@ -35,6 +42,24 @@ describe('preferences', () => {
     expect(getWakeLockPref()).toBe(true);
     expect(() => setThemePref('dark')).not.toThrow();
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('remembers every theme and ignores unknown values', () => {
+    const meta = document.head.appendChild(document.createElement('meta'));
+    meta.name = 'theme-color';
+    for (const { id, chrome } of THEMES) {
+      setThemePref(id);
+      expect(getThemePref()).toBe(id);
+      expect(document.documentElement.getAttribute('data-theme')).toBe(id);
+      expect(meta.getAttribute('content')).toBe(chrome);
+    }
+    meta.remove();
+    setThemePref('system');
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    localStorage.setItem('kt.theme', 'sepia');
+    expect(getThemePref()).toBe('system');
+    expect(isThemePref('yarn-night')).toBe(true);
+    expect(isThemePref('YARN')).toBe(false);
   });
 });
 

@@ -137,8 +137,24 @@
     "themes": {
       "system": "Jak w systemie",
       "light": "Jasny",
-      "dark": "Ciemny"
+      "dark": "Ciemny",
+      "moss": "Mech",
+      "indigo": "Indygo",
+      "lamp": "Przy lampie",
+      "yarn": "Kłębek",
+      "yarn-night": "Kłębek nocą"
     },
+    "themeHints": {
+      "system": "Jasny albo ciemny, tak jak urządzenie",
+      "light": "Lniany papier, grafit i indygo",
+      "dark": "Grafit na wieczór",
+      "moss": "Niebarwiona wełna i zielony tweed",
+      "indigo": "Bawełna farbowana indygo, ciemny",
+      "lamp": "Bursztyn, mało niebieskiego światła",
+      "yarn": "Owsiana wełna i rudy kotek",
+      "yarn-night": "Kotek na ciemnej wełnie"
+    },
+    "premium": "Premium",
     "language": "Język",
     "wakeLock": "Nie wygaszaj ekranu podczas dziergania",
     "wakeLockHint": "Działa, gdy otwarty jest projekt. Niektóre przeglądarki tego nie obsługują.",

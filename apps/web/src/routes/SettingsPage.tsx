@@ -17,6 +17,7 @@ import { paths } from '../lib/router';
 import { persistenceState, type PersistState } from '../lib/storage';
 import { useLibrary, type RestorePreview } from '../state/library';
 import { Icon } from '../ui/Icon';
+import { ThemePicker } from '../ui/ThemePicker';
 import { AppHeader } from './AppHeader';
 
 export function SettingsPage() {
@@ -73,26 +74,13 @@ export function SettingsPage() {
         </p>
         <h1 className="page__title">{t('settings.title')}</h1>
 
-        <fieldset className="field">
-          <legend>{t('settings.theme')}</legend>
-          <div className="segmented">
-            {(['system', 'light', 'dark'] as const).map((v) => (
-              <label key={v} className="segmented__item">
-                <input
-                  type="radio"
-                  name={`${ids}-theme`}
-                  value={v}
-                  checked={theme === v}
-                  onChange={() => {
-                    setTheme(v);
-                    setThemePref(v);
-                  }}
-                />
-                <span>{t(`settings.themes.${v}`)}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <ThemePicker
+          value={theme}
+          onChange={(v) => {
+            setTheme(v);
+            setThemePref(v);
+          }}
+        />
 
         <fieldset className="field">
           <legend>{t('settings.language')}</legend>

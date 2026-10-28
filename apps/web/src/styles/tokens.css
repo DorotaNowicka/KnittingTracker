@@ -1,6 +1,9 @@
 /*
- * Design tokens (docs/design.md). Light and dark themes are designed separately.
- * Theme selection: data-theme="light|dark" on <html> wins; otherwise the system setting applies.
+ * Design tokens (docs/design.md). Every theme is designed separately and sets every colour token.
+ * Theme selection: data-theme="<id>" on <html> wins; without it ("system") the OS setting chooses
+ * light or dark. data-theme-preview="<id>" scopes a theme's tokens to one element (the theme tiles
+ * in Settings). The colour blocks below are generated with their contrast checked
+ * (src/styles/themes.test.ts re-checks them).
  */
 :root {
   --font: 'Atkinson Hyperlegible Next Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -28,8 +31,11 @@
 
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 160ms;
+}
 
-  /* Light theme: linen paper, graphite ink, indigo yarn, saffron marker */
+/* light: linen paper, graphite ink, indigo yarn, saffron marker */
+:root,
+[data-theme-preview='light'] {
   --paper: #edefea;
   --sheet: #fbfbf8;
   --ink: #1e2227;
@@ -43,23 +49,23 @@
   --done: #cfdaee;
   --done-hatch: #4f69a0;
   --marker: #d8961a;
-  /* Guide lines on the grid: quarters (green) and the half (plum). */
   --guide: #2f8a55;
   --guide-half: #8e4aa8;
   --no-stitch: #c9ccc4;
   --danger: #a3322a;
   --on-danger: #ffffff;
-  /* "Gotowe": a part or project done (green, white text at 4.5:1 or more). */
   --success: #23774a;
   --success-hover: #1c623c;
   --on-success: #ffffff;
   --success-soft: #e1f0e6;
+  --fur: #d98e5a;
+  --paper-texture: none;
   --shadow: 0 6px 24px rgb(30 34 39 / 14%), 0 1px 3px rgb(30 34 39 / 10%);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
+  :root:not([data-theme]) {
     --paper: #1a1d21;
     --sheet: #22262b;
     --ink: #e7e9e4;
@@ -82,12 +88,16 @@
     --success-hover: #8adcae;
     --on-success: #102017;
     --success-soft: #1f3a2a;
+    --fur: #d98e5a;
+    --paper-texture: none;
     --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
     color-scheme: dark;
   }
 }
 
-:root[data-theme='dark'] {
+/* dark: knitting at night: slate, chalk ink, soft indigo */
+:root[data-theme='dark'],
+[data-theme-preview='dark'] {
   --paper: #1a1d21;
   --sheet: #22262b;
   --ink: #e7e9e4;
@@ -110,6 +120,163 @@
   --success-hover: #8adcae;
   --on-success: #102017;
   --success-soft: #1f3a2a;
+  --fur: #d98e5a;
+  --paper-texture: none;
+  --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+  color-scheme: dark;
+}
+
+/* moss: undyed wool and moss-green tweed, rust marker */
+:root[data-theme='moss'],
+[data-theme-preview='moss'] {
+  --paper: #e6e8dc;
+  --sheet: #f7f7f0;
+  --ink: #263020;
+  --ink-muted: #535e46;
+  --rule: #a9b196;
+  --rule-strong: #5d6a4c;
+  --zone: #dadfcb;
+  --indigo: #4a5e34;
+  --indigo-hover: #3c4d2a;
+  --on-indigo: #ffffff;
+  --done: #d5dcc2;
+  --done-hatch: #56693e;
+  --marker: #c2683f;
+  --guide: #2e6f8e;
+  --guide-half: #8e4a7a;
+  --no-stitch: #c9cdbc;
+  --danger: #a3322a;
+  --on-danger: #ffffff;
+  --success: #2c6e3f;
+  --success-hover: #225732;
+  --on-success: #ffffff;
+  --success-soft: #e0edd9;
+  --fur: #d98e5a;
+  --paper-texture: none;
+  --shadow: 0 6px 24px rgb(38 48 32 / 14%), 0 1px 3px rgb(38 48 32 / 10%);
+  color-scheme: light;
+}
+
+/* indigo: indigo-dyed cotton, ecru ink, madder coral */
+:root[data-theme='indigo'],
+[data-theme-preview='indigo'] {
+  --paper: #141c30;
+  --sheet: #1c2640;
+  --ink: #efe8d8;
+  --ink-muted: #aeb8cc;
+  --rule: #3e5080;
+  --rule-strong: #8fa0c4;
+  --zone: #222e4c;
+  --indigo: #e59a7c;
+  --indigo-hover: #ecae95;
+  --on-indigo: #1a120e;
+  --done: #2c3e66;
+  --done-hatch: #9db4da;
+  --marker: #f2c55c;
+  --guide: #6fcf9a;
+  --guide-half: #d9a0e8;
+  --no-stitch: #2f3a55;
+  --danger: #ff8f8f;
+  --on-danger: #1a120e;
+  --success: #7ad4a0;
+  --success-hover: #95dfb4;
+  --on-success: #102017;
+  --success-soft: #1e3a30;
+  --fur: #d98e5a;
+  --paper-texture: none;
+  --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+  color-scheme: dark;
+}
+
+/* lamp: by the lamp: amber on brown, almost no blue light */
+:root[data-theme='lamp'],
+[data-theme-preview='lamp'] {
+  --paper: #17110b;
+  --sheet: #201810;
+  --ink: #f0c88c;
+  --ink-muted: #c09e74;
+  --rule: #55412a;
+  --rule-strong: #a88452;
+  --zone: #2a1f14;
+  --indigo: #d9904a;
+  --indigo-hover: #e3a262;
+  --on-indigo: #1a120a;
+  --done: #3a2b18;
+  --done-hatch: #b88a50;
+  --marker: #e8704a;
+  --guide: #a7c46a;
+  --guide-half: #d88aa0;
+  --no-stitch: #2e2317;
+  --danger: #f07a5a;
+  --on-danger: #1a120a;
+  --success: #a9c86e;
+  --success-hover: #bad57f;
+  --on-success: #1a1a0a;
+  --success-soft: #2c3018;
+  --fur: #d98e5a;
+  --paper-texture: none;
+  --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+  color-scheme: dark;
+}
+
+/* yarn: "Kłębek": oatmeal wool with a stockinette texture, ginger kitten */
+:root[data-theme='yarn'],
+[data-theme-preview='yarn'] {
+  --paper: #efe4d6;
+  --sheet: #fbf6ef;
+  --ink: #3b2a22;
+  --ink-muted: #6b5444;
+  --rule: #c6b39b;
+  --rule-strong: #7e6250;
+  --zone: #e6d8c6;
+  --indigo: #7a4e3a;
+  --indigo-hover: #673f2e;
+  --on-indigo: #fff8f0;
+  --done: #ebdccb;
+  --done-hatch: #84634a;
+  --marker: #c9877e;
+  --guide: #3e7f6a;
+  --guide-half: #8e4a8a;
+  --no-stitch: #dccfbf;
+  --danger: #a8352c;
+  --on-danger: #ffffff;
+  --success: #2e7348;
+  --success-hover: #245c39;
+  --on-success: #ffffff;
+  --success-soft: #e3eedd;
+  --fur: #d98e5a;
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='14'%3E%3Cpath d='M1.5 1.5 6 12.5 10.5 1.5' fill='none' stroke='%23e3d3bf' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --shadow: 0 6px 24px rgb(59 42 34 / 14%), 0 1px 3px rgb(59 42 34 / 10%);
+  color-scheme: light;
+}
+
+/* yarn-night: "Kłębek nocą": the kitten on charcoal-brown wool */
+:root[data-theme='yarn-night'],
+[data-theme-preview='yarn-night'] {
+  --paper: #211a16;
+  --sheet: #2a221d;
+  --ink: #f2e6d8;
+  --ink-muted: #bfae9c;
+  --rule: #5a4a3e;
+  --rule-strong: #a8927e;
+  --zone: #332921;
+  --indigo: #e3a47c;
+  --indigo-hover: #ebb592;
+  --on-indigo: #22170f;
+  --done: #4a3a2e;
+  --done-hatch: #c7a585;
+  --marker: #d99a92;
+  --guide: #7cc9a6;
+  --guide-half: #d7a0d8;
+  --no-stitch: #3a302a;
+  --danger: #f2918a;
+  --on-danger: #22170f;
+  --success: #8ed3a4;
+  --success-hover: #a5ddb7;
+  --on-success: #12201a;
+  --success-soft: #24352a;
+  --fur: #d9925f;
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='14'%3E%3Cpath d='M1.5 1.5 6 12.5 10.5 1.5' fill='none' stroke='%232c231e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --shadow: 0 6px 24px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
   color-scheme: dark;
 }

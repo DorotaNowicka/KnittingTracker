@@ -65,6 +65,35 @@ sheets and dialogs, full radius only for the round icon buttons. **Shadows**: on
 things that float above the grid (bottom bar, sheets). **Motion**: 120–180 ms ease-out for state
 answers (keeper moving to the next row, sheet opening). None with `prefers-reduced-motion`.
 
+## Themes
+
+Light and dark stay the defaults ("Jak w systemie" follows the device). Five more themes are
+chosen in **Settings only**, as tiles whose preview is painted with that theme's own tokens
+(`data-theme-preview`). Every theme sets every colour token in `src/styles/tokens.css`, and
+`src/styles/themes.test.ts` re-checks the contrast floors of the Accessibility notes for each one.
+The roles keep their meaning in every theme: `--indigo` is the row keeper and primary action (the
+token name is historical), `--marker` the stitch marker, `--done`/`--done-hatch` knitted cells.
+
+| Id | Name (pl) | Scheme | For | Keeper / marker |
+|---|---|---|---|---|
+| `light` | Jasny | light | Default: linen paper, graphite, indigo | indigo / saffron |
+| `dark` | Ciemny | dark | Evening, low glare | soft indigo / saffron |
+| `moss` | Mech | light | Daylight; undyed wool and green tweed | moss / rust |
+| `indigo` | Indygo | dark | A dark theme with character; ecru ink | madder coral / gold |
+| `lamp` | Przy lampie | dark | Late evening next to someone resting: amber on brown, almost no blue light | amber / ember |
+| `yarn` | Kłębek (premium) | light | Oatmeal wool with a stockinette texture, ginger kitten | chestnut / dusty rose |
+| `yarn-night` | Kłębek nocą (premium) | dark | The same kitten on charcoal-brown wool | ginger / rose |
+
+"Premium" is only a name for the richest themes: they are free, nothing is locked.
+
+**Kłębek**: the texture is `--paper-texture` (a 12×14 px stockinette "V" tile, 1.2:1 against the
+paper, felt rather than seen). It sits on the page background only, never under grid cells: the
+canvas paints its own sheet. The kitten is a calm line drawing coloured by `--fur`, `--ink` and
+`--marker` (no big eyes, no hearts). It replaces the stitch logo in the header and peeks over the
+chart in the theme tile. Planned, not built yet: the kitten peeking over the grid edge, a yarn ball
+marking the current row next to the keeper, and its small reactions on "Row done" (static with
+`prefers-reduced-motion`).
+
 ## Layouts
 
 ```

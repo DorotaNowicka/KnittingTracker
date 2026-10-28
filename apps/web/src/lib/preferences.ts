@@ -3,7 +3,32 @@
  * mirrored in localStorage, read by /theme-init.js in <head>. Every access is wrapped in try/catch:
  * storage can be blocked, and the app must still work.
  */
-export type ThemePref = 'system' | 'light' | 'dark';
+/**
+ * The themes (tokens in styles/tokens.css, design notes in docs/design.md). `scheme` drives the
+ * native controls and the browser chrome; `chrome` is the theme's --paper for <meta theme-color>.
+ * public/theme-init.js keeps its own copy of the ids (it runs before the bundle); a test checks it.
+ */
+export const THEMES = [
+  { id: 'light', scheme: 'light', chrome: '#edefea' },
+  { id: 'dark', scheme: 'dark', chrome: '#1a1d21' },
+  { id: 'moss', scheme: 'light', chrome: '#e6e8dc' },
+  { id: 'indigo', scheme: 'dark', chrome: '#141c30' },
+  { id: 'lamp', scheme: 'dark', chrome: '#17110b' },
+  { id: 'yarn', scheme: 'light', chrome: '#efe4d6', premium: true },
+  { id: 'yarn-night', scheme: 'dark', chrome: '#211a16', premium: true },
+] as const satisfies readonly {
+  id: string;
+  scheme: 'light' | 'dark';
+  chrome: string;
+  premium?: boolean;
+}[];
+
+export type ThemeId = (typeof THEMES)[number]['id'];
+export type ThemePref = 'system' | ThemeId;
+
+export function isThemePref(v: unknown): v is ThemePref {
+  return v === 'system' || THEMES.some((t) => t.id === v);
+}
 export type LanguagePref = 'pl' | 'en';
 
 const THEME_KEY = 'kt.theme';
@@ -29,18 +54,21 @@ function write(key: string, value: string): void {
 
 export function getThemePref(): ThemePref {
   const v = read(THEME_KEY);
-  return v === 'light' || v === 'dark' ? v : 'system';
+  return isThemePref(v) ? v : 'system';
 }
 
 export function applyTheme(pref: ThemePref): void {
   const root = document.documentElement;
   if (pref === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', pref);
-  const dark =
-    pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+  const theme =
+    THEMES.find((t) => t.id === pref) ??
+    THEMES.find(
+      (t) => t.id === (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
+    );
   document
     .querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')
-    .forEach((m) => m.setAttribute('content', dark ? '#1a1d21' : '#edefea'));
+    .forEach((m) => m.setAttribute('content', theme?.chrome ?? '#edefea'));
 }
 
 export function setThemePref(pref: ThemePref): void {
