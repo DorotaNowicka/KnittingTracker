@@ -37,6 +37,8 @@ export interface RecognizedCell {
   readonly confidence: number;
   /** Best symbols for this span, best first. */
   readonly candidates: readonly Scored<string>[];
+  /** Colourwork printed in colour: the yarn letter of the cell's fill. */
+  readonly color?: string;
 }
 
 export interface RecognizedChart {
@@ -457,5 +459,16 @@ export function recognizeGrid(
     }
     rowsTopDown.push(row);
   }
-  return { cols: grid.cols, rows: grid.rows, cells: rowsTopDown.reverse() };
+  // A chart in steps: where the lattice has no cell, there is no stitch.
+  const missing = grid.missing;
+  const cells = missing
+    ? rowsTopDown.map((row, r) =>
+        row.map((cell, c) =>
+          missing[r]?.[c]
+            ? { symbolId: 'std:none', part: 0, width: 1, confidence: 1, candidates: [] }
+            : cell,
+        ),
+      )
+    : rowsTopDown;
+  return { cols: grid.cols, rows: grid.rows, cells: cells.reverse() };
 }

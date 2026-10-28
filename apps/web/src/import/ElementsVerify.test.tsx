@@ -50,6 +50,7 @@ const result: ImportResult = {
   text,
   description: parseDescription(text),
   notes: [],
+  colors: [],
 };
 
 beforeAll(() => {
@@ -553,6 +554,45 @@ describe('new project from a PDF: size and legend first', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'Który rozmiar dziergasz?' }),
     ).toBeInTheDocument();
+  });
+
+  it('shows a colour entry of the legend as a yarn with its shade, and a mark as not a stitch', async () => {
+    const user = userEvent.setup();
+    const entry = (text: string, kind: 'color' | 'mark', symbolId: string | null) => ({
+      page: 0,
+      icon: { rgba: new Uint8ClampedArray(4), width: 1, height: 1 },
+      gray: { width: 1, height: 1, data: new Uint8Array(1) },
+      cells: 1,
+      text,
+      meaning: null,
+      matches: [],
+      symbolId,
+      confidence: 0.95,
+      kind,
+      ...(kind === 'color' ? { color: { name: text, fill: null } } : {}),
+    });
+    useImport.setState({
+      step: 'legend',
+      result: {
+        ...result,
+        legend: [entry('antracyt', 'color', 'color:A'), entry('oczko środkowe', 'mark', null)],
+        colors: [{ id: 'A', name: 'antracyt', hex: '#3b3f45' }],
+      },
+      legend: ['color:A', null],
+      legendNames: ['', ''],
+      legendKinds: ['color', 'mark'],
+      legendColors: [null, null],
+    });
+    render(<App />);
+    const kinds = await screen.findAllByRole('combobox', { name: 'Rodzaj' });
+    expect(kinds.map((k) => (k as HTMLSelectElement).value)).toEqual(['color', 'mark']);
+    const shade = screen.getByLabelText('Odcień: antracyt');
+    expect(shade).toHaveValue('#3b3f45');
+    // A shade of her own for the yarn.
+    useImport.getState().setLegendColor(0, '#222222');
+    await waitFor(() => expect(screen.getByLabelText('Odcień: antracyt')).toHaveValue('#222222'));
+    expect(useImport.getState().yarns()).toEqual([{ id: 'A', name: 'antracyt', color: '#222222' }]);
+    await user.click(screen.getByRole('button', { name: 'Zatwierdź legendę' }));
   });
 
   it('skips the legend when the file has neither a legend nor charts, and offers one size', async () => {

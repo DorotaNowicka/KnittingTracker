@@ -1,5 +1,12 @@
 import { createRegistry, type SymbolRegistry } from '@kt/core';
 import { parseDescription, type ParsedDescription } from './describe/parse';
+import {
+  colorOfName,
+  COLOR_PREFIX,
+  isColorSymbol,
+  legendKind,
+  materialColors,
+} from './legend/color';
 import { findLegend, type LegendItem } from './legend/pair';
 import { analyzePdf, documentText, type AnalyzedPage, type PdfJsLike } from './pdf/analyze';
 import {
@@ -10,6 +17,7 @@ import {
   type Template,
 } from './raster/classify';
 import { rasterizeVectors } from './raster/draw';
+import { assignFillColors, rgbOf, type FoundColor } from './raster/fills';
 import { crop, meanGray, toGray, type GrayImage } from './raster/gray';
 import { detectGrids, type DetectedGrid } from './raster/grid';
 import { straighten, type Point } from './raster/warp';
@@ -82,6 +90,99 @@ export interface ImportResult {
   readonly text: string;
   readonly description: ParsedDescription;
   readonly notes: readonly string[];
+  /**
+   * Colourwork: the yarns found — the legend's colour entries (`color:A`… in the legend) and the
+   * colours of charts printed in colour. Empty for a chart of stitches only.
+   */
+  readonly colors: readonly ImportColor[];
+}
+
+/** A yarn colour found by the import. */
+export interface ImportColor {
+  /** Letter, A…L (A is the main colour). */
+  readonly id: string;
+  /** Name from the legend ("antracyt"), or '' for a colour seen only in the chart. */
+  readonly name: string;
+  /** #rrggbb: the legend icon's fill, a shade for the colour's name, or the cells' colour. */
+  readonly hex: string | null;
+}
+
+const LETTERS = 'ABCDEFGHIJKL';
+
+/**
+ * Colour entries of the legend get their letters, in legend order. An entry read as a stitch whose
+ * words are only a colour named in the yarn list ("= ecru" with "kolor 01, ecru" above) is a
+ * colour too.
+ */
+export function assignLegendColors(
+  legend: readonly LegendItem[],
+  known: readonly string[],
+): LegendItem[] {
+  let next = 0;
+  return legend.map((item) => {
+    let it = item;
+    if (it.kind === 'stitch' && !it.meaning) {
+      const again = legendKind(it.text, known);
+      if (again.kind === 'color')
+        it = {
+          ...it,
+          kind: 'color',
+          color: { name: (again.colorName ?? it.text).slice(0, 40), fill: null },
+        };
+    }
+    if (it.kind !== 'color') return it;
+    const letter = LETTERS[next++];
+    return letter
+      ? { ...it, symbolId: `${COLOR_PREFIX}${letter}`, confidence: 0.95 }
+      : { ...it, kind: 'stitch' as const };
+  });
+}
+
+/** The legend's colours: name and shade (a coloured icon, else a shade for the name). */
+export function legendColors(legend: readonly LegendItem[]): ImportColor[] {
+  return legend.flatMap((l) => {
+    if (!isColorSymbol(l.symbolId) || !l.color) return [];
+    const fill = l.color.fill;
+    const [r, g, b] = fill ? rgbOf(fill) : [0, 0, 0];
+    const saturated = fill !== null && Math.max(r, g, b) - Math.min(r, g, b) > 40;
+    return [
+      {
+        id: l.symbolId.slice(COLOR_PREFIX.length),
+        name: l.color.name,
+        hex: (saturated ? fill : null) ?? colorOfName(l.color.name) ?? fill,
+      },
+    ];
+  });
+}
+
+/**
+ * Charts printed in colour: every cell gets the yarn of its fill. Colours already known (the
+ * legend's, earlier charts') keep their letters; new ones are added.
+ */
+function withFillColors(
+  charts: readonly FoundChart[],
+  sources: readonly { rgba: Uint8ClampedArray; width: number }[],
+  known: readonly ImportColor[],
+): { charts: FoundChart[]; colors: ImportColor[] } {
+  const colors: ImportColor[] = [...known];
+  const out = charts.map((c) => {
+    const src = sources[c.source];
+    if (!src) return c;
+    const filled = known
+      .filter((k): k is ImportColor & { hex: string } => k.hex !== null)
+      .map((k): FoundColor => ({ id: k.id, hex: k.hex }));
+    const found = assignFillColors(src.rgba, src.width, c.grid, c.recognized, [
+      ...filled,
+      ...colors
+        .filter((x) => x.hex && !filled.some((f) => f.id === x.id))
+        .map((x) => ({ id: x.id, hex: x.hex ?? '' })),
+    ]);
+    if (!found) return c;
+    for (const f of found.colors)
+      if (!colors.some((x) => x.id === f.id)) colors.push({ id: f.id, name: '', hex: f.hex });
+    return { ...c, recognized: found.chart };
+  });
+  return { charts: out, colors };
 }
 
 export type ImportProgress =
@@ -153,15 +254,71 @@ function recognizeSources(
   return charts;
 }
 
-/** A chart has at least 2 columns, 2 rows, a regular lattice and mostly paper in its cells. */
+/**
+ * A chart has at least 2 columns, 2 rows, a regular lattice and cells that are paper — or, in
+ * colourwork, cells that are each clearly paper or clearly ink (a dark yarn's squares).
+ */
 function plausible(gray: GrayImage, grid: DetectedGrid): boolean {
   return (
     grid.cols >= 2 &&
     grid.rows >= 2 &&
     grid.cols * grid.rows >= 6 &&
     grid.regularity >= 0.6 &&
-    mostlyPaper(gray, grid)
+    (mostlyPaper(gray, grid) || (grid.regularity >= 0.85 && twoTone(gray, grid)))
   );
+}
+
+/**
+ * A chart printed in colour: each cell is evenly filled (one shade inside, whatever it is) and the
+ * lattice is regular.
+ */
+function filledCells(gray: GrayImage, grid: DetectedGrid): boolean {
+  if (grid.cols < 2 || grid.rows < 2 || grid.cols * grid.rows < 6 || grid.regularity < 0.85)
+    return false;
+  let even = 0;
+  let n = 0;
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      if (grid.missing?.[r]?.[c]) continue;
+      const x0 = (grid.xs[c] ?? 0) + grid.pitch * 0.25;
+      const y0 = (grid.ys[r] ?? 0) + grid.pitch * 0.25;
+      let lo = 255;
+      let hi = 0;
+      for (let y = Math.round(y0); y < y0 + grid.pitch * 0.5; y++)
+        for (let x = Math.round(x0); x < x0 + grid.pitch * 0.5; x++) {
+          const v = gray.data[y * gray.width + x] ?? 255;
+          lo = Math.min(lo, v);
+          hi = Math.max(hi, v);
+        }
+      n += 1;
+      if (hi - lo < 60) even += 1;
+    }
+  }
+  return n > 0 && even / n >= 0.85;
+}
+
+/** Every cell's middle is either paper or ink, none in between (not a photo of something else). */
+function twoTone(gray: GrayImage, grid: DetectedGrid): boolean {
+  let clear = 0;
+  let n = 0;
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = 0; c < grid.cols; c++) {
+      if (grid.missing?.[r]?.[c]) continue;
+      const x0 = (grid.xs[c] ?? 0) + grid.pitch * 0.3;
+      const y0 = (grid.ys[r] ?? 0) + grid.pitch * 0.3;
+      let sum = 0;
+      let k = 0;
+      for (let y = Math.round(y0); y < y0 + grid.pitch * 0.4; y++)
+        for (let x = Math.round(x0); x < x0 + grid.pitch * 0.4; x++) {
+          sum += gray.data[y * gray.width + x] ?? 255;
+          k += 1;
+        }
+      const v = k ? sum / k : 255;
+      n += 1;
+      if (v > 170 || v < 90) clear += 1;
+    }
+  }
+  return n > 0 && clear / n >= 0.85;
 }
 
 /**
@@ -171,10 +328,15 @@ function plausible(gray: GrayImage, grid: DetectedGrid): boolean {
  */
 function findGrids(gray: GrayImage, threshold?: 'global' | 'local', photo = false): DetectedGrid[] {
   if (threshold) return detectGrids(gray, { threshold }).filter((g) => plausible(gray, g));
+  const mean = meanGray(gray);
   const all = [
     ...detectGrids(gray, { threshold: 'global' }),
-    ...(photo || meanGray(gray) < 200 ? detectGrids(gray, { threshold: 'local' }) : []),
-  ].filter((g) => plausible(gray, g));
+    ...(photo || mean < 200 ? detectGrids(gray, { threshold: 'local' }) : []),
+    // Cells filled with colour: the rules are the thin lines between them.
+    ...(mean < 225
+      ? detectGrids(gray, { threshold: 'ridge' }).filter((g) => filledCells(gray, g))
+      : []),
+  ].filter((g) => plausible(gray, g) || filledCells(gray, g));
   const overlap = (a: DetectedGrid, b: DetectedGrid) => {
     const w = Math.min(a.box.x + a.box.w, b.box.x + b.box.w) - Math.max(a.box.x, b.box.x);
     const h = Math.min(a.box.y + a.box.h, b.box.y + b.box.h) - Math.max(a.box.y, b.box.y);
@@ -195,6 +357,7 @@ function mostlyPaper(gray: GrayImage, grid: DetectedGrid): boolean {
   let n = 0;
   for (let r = 0; r < grid.rows; r++) {
     for (let c = 0; c < grid.cols; c++) {
+      if (grid.missing?.[r]?.[c]) continue;
       const x0 = (grid.xs[c] ?? 0) + grid.pitch * 0.25;
       const y0 = (grid.ys[r] ?? 0) + grid.pitch * 0.25;
       for (let y = Math.round(y0); y < y0 + grid.pitch * 0.5; y++) {
@@ -277,7 +440,9 @@ function titleAbove(page: AnalyzedPage, src: SourceImage, grid: DetectedGrid): s
     )
     .sort((a, b) => b.y - a.y || a.x - b.x);
   const named = near.find((t) => NAME.test(t.str.trim()));
-  const text = (named ?? near[0])?.str.trim();
+  // Without a chart name, only a short line counts (not a page header printed by the browser).
+  const short = near.find((t) => t.str.trim().length <= 16);
+  const text = (named ?? short)?.str.trim();
   return text ? text.slice(0, 40) : undefined;
 }
 
@@ -295,7 +460,11 @@ export async function importPdf(
     onPage: (page, pages) => options.onProgress?.({ stage: 'reading', page, pages }),
   });
   options.onProgress?.({ stage: 'legend' });
-  const legend = doc.pages.flatMap((p) => findLegend(p, registry));
+  const text = documentText(doc);
+  const legend = assignLegendColors(
+    doc.pages.flatMap((p) => findLegend(p, registry)),
+    materialColors(text),
+  );
   // Only legend entries that are clearly a stitch symbol narrow the search.
   const fromLegend = [
     ...new Set(legend.flatMap((l) => (l.symbolId && l.confidence >= 0.6 ? [l.symbolId] : []))),
@@ -332,9 +501,9 @@ export async function importPdf(
       });
     }
   }
-  const charts = recognizeSources(grays, registry, symbols, legend, options);
+  const recognized = recognizeSources(grays, registry, symbols, legend, options);
+  const { charts, colors } = withFillColors(recognized, sources, legendColors(legend));
   options.onProgress?.({ stage: 'description' });
-  const text = documentText(doc);
   const notes: string[] = [];
   const named = charts.map((c) => {
     const src = sources[c.source];
@@ -354,6 +523,7 @@ export async function importPdf(
     text,
     description: parseDescription(text),
     notes,
+    colors,
   };
 }
 
@@ -374,19 +544,22 @@ export function importImage(
     gray = straighten(gray, options.corners);
     rgba = grayToRgba(gray);
   }
-  const charts = recognizeSources([{ gray, index: 0 }], registry, symbols, [], {
+  const recognized = recognizeSources([{ gray, index: 0 }], registry, symbols, [], {
     ...options,
     ...(options.corners ? { photo: true } : {}),
   });
+  const source = { page: 0, width: gray.width, height: gray.height, rgba };
+  const { charts, colors } = withFillColors(recognized, [source], []);
   return {
     kind: 'image',
-    sources: [{ page: 0, width: gray.width, height: gray.height, rgba }],
+    sources: [source],
     charts,
     legend: [],
     symbols,
     text: '',
     description: parseDescription(''),
     notes: [],
+    colors,
   };
 }
 
@@ -409,15 +582,13 @@ export function rerecognize(
 ): ImportResult {
   const templates = buildTemplates(registry, symbols, legend);
   const grays = result.sources.map((s) => toGray(s.rgba, s.width, s.height, 4));
-  return {
-    ...result,
-    symbols,
-    legend,
-    charts: result.charts.map((c) => {
-      const gray = grays[c.source];
-      return gray ? { ...c, recognized: recognizeGrid(gray, c.grid, templates) } : c;
-    }),
-  };
+  const read = result.charts.map((c) => {
+    const gray = grays[c.source];
+    return gray ? { ...c, recognized: recognizeGrid(gray, c.grid, templates) } : c;
+  });
+  // The legend's colours as the knitter set them; colours seen only in charts are found again.
+  const { charts, colors } = withFillColors(read, result.sources, legendColors(legend));
+  return { ...result, symbols, legend, charts, colors };
 }
 
 /** Cut the area of a source image (RGBA) for display. */

@@ -2,6 +2,8 @@ import type { ResolvedPattern } from '@kt/core';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PatternPreview } from '../editor/PatternPreview';
+import { useImport } from './session';
+import { yarnColors } from '../lib/yarns';
 import { CommitNumber } from '../ui/CommitNumber';
 import { NumberField } from '../ui/fields';
 import { Icon } from '../ui/Icon';
@@ -15,6 +17,19 @@ import type { ChartDraft } from './session';
  * the result, charts in the middle of the round (for a body in the round: of the front and of the
  * back) when they take fewer stitches.
  */
+/** The import's yarn colours, the same map while they don't change. */
+let lastKey = '';
+let lastMap: Map<string, string> = yarnColors(undefined);
+function importYarnColors(): Map<string, string> {
+  const yarns = useImport.getState().yarns();
+  const key = yarns.map((y) => `${y.id}${y.color}`).join();
+  if (key !== lastKey) {
+    lastKey = key;
+    lastMap = yarnColors(yarns);
+  }
+  return lastMap;
+}
+
 export function LayoutEditor({
   setup,
   charts,
@@ -177,7 +192,7 @@ export function LayoutEditor({
               : t(twice ? 'layout.centredHalves' : 'layout.centred', { used, rest })}
       </p>
       {cm !== null && <p className="hint">{t(`layout.repeatTo.${unit}`, { cm })}</p>}
-      {stage ? <PatternPreview stage={stage} /> : null}
+      {stage ? <PatternPreview stage={stage} yarns={importYarnColors()} /> : null}
     </div>
   );
 }

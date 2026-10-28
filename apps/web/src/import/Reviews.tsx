@@ -1,5 +1,5 @@
-import { createRegistry } from '@kt/core';
-import type { LegendItem } from '@kt/importer';
+import { createRegistry, type Yarn } from '@kt/core';
+import type { LegendItem, LegendKind } from '@kt/importer';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SymbolGlyph } from '../ui/SymbolGlyph';
@@ -17,6 +17,11 @@ export function LegendReview({ items }: { items: readonly LegendItem[] }) {
   const { t } = useTranslation();
   const ids = useId();
   const names = useImport((s) => s.legendNames);
+  const kinds = useImport((s) => s.legendKinds);
+  const chosen = useImport((s) => s.legend);
+  // Recomputed with the names and shades: a colour entry shows its yarn's shade.
+  useImport((s) => s.legendColors);
+  const yarns = useImport.getState().yarns();
   return (
     <section className="editor-section" aria-labelledby={`${ids}-lg`}>
       <h2 id={`${ids}-lg`} className="section-title">
@@ -47,10 +52,63 @@ export function LegendReview({ items }: { items: readonly LegendItem[] }) {
                 </p>
               )}
             </div>
+            {/* Colourwork: an entry may be a yarn's colour, or a mark that is not a stitch. */}
+            <div className="field field--compact legend-review__kind">
+              <label htmlFor={`${ids}-k${i}`}>{t('importer.legendKind')}</label>
+              <select
+                id={`${ids}-k${i}`}
+                value={kinds[i] ?? item.kind}
+                onChange={(e) =>
+                  void useImport.getState().setLegendKind(i, e.target.value as LegendKind)
+                }
+              >
+                <option value="stitch">{t('importer.kindStitch')}</option>
+                <option value="color">{t('importer.kindColor')}</option>
+                <option value="mark">{t('importer.kindMark')}</option>
+              </select>
+            </div>
+            {(kinds[i] ?? item.kind) === 'color' && (
+              <ColorOf
+                index={i}
+                letter={chosen[i]?.slice(6) ?? ''}
+                yarns={yarns}
+                label={t('importer.legendShade', {
+                  name: names[i] || item.color?.name || item.text,
+                })}
+              />
+            )}
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+/** The shade of a colour entry: the yarn's colour, changed with a colour picker. */
+function ColorOf({
+  index,
+  letter,
+  yarns,
+  label,
+}: {
+  index: number;
+  letter: string;
+  yarns: readonly Yarn[];
+  label: string;
+}) {
+  const yarn = yarns.find((y) => y.id === letter);
+  return (
+    <span className="legend-review__color">
+      <span className="legend-review__letter num" aria-hidden="true">
+        {letter}
+      </span>
+      <input
+        type="color"
+        value={yarn?.color ?? '#808080'}
+        aria-label={label}
+        onChange={(e) => useImport.getState().setLegendColor(index, e.target.value)}
+      />
+    </span>
   );
 }
 

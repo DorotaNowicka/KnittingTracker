@@ -60,12 +60,14 @@ const result = (): ImportResult => ({
       matches: [],
       symbolId: 'std:p',
       confidence: 0.9,
+      kind: 'stitch',
     },
   ],
   symbols: ['std:k', 'std:p', 'cable:2-2-lc'],
   text: '',
   description: parseDescription(''),
   notes: [],
+  colors: [],
 });
 
 beforeEach(() => {
@@ -208,5 +210,79 @@ describe('import session', () => {
     ]);
     expect(project?.patterns[2]?.legend).toEqual([{ symbolId: 'std:p', text: 'lewe oczko' }]);
     expect(useImport.getState().projectName).toBe('');
+  });
+
+  it('colourwork: legend colours become the yarns, coloured cells knit in their yarn', async () => {
+    const icon = { rgba: new Uint8ClampedArray(4), width: 1, height: 1 };
+    const gray = { width: 1, height: 1, data: new Uint8Array(1) };
+    const colourCells = {
+      cols: 3,
+      rows: 1,
+      cells: [[cell('color:A'), cell('color:B'), cell('std:none')]],
+    };
+    const r: ImportResult = {
+      ...result(),
+      charts: [
+        { ...(result().charts[0] as ImportResult['charts'][number]), recognized: colourCells },
+      ],
+      legend: [
+        {
+          page: 0,
+          icon,
+          gray,
+          cells: 1,
+          text: 'antracyt',
+          meaning: null,
+          matches: [],
+          symbolId: 'color:A',
+          confidence: 0.95,
+          kind: 'color',
+          color: { name: 'antracyt', fill: null },
+        },
+        {
+          page: 0,
+          icon,
+          gray,
+          cells: 1,
+          text: 'ecru',
+          meaning: null,
+          matches: [{ value: 'std:k', score: 0.9 }],
+          symbolId: 'color:B',
+          confidence: 0.95,
+          kind: 'color',
+          color: { name: 'ecru', fill: null },
+        },
+      ],
+      symbols: ['color:A', 'color:B'],
+      colors: [
+        { id: 'A', name: 'antracyt', hex: '#3b3f45' },
+        { id: 'B', name: 'ecru', hex: '#efe7d4' },
+      ],
+    };
+    const d = draftOf(colourCells, 'A.1');
+    expect(d.rows).toEqual([['std:k', 'std:k', 'std:none']]);
+    expect(d.colors).toEqual([['A', 'B', null]]);
+    useImport.setState({
+      status: 'verify',
+      result: r,
+      charts: [d],
+      legend: ['color:A', 'color:B'],
+      legendNames: ['', 'kremowy'],
+      legendKinds: ['color', 'color'],
+      legendColors: [null, '#f5f0e0'],
+    });
+    expect(useImport.getState().yarns()).toEqual([
+      { id: 'A', name: 'antracyt', color: '#3b3f45' },
+      { id: 'B', name: 'kremowy', color: '#f5f0e0' },
+    ]);
+    const project = useImport.getState().draftProject({
+      title: 'Sweter',
+      sizes: ['M'],
+      sections: ['Przód', 'Tył'],
+      lang: 'pl',
+    });
+    expect(project.yarns?.map((y) => y.id)).toEqual(['A', 'B']);
+    // The file's charts, offered in the creator's library, keep their colours.
+    expect(project.motifs?.[0]?.colors).toEqual(['AB-']);
   });
 });

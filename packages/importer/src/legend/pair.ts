@@ -8,6 +8,7 @@ import {
 } from '../raster/classify';
 import type { GrayImage } from '../raster/gray';
 import type { AnalyzedPage, TextItem } from '../pdf/analyze';
+import { iconColor, legendKind, type LegendKind } from './color';
 import { readLegendText, type LegendMeaning } from './text';
 
 /**
@@ -30,9 +31,13 @@ export interface LegendItem {
   readonly meaning: LegendMeaning | null;
   /** Built-in symbols that look like the icon, best first. */
   readonly matches: readonly Scored<string>[];
-  /** Proposed symbol, or null when nothing fits (the user decides). */
+  /** Proposed symbol, or null when nothing fits (the user decides). A colour is `color:A`… */
   readonly symbolId: string | null;
   readonly confidence: number;
+  /** A stitch, a yarn colour (colourwork) or a mark of a row or a place (never in a cell). */
+  readonly kind: LegendKind;
+  /** For a colour: its name (without "kolor") and the icon's colour when it is filled with it. */
+  readonly color?: { readonly name: string; readonly fill: string | null };
 }
 
 interface Line {
@@ -109,15 +114,20 @@ export function findLegend(page: AnalyzedPage, registry: SymbolRegistry): Legend
     );
     const first = own[0];
     if (!first || !/^\s*[=:–-]/.test(first.text)) return;
-    // Continuation lines: below, indented at least to the text, before the next icon.
-    const more = textLines.filter(
-      (l) =>
-        l.y > first.y + first.h * 0.5 &&
-        l.y < next - 2 &&
-        l.y < first.y + first.h * 6 &&
-        l.x >= right - 2 &&
-        l.x <= right + 60,
-    );
+    // Continuation lines: below, indented at least to the text, before the next icon — and before
+    // a line that starts another entry ("= …") whose icon was not kept.
+    const below = textLines
+      .filter(
+        (l) =>
+          l.y > first.y + first.h * 0.5 &&
+          l.y < next - 2 &&
+          l.y < first.y + first.h * 6 &&
+          l.x >= right - 2 &&
+          l.x <= right + 60,
+      )
+      .sort((a, b) => a.y - b.y);
+    const stop = below.findIndex((l) => /^\s*[=:]/.test(l.text));
+    const more = stop < 0 ? below : below.slice(0, stop);
     const text = [first, ...more]
       .map((l) => l.text)
       .join(' ')
@@ -141,6 +151,7 @@ export function findLegend(page: AnalyzedPage, registry: SymbolRegistry): Legend
       symbolId = best.value;
       confidence = Math.min(0.9, Math.max(0.3, best.score - (matches[1]?.score ?? 0) + 0.4));
     }
+    const what = meaning ? { kind: 'stitch' as const } : legendKind(text);
     out.push({
       page: page.index,
       icon: { rgba: im.rgba, width: im.gray.width, height: im.gray.height },
@@ -149,8 +160,17 @@ export function findLegend(page: AnalyzedPage, registry: SymbolRegistry): Legend
       text,
       meaning,
       matches,
-      symbolId,
-      confidence,
+      symbolId: what.kind === 'stitch' ? symbolId : null,
+      confidence: what.kind === 'stitch' ? confidence : 0.95,
+      kind: what.kind,
+      ...(what.kind === 'color'
+        ? {
+            color: {
+              name: (what.colorName ?? text).slice(0, 40),
+              fill: iconColor(im.rgba, im.gray.width, im.gray.height),
+            },
+          }
+        : {}),
     });
   });
   return out;

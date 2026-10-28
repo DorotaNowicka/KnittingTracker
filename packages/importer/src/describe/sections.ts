@@ -57,6 +57,19 @@ const GENERAL = word(
     `porad${L}`,
     `wskazówk${L}`,
     `wskazowk${L}`,
+    `wykorzystywan${L}`,
+    `technik${L}`,
+    `ścieg${L}`,
+    `scieg${L}`,
+    `dodawani${L}`,
+    `zamykani${L}`,
+    `podwyższeni${L}`,
+    `podwyzszeni${L}`,
+    `robótk${L}`,
+    `robotk${L}`,
+    `stitches`,
+    `techniques?`,
+    `pattern`,
     `materials?`,
     `yarns?`,
     `needles?`,
@@ -78,6 +91,14 @@ const PIECED: readonly ProjectKind[] = ['sweater', 'cardigan', 'vest'];
 function looksLikeHeading(rest: string): boolean {
   const letters = rest.replace(/[^\p{L}]/gu, '');
   if (letters.length < 3) return false;
+  // A pattern number ("DROPS 219-15") or a list of sizes ("S – M – L – XL") is not a heading.
+  if ((rest.match(/\d/g) ?? []).length > 1) return false;
+  if (
+    /^(?:[2-5]?X{0,3}[SML]|XX?L|\d{1,3})(?:\s*[-–/]\s*(?:[2-5]?X{0,3}[SML]|XX?L|\d{1,3}))+$/u.test(
+      rest,
+    )
+  )
+    return false;
   const upper = rest === rest.toUpperCase() && /\p{Lu}/u.test(rest);
   if (upper && rest.length <= 40 && letters.length >= 4) return true;
   return rest.length <= 32 && /:\s*$/u.test(rest);
@@ -99,6 +120,12 @@ function headingOf(
   }
   const g = GENERAL.exec(rest);
   if (g && short(g)) return { type: 'general', partId: null };
+  // "SWETER – SKRÓCONY OPIS ROBÓTKI", "ROBÓTKĘ ROZPOCZYNAMY TUTAJ": about the whole pattern.
+  if (
+    looksLikeHeading(rest) &&
+    /skrócon|skrocon|opis robótki|rozpoczyna|overview|begin here/iu.test(rest)
+  )
+    return { type: 'general', partId: null };
   return looksLikeHeading(rest) ? { type: 'unknown', partId: null } : null;
 }
 

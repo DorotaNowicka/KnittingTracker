@@ -617,7 +617,7 @@
     "found_one": "Found {{count}} chart. Check it against the original.",
     "found_other": "Found {{count}} charts. Check them against the original.",
     "legend": "Legend from the file",
-    "legendHint": "This is what your file calls each symbol. Type your own name if you prefer — you will see it in the legend and the row instructions.",
+    "legendHint": "This is what your file calls each symbol. Type your own name if you prefer. In a colourwork pattern an entry may be a yarn colour — cells with that symbol are knitted in that colour.",
     "legendName": "Name",
     "legendNameEmpty": "Symbol name",
     "legendFromFile": "From the file: {{text}}",
@@ -661,7 +661,13 @@
     "cornersLabel": "Chart corners in the photo",
     "titleAdd": "New pattern in project {{name}}",
     "createInProject": "Add the pattern to the project",
-    "projectSizes": "Project sizes: {{sizes}}. Numbers from the description for another number of sizes are left out."
+    "projectSizes": "Project sizes: {{sizes}}. Numbers from the description for another number of sizes are left out.",
+    "legendKind": "Kind",
+    "kindStitch": "Stitch",
+    "kindColor": "Yarn colour",
+    "kindMark": "Mark (not a stitch)",
+    "legendShade": "Shade: {{name}}",
+    "cellYarn": "Stitch colour: {{name}}"
   },
   "position": {
     "open": "Set position",

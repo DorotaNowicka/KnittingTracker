@@ -3,6 +3,7 @@ import {
   blankChart,
   sizeValueAt,
   uniqueId,
+  withColorRows,
   type Chart,
   type ChartSegment,
   type LegendEntry,
@@ -21,6 +22,8 @@ export interface DraftChart {
   readonly name: string;
   /** Symbol grid, rows bottom → top (as confirmed by the user). */
   readonly rows: SymbolRows;
+  /** Colourwork: the yarn letter of each cell (rows like `rows`), null for none. */
+  readonly colors?: readonly (readonly (string | null)[])[];
 }
 
 export interface DraftInput {
@@ -125,7 +128,11 @@ export function buildPattern(input: DraftInput): Pattern {
   const charts: Chart[] = input.charts.map((c) => {
     const id = uniqueId(c.name, ids, 'chart');
     ids.push(id);
-    return applySymbolRows(blankChart({ id, name: c.name.slice(0, 40) || id }, 1, 1), c.rows);
+    const chart = applySymbolRows(
+      blankChart({ id, name: c.name.slice(0, 40) || id }, 1, 1),
+      c.rows,
+    );
+    return c.colors ? withColorRows(chart, c.colors) : chart;
   });
   const byName = new Map(charts.map((c) => [c.name, c] as const));
   const byId = new Map(charts.map((c) => [c.id, c] as const));

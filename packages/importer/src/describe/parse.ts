@@ -37,7 +37,10 @@ export interface ParsedDescription {
 
 const SIZE_TOKEN = String.raw`(?:XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|XXXXL|\d{1,3}(?:\/\d{1,3})?(?:\s?(?:cm|lat|m-cy|mies\.?))?)`;
 const sizesRe = (min: number) =>
-  new RegExp(String.raw`(?<![\w.])${SIZE_TOKEN}(?:\s*-\s*${SIZE_TOKEN}){${min},9}(?![\w-])`, 'g');
+  new RegExp(
+    String.raw`(?<![\w.])${SIZE_TOKEN}(?:\s*[-–]\s*${SIZE_TOKEN}){${min},9}(?![\w-])`,
+    'g',
+  );
 const CHART_RE = /\b([A-Z]{1,2}\.\d{1,2}[a-z]?)\b/g;
 
 /** The size list: preferably the one right after a "ROZMIARY" heading. */
@@ -52,7 +55,7 @@ function findSizes(text: string): Found<string[]> | null {
     const scope = from === 0 && min === 2 ? text : text.slice(from, from + 200);
     const m = sizesRe(min).exec(scope);
     if (!m) continue;
-    const labels = m[0].split(/\s*-\s*/).map((s) => s.trim());
+    const labels = m[0].split(/\s*[-–]\s*/).map((s) => s.trim());
     // Pure numbers are more often stitch counts or catalogue numbers than sizes.
     if (labels.some((l) => /[A-Z/]/.test(l)) || (min === 1 && labels.length >= 3)) {
       const start = (scope === text ? 0 : from) + m.index;

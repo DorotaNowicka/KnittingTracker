@@ -3,16 +3,24 @@ import {
   insertPattern,
   splitsFrontBack,
   STD,
+  YARN_COLORS,
   type LegendEntry,
   type Locale,
   type Project,
   type ProjectKind,
   type SymbolRows,
+  type Yarn,
 } from '@kt/core';
 import {
   buildPattern,
   buildProject,
+  colorLetter,
+  descriptionBlocks,
+  colorOfName,
+  COLOR_PREFIX,
+  type LegendKind,
   detectBodyPieces,
+  isColorSymbol,
   detectKind,
   lengthOf,
   partLengths,
@@ -74,6 +82,8 @@ export interface ChartDraft {
   include: boolean;
   name: string;
   rows: SymbolRows;
+  /** Colourwork: each cell's yarn letter (row 1 first), null for none; absent without colours. */
+  colors?: (string | null)[][];
   /** Recognition confidence per cell (row 1 first), 1 once the user confirmed or changed it. */
   confidence: number[][];
 }
@@ -91,6 +101,15 @@ interface ImportState {
   readonly legend: readonly (string | null)[];
   /** The knitter's own name per legend entry ('' = the file's wording). */
   readonly legendNames: readonly string[];
+  /** What each legend entry is: a stitch, a yarn colour (colourwork) or a mark of a row. */
+  readonly legendKinds: readonly LegendKind[];
+  /** The knitter's own shade per legend colour entry (#rrggbb; null = the file's). */
+  readonly legendColors: readonly (string | null)[];
+  /** Make an entry a stitch, a colour or a mark; the charts are read again. */
+  setLegendKind(index: number, kind: LegendKind): Promise<void>;
+  setLegendColor(index: number, hex: string): void;
+  /** The yarns of the project the import makes (colourwork): the legend's colours, then the charts'. */
+  yarns(): Yarn[];
   readonly description: { text: string; parsed: ParsedDescription };
   readonly error: string | null;
   /** Name typed on the "new project" screen; proposed for the project the import creates. */
@@ -193,13 +212,38 @@ const codeOf = (e: unknown) => (e instanceof ImportError ? e.code : 'unreadable'
 
 /** Recognised cells → editable symbol rows and confidences. */
 export function draftOf(rec: RecognizedChart, name: string): ChartDraft {
+  // Colourwork: a cell read as a legend colour is a knit stitch in that yarn; a cell of a chart
+  // printed in colour keeps its stitch and gets the yarn of its fill.
+  const colored = rec.cells.some((row) => row.some((c) => isColorSymbol(c.symbolId) || c.color));
   return {
     include: true,
     name,
-    rows: rec.cells.map((row) => row.map((c) => (c.part === 0 ? c.symbolId : '.'))),
+    rows: rec.cells.map((row) =>
+      row.map((c) => (c.part > 0 ? '.' : isColorSymbol(c.symbolId) ? STD.knit : c.symbolId)),
+    ),
+    ...(colored
+      ? {
+          colors: rec.cells.map((row) =>
+            row.map((c) =>
+              isColorSymbol(c.symbolId)
+                ? colorLetter(c.symbolId)
+                : c.symbolId === STD.noStitch
+                  ? null
+                  : (c.color ?? null),
+            ),
+          ),
+        }
+      : {}),
     confidence: rec.cells.map((row) => row.map((c) => c.confidence)),
   };
 }
+
+/** A checked chart as the project builder takes it, with its colours. */
+const draftChartOf = (c: ChartDraft) => ({
+  name: c.name,
+  rows: c.rows,
+  ...(c.colors ? { colors: c.colors } : {}),
+});
 
 const blank = { text: '', parsed: parseDescription('') };
 
@@ -254,7 +298,14 @@ function partsFor(kind: ProjectKind, text: string, charts: number) {
   const bodyPieces = PIECED_BODY.includes(kind)
     ? detectBodyPieces(text)
     : { pieces: false, evidence: [] };
-  const elements = initialElements(kind, charts);
+  const initial = initialElements(kind, charts);
+  // A part the text has a heading for ("KARCZEK") is in the pattern, even one not every pattern has.
+  const headed = new Set(
+    descriptionBlocks(text, kind).flatMap((b) => (b.type === 'part' && b.partId ? [b.partId] : [])),
+  );
+  const elements = Object.fromEntries(
+    Object.entries(initial).map(([id, e]) => [id, headed.has(id) ? { ...e, include: true } : e]),
+  );
   const body = elements['body'];
   return {
     projectKind: kind,
@@ -296,6 +347,8 @@ export const useImport = create<ImportState>((set, get) => ({
   charts: [],
   legend: [],
   legendNames: [],
+  legendKinds: [],
+  legendColors: [],
   description: blank,
   error: null,
   projectName: '',
@@ -338,7 +391,7 @@ export const useImport = create<ImportState>((set, get) => ({
       kind: state.projectKind,
       item,
       state: state.elements[item.id],
-      charts: state.charts.map((c) => ({ name: c.name, rows: c.rows })),
+      charts: state.charts.map(draftChartOf),
       layout: describedLayout(state, Math.max(1, state.sizes.length), ['', '']),
       sizeIndex: state.chosenSize(),
     });
@@ -425,6 +478,8 @@ export const useImport = create<ImportState>((set, get) => ({
         charts: result.charts.map((c, i) => draftOf(c.recognized, c.name ?? `Schemat ${i + 1}`)),
         legend: result.legend.map((l) => (l.confidence >= 0.6 ? l.symbolId : null)),
         legendNames: result.legend.map(() => ''),
+        legendKinds: result.legend.map((l) => l.kind),
+        legendColors: result.legend.map(() => null),
         description: { text: result.text, parsed: result.description },
         ...kindOf(result, `${get().projectName}\n${file.name}`),
         step: 'name',
@@ -441,7 +496,18 @@ export const useImport = create<ImportState>((set, get) => ({
     if (!result) return;
     set({ status: 'running', progress: null });
     try {
-      const items = result.legend.map((l, i) => ({ ...l, symbolId: legend[i] ?? null }));
+      const { legendKinds } = get();
+      const items = result.legend.map((l, i) => {
+        const kind = legendKinds[i] ?? l.kind;
+        return {
+          ...l,
+          symbolId: legend[i] ?? null,
+          kind,
+          ...(kind === 'color'
+            ? { color: l.color ?? { name: l.text.slice(0, 40), fill: null } }
+            : {}),
+        };
+      });
       const next = await worker().rerecognize(symbols, items);
       set({
         status: 'verify',
@@ -465,6 +531,65 @@ export const useImport = create<ImportState>((set, get) => ({
     const names = [...get().legendNames];
     names[index] = name.slice(0, 80);
     set({ legendNames: names });
+  },
+
+  async setLegendKind(index, kind) {
+    const { result, legend, legendKinds } = get();
+    const item = result?.legend[index];
+    if (!result || !item || legendKinds[index] === kind) return;
+    let symbolId: string | null = null;
+    if (kind === 'color') {
+      // The next letter no other colour entry has.
+      const taken = new Set(legend.filter(isColorSymbol).map(colorLetter));
+      const letter = [...'ABCDEFGHIJKL'].find((l) => !taken.has(l));
+      if (!letter) return;
+      symbolId = `${COLOR_PREFIX}${letter}`;
+    } else if (kind === 'stitch') {
+      const best = item.matches[0];
+      symbolId = item.meaning?.symbolId ?? (best && best.score >= 0.55 ? best.value : null);
+    }
+    set({
+      legend: legend.map((v, i) => (i === index ? symbolId : v)),
+      legendKinds: legendKinds.map((k, i) => (i === index ? kind : k)),
+    });
+    // Read the charts again with the symbols and colours now chosen.
+    const chosen = [...new Set(get().legend.filter((v): v is string => !!v))];
+    await get().rerun(
+      chosen.length >= 2 ? chosen : result.symbols.filter((x) => !isColorSymbol(x)),
+    );
+  },
+
+  setLegendColor(index, hex) {
+    set({ legendColors: get().legendColors.map((v, i) => (i === index ? hex : v)) });
+  },
+
+  yarns() {
+    const { result, legend, legendNames, legendColors } = get();
+    const out: Yarn[] = [];
+    legend.forEach((id, i) => {
+      if (!isColorSymbol(id)) return;
+      const letter = colorLetter(id);
+      if (out.some((y) => y.id === letter)) return;
+      const item = result?.legend[i];
+      const name = (legendNames[i]?.trim() || item?.color?.name || item?.text || letter).slice(
+        0,
+        40,
+      );
+      const found = result?.colors.find((c) => c.id === letter)?.hex;
+      const color =
+        legendColors[i] ??
+        found ??
+        (item?.color ? colorOfName(item.color.name) : null) ??
+        YARN_COLORS['ABCDEFGHIJKL'.indexOf(letter)] ??
+        '#808080';
+      out.push({ id: letter, name, color });
+    });
+    // Colours seen only in charts printed in colour.
+    for (const c of result?.colors ?? []) {
+      if (out.some((y) => y.id === c.id)) continue;
+      out.push({ id: c.id, name: c.name || c.id, color: c.hex ?? YARN_COLORS[0] ?? '#808080' });
+    }
+    return out.sort((a, b) => a.id.localeCompare(b.id));
   },
 
   updateChart(index, change) {
@@ -492,6 +617,8 @@ export const useImport = create<ImportState>((set, get) => ({
       charts: [],
       legend: [],
       legendNames: [],
+      legendKinds: [],
+      legendColors: [],
       description: blank,
       error: null,
       ...noParts,
@@ -509,7 +636,7 @@ export const useImport = create<ImportState>((set, get) => ({
       id: patternName,
       name: patternName,
       sizes,
-      charts: charts.filter((c) => c.include).map((c) => ({ name: c.name, rows: c.rows })),
+      charts: charts.filter((c) => c.include).map(draftChartOf),
       legend: legendEntries(get()),
       sequence,
       ...(rest.stitchCount ? { stitchCount: rest.stitchCount } : {}),
@@ -527,12 +654,23 @@ export const useImport = create<ImportState>((set, get) => ({
         patternId = r.patternId;
         // A project without a description takes this file's text; one that has it keeps its own.
         const described = !r.project.description && text ? { description: text } : {};
-        return { ...r.project, ...described, updatedAt: now };
+        // The file's yarns join the project's (letters it has already keep its own).
+        const own = r.project.yarns ?? [];
+        const added = get()
+          .yarns()
+          .filter((y) => !own.some((o) => o.id === y.id));
+        const yarns = added.length > 0 ? { yarns: [...own, ...added] } : {};
+        return { ...r.project, ...described, ...yarns, updatedAt: now };
       });
       return patternId ? { projectId: target.id, patternId } : null;
     }
     const built = buildProject({ ...draft, projectId: newId(), title, now });
-    const project = text ? { ...built, description: text } : built;
+    const yarns = get().yarns();
+    const project = {
+      ...built,
+      ...(text ? { description: text } : {}),
+      ...(yarns.length > 0 ? { yarns } : {}),
+    };
     await library.addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');
@@ -548,7 +686,7 @@ export const useImport = create<ImportState>((set, get) => ({
       sizes,
       now: new Date().toISOString(),
       lang,
-      charts: state.charts.map((c) => ({ name: c.name, rows: c.rows })),
+      charts: state.charts.map(draftChartOf),
       legend: legendEntries(state),
       layout: describedLayout(state, sizes.length, sections),
       elements: state.elements,
@@ -562,10 +700,12 @@ export const useImport = create<ImportState>((set, get) => ({
       ),
     });
     const text = fileText(state);
+    const yarns = state.yarns();
     return {
       ...built,
       sizeIndex: Math.min(state.chosenSize(), sizes.length - 1),
       ...(text ? { description: text } : {}),
+      ...(yarns.length > 0 ? { yarns } : {}),
     };
   },
 

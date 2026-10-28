@@ -134,9 +134,44 @@
   width: 100%;
 }
 
+.legend-review__item .legend-review__kind {
+  grid-column: 1 / -1;
+}
+
+.legend-review__color {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.legend-review__color input {
+  width: 48px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+  cursor: pointer;
+}
+
+.legend-review__letter {
+  font-weight: 700;
+}
+
 @media (min-width: 760px) {
   .legend-review__item {
-    grid-template-columns: 7rem minmax(0, 1fr);
+    grid-template-columns: 7rem minmax(0, 1fr) 13rem 5.5rem;
+    align-items: start;
+  }
+
+  .legend-review__item .legend-review__kind,
+  .legend-review__color {
+    grid-column: auto;
+  }
+
+  .legend-review__color {
+    margin-top: 1.6rem;
   }
 }
 

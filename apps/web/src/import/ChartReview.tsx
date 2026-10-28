@@ -1,11 +1,20 @@
-import { applySymbolRows, blankChart, parseChart, paintCell, type SymbolRegistry } from '@kt/core';
+import {
+  applySymbolRows,
+  blankChart,
+  parseChart,
+  paintCell,
+  withColorRows,
+  type SymbolRegistry,
+} from '@kt/core';
 import { cropRgba, type FoundChart, type ImportResult } from '@kt/importer';
 import { chartSource, editorOverlay } from '@kt/grid-renderer';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EditorCanvas, type CellPoint } from '../editor/EditorCanvas';
 import { TextField } from '../ui/fields';
+import { yarnColors } from '../lib/yarns';
 import { SymbolGlyph } from '../ui/SymbolGlyph';
+import { YarnSwatch } from '../ui/YarnSwatch';
 import { UNCERTAIN, useImport, type ChartDraft } from './session';
 
 /**
@@ -37,14 +46,21 @@ export function ChartReview({
   const height = draft.rows.length;
   const shown = !selectable || draft.include;
 
+  // Colourwork: the yarns of the import, to paint the cells and to fix a cell's colour.
+  useImport((s) => s.legendColors);
+  useImport((s) => s.legendNames);
+  useImport((s) => s.legend);
+  const yarns = useImport.getState().yarns();
+  const yarnKey = yarns.map((y) => `${y.id}${y.color}`).join();
+  const colors = useMemo(() => yarnColors(yarns), [yarnKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const parsed = useMemo(() => {
     const chart = applySymbolRows(
       blankChart({ id: `c${index}`, name: draft.name || '—' }, 1, 1),
       draft.rows,
     );
-    return parseChart(chart, registry);
-  }, [draft.rows, draft.name, index, registry]);
-  const source = useMemo(() => chartSource(parsed, registry), [parsed, registry]);
+    return parseChart(draft.colors ? withColorRows(chart, draft.colors) : chart, registry);
+  }, [draft.rows, draft.colors, draft.name, index, registry]);
+  const source = useMemo(() => chartSource(parsed, registry, colors), [parsed, registry, colors]);
   const uncertain = useMemo(() => {
     const out: CellPoint[] = [];
     draft.confidence.forEach((row, r) =>
@@ -84,6 +100,19 @@ export function ChartReview({
     );
     update({ rows, confidence });
   };
+
+  /** Colourwork: give the cell at the cursor another yarn, and mark it as checked. */
+  const paintYarn = (letter: string) => {
+    if (!cursor || !draft.colors) return;
+    const colors = draft.colors.map((row, r) =>
+      r === cursor.row - 1 ? row.map((y, c) => (c === cursor.col - 1 ? letter : y)) : row,
+    );
+    const confidence = draft.confidence.map((row, r) =>
+      r === cursor.row - 1 ? row.map((c, col) => (col === cursor.col - 1 ? 1 : c)) : row,
+    );
+    update({ colors, confidence });
+  };
+  const yarnAt = cursor ? draft.colors?.[cursor.row - 1]?.[cursor.col - 1] : undefined;
 
   const nextUncertain = () => {
     if (uncertain.length === 0) return;
@@ -230,6 +259,20 @@ export function ChartReview({
                 >
                   {t('importer.confirm')}
                 </button>
+                {draft.colors &&
+                  yarns.map((y) => (
+                    <button
+                      key={y.id}
+                      type="button"
+                      className="palette__item palette__item--inline"
+                      aria-pressed={yarnAt === y.id}
+                      title={t('importer.cellYarn', { name: y.name })}
+                      onClick={() => paintYarn(y.id)}
+                    >
+                      <YarnSwatch color={y.color} size={22} />
+                      <span className="palette__label">{y.name}</span>
+                    </button>
+                  ))}
                 {choices.map((d, i) => (
                   <button
                     key={d.id}

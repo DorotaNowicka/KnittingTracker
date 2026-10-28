@@ -36,9 +36,18 @@ export {
   type FoundChart,
   type ImportOptions,
   type ImportProgress,
+  type ImportColor,
   type ImportResult,
   type SourceImage,
 } from './pipeline';
+export {
+  colorLetter,
+  colorOfName,
+  COLOR_PREFIX,
+  isColorSymbol,
+  legendKind,
+  type LegendKind,
+} from './legend/color';
 export type { RecognizedCell, RecognizedChart, Scored } from './raster/classify';
 export { UNCERTAIN_BELOW } from './raster/classify';
 export type { DetectedGrid } from './raster/grid';

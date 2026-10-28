@@ -653,7 +653,7 @@
     "found_many": "Znaleziono {{count}} schematów. Sprawdź je z oryginałem.",
     "found_other": "Znaleziono {{count}} schematu. Sprawdź je z oryginałem.",
     "legend": "Legenda z pliku",
-    "legendHint": "Tak symbole nazywa Twój plik. Wpisz własną nazwę, jeśli wolisz inną — zobaczysz ją w legendzie i w instrukcji rzędu.",
+    "legendHint": "Tak symbole nazywa Twój plik. Wpisz własną nazwę, jeśli wolisz inną. We wzorze kolorowym wpis może być kolorem włóczki — wtedy kratki z tym symbolem przerabiasz tym kolorem.",
     "legendName": "Nazwa",
     "legendNameEmpty": "Nazwa symbolu",
     "legendFromFile": "Z pliku: {{text}}",
@@ -701,7 +701,13 @@
     "cornersLabel": "Narożniki schematu na zdjęciu",
     "titleAdd": "Nowy wzór w projekcie {{name}}",
     "createInProject": "Dodaj wzór do projektu",
-    "projectSizes": "Rozmiary projektu: {{sizes}}. Liczby z opisu dla innej liczby rozmiarów zostaną pominięte."
+    "projectSizes": "Rozmiary projektu: {{sizes}}. Liczby z opisu dla innej liczby rozmiarów zostaną pominięte.",
+    "legendKind": "Rodzaj",
+    "kindStitch": "Ścieg",
+    "kindColor": "Kolor włóczki",
+    "kindMark": "Znacznik (nie oczko)",
+    "legendShade": "Odcień: {{name}}",
+    "cellYarn": "Kolor oczka: {{name}}"
   },
   "position": {
     "open": "Ustaw pozycję",

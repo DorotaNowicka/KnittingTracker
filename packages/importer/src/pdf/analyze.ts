@@ -345,10 +345,16 @@ export async function analyzePdf(
   }
 }
 
-/** All text of a document in reading order, one line per text line (for the description parser). */
+/**
+ * All text of a document in reading order, one line per text line (for the description parser).
+ * A page header or footer printed on every page (a browser's date, title, address and "3/10") is
+ * left out.
+ */
 export function documentText(doc: AnalyzedDocument): string {
-  const lines: string[] = [];
+  const pages: string[][] = [];
   for (const page of doc.pages) {
+    const lines: string[] = [];
+    pages.push(lines);
     const items = [...page.texts].sort((a, b) =>
       Math.abs(a.y - b.y) > Math.max(2, a.h * 0.4) ? a.y - b.y : a.x - b.x,
     );
@@ -373,5 +379,18 @@ export function documentText(doc: AnalyzedDocument): string {
     }
     flush();
   }
-  return lines.filter(Boolean).join('\n');
+  // Lines at the top or bottom of several pages that differ only in their numbers.
+  const shape = (l: string) => l.replace(/\d+/g, '#');
+  const edges = (lines: readonly string[]) => [...lines.slice(0, 2), ...lines.slice(-2)];
+  const seen = new Map<string, number>();
+  for (const lines of pages)
+    for (const l of new Set(edges(lines).map(shape))) seen.set(l, (seen.get(l) ?? 0) + 1);
+  const repeated = (l: string) => pages.length >= 2 && (seen.get(shape(l)) ?? 0) >= 2;
+  return pages
+    .flatMap((lines) => {
+      const edge = new Set(edges(lines));
+      return lines.filter((l) => !(edge.has(l) && repeated(l)));
+    })
+    .filter(Boolean)
+    .join('\n');
 }

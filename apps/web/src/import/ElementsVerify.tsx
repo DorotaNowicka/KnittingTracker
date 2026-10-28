@@ -27,6 +27,7 @@ import {
   type ElementState,
 } from './elements';
 import { LayoutEditor } from './LayoutEditor';
+import { yarnColors } from '../lib/yarns';
 import { GarmentDiagram } from '../garment/GarmentDiagram';
 import { LegendReview, SymbolsReview } from './Reviews';
 import {
@@ -761,6 +762,7 @@ function PartPreview({
   const s = useImport();
   const stage = useResolved(draft, part.patternId);
   const facts = useFacts(part, stage);
+  const colors = useMemo(() => yarnColors(draft.yarns), [draft.yarns]);
   const size = s.sizes[s.chosenSize()];
   const tracked = Object.values(s.elements).filter((e) => e.include).length;
   return (
@@ -793,7 +795,7 @@ function PartPreview({
             <p className="chip-warn">{t('preview.uncertain', { count: facts.uncertain })}</p>
           )}
           {stage ? (
-            <PatternPreview stage={stage} />
+            <PatternPreview stage={stage} yarns={colors} />
           ) : (
             <p className="notice notice--danger">{t('preview.cannotBuild')}</p>
           )}
