@@ -264,7 +264,13 @@ describe('new project from a PDF: parts to track', () => {
     await user.click(tab(/Korpus/));
     await user.click(screen.getByRole('button', { name: 'Popraw' }));
     expect(screen.getByText(/schematy z PDF leżą na siatce jako kafelki/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Otwórz w kreatorze' }));
+    // The shortcut at the top leads to the button under "Ułożenie i wymiary".
+    expect(screen.getByRole('button', { name: 'Przejdź do kreatora ↓' })).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', {
+        name: /^Otwórz w kreatorze z tym ułożeniem — siatka \d+ × \d+$/,
+      }),
+    );
     await waitFor(() => expect(useLibrary.getState().projects).toHaveLength(1));
     const project = useLibrary.getState().projects[0];
     expect(project?.motifs?.map((m) => m.name)).toEqual(['A.1', 'A.2']);

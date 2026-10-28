@@ -845,6 +845,8 @@
     "sizeIs": "size {{size}}",
     "stitchesFrom": "The stitch count follows from the charts' arrangement in the description and the chosen size.",
     "changeSize": "Change size",
+    "openDesignerWith": "Open in the creator with this layout — a {{stitches}} × {{rows}} grid",
+    "jumpDesigner": "Go to the creator ↓",
     "openDesigner": "Open in the creator",
     "designerLead": "Fix the pattern in the creator: the PDF charts lie on the grid as tiles you can move, widen and remove, and they wait in the library next to the ready-made pieces. The project will be created.",
     "designerLeadEmpty": "Draw this part in the creator: the PDF charts wait in the library next to the ready-made pieces. The project will be created.",

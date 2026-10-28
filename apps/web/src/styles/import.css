@@ -917,6 +917,21 @@ button.steps__link {
   max-width: 60ch;
 }
 
+/* The creator's button sits under the layout; its button stands out a little more. */
+.fix-designer {
+  border-color: var(--indigo);
+  border-left-width: 4px;
+}
+
+.fix-designer .btn {
+  white-space: normal;
+  text-align: left;
+}
+
+.fix-designer__jump {
+  margin: 0;
+}
+
 /* "Popraw": the part's round put together from charts, its width and length. */
 .layout-editor {
   display: grid;

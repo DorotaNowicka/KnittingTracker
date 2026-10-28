@@ -832,6 +832,13 @@ function FixPart({
   const setup = s.partSetup(part.patternId);
   const used = [...new Set(setup.sequence.map((x) => x.chart))].sort((a, b) => a - b);
   const round = stage?.pattern.construction !== 'flat';
+  // The creator's grid: as tall as the tallest chart of the layout.
+  const tallest = Math.max(
+    1,
+    ...(stage?.zones ?? []).map(
+      (z) => stage?.pattern.charts.find((c) => c.id === z.chartId)?.height ?? 1,
+    ),
+  );
   const size = s.sizes[s.chosenSize()] ?? t('elements.oneSize');
   return (
     <section className="fix-part" aria-labelledby={headingId}>
@@ -839,13 +846,21 @@ function FixPart({
         {t('preview.fixTitle', { part: part.label })}
       </h2>
 
-      <div className="fix-designer">
-        <p>{t(facts.charts.length > 0 ? 'preview.designerLead' : 'preview.designerLeadEmpty')}</p>
-        <button type="button" className="btn btn--primary" disabled={busy} onClick={onDesign}>
-          <Icon name="brush" size={18} />
-          {t('preview.openDesigner')}
+      {/* The creator starts from the layout below: a shortcut down to its button. */}
+      <p className="fix-designer__jump">
+        <button
+          type="button"
+          className="link-btn"
+          onClick={() => {
+            const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+            const target = document.getElementById(`${ids}-designer`);
+            target?.scrollIntoView?.({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+            target?.focus({ preventScroll: true });
+          }}
+        >
+          {t('preview.jumpDesigner')}
         </button>
-      </div>
+      </p>
 
       <details className="fix" open={facts.uncertain > 0}>
         <summary>
@@ -897,6 +912,23 @@ function FixPart({
           onChange={(next) => s.setPartSetup(part.patternId, next)}
         />
       </details>
+
+      {/* After the layout: the creator opens with it (width = stitches, height = tallest chart). */}
+      <div className="fix-designer">
+        <p>{t(facts.charts.length > 0 ? 'preview.designerLead' : 'preview.designerLeadEmpty')}</p>
+        <button
+          id={`${ids}-designer`}
+          type="button"
+          className="btn btn--primary"
+          disabled={busy}
+          onClick={onDesign}
+        >
+          <Icon name="brush" size={18} />
+          {stage && stage.stitchCount > 0
+            ? t('preview.openDesignerWith', { stitches: stage.stitchCount, rows: tallest })
+            : t('preview.openDesigner')}
+        </button>
+      </div>
 
       {item.type === 'choice' && (
         <details className="fix">

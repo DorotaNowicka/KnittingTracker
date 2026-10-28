@@ -927,6 +927,8 @@
     "sizeIs": "rozmiar {{size}}",
     "stitchesFrom": "Liczba oczek wynika z ułożenia schematów w opisie i z wybranego rozmiaru.",
     "changeSize": "Zmień rozmiar",
+    "openDesignerWith": "Otwórz w kreatorze z tym ułożeniem — siatka {{stitches}} × {{rows}}",
+    "jumpDesigner": "Przejdź do kreatora ↓",
     "openDesigner": "Otwórz w kreatorze",
     "designerLead": "Popraw wzór w kreatorze: schematy z PDF leżą na siatce jako kafelki, które możesz przesuwać, poszerzać i usuwać, a w bibliotece są obok gotowych wzorów. Projekt zostanie założony.",
     "designerLeadEmpty": "Narysuj tę część w kreatorze: schematy z PDF będą w bibliotece obok gotowych wzorów. Projekt zostanie założony.",
