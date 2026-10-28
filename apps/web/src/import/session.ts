@@ -154,7 +154,12 @@ interface ImportState {
    * turned into a creator design first (its charts laid as tiles), to be corrected in the creator,
    * and every part still waits for its "Gotowe"; without it the knitter approved them all.
    */
-  createProject(input: CreateProjectInput, designPart?: string): Promise<string>;
+  createProject(
+    input: CreateProjectInput,
+    designPart?: string,
+    /** Parts already approved in the preview ("Zgadza się"): they start ready. */
+    approved?: readonly string[],
+  ): Promise<string>;
 }
 
 export type ImportStep = 'name' | 'size' | 'legend' | 'parts' | 'preview';
@@ -536,17 +541,23 @@ export const useImport = create<ImportState>((set, get) => ({
     return { ...built, sizeIndex: Math.min(state.chosenSize(), sizes.length - 1) };
   },
 
-  async createProject(input, designPart) {
+  async createProject(input, designPart, approved = []) {
     const draft = get().draftProject(input, newId());
-    const project = designPart
+    const designed = designPart
       ? withDesignFromLayout(
           draft,
           designPart,
           createRegistry(),
           splitsFrontBack(draft.kind, designPart) ? input.sections : undefined,
         )
-      : // "Zgadza się": the knitter approved every part as previewed.
-        { ...draft, patterns: draft.patterns.map((p) => ({ ...p, ready: true })) };
+      : draft;
+    // "Zgadza się": every part when knitting starts; else the parts approved so far.
+    const project = {
+      ...designed,
+      patterns: designed.patterns.map((p) =>
+        !designPart || approved.includes(p.id) ? { ...p, ready: true } : p,
+      ),
+    };
     await useLibrary.getState().addProject(project);
     set({ projectName: '' });
     useNewProject.getState().setName('');

@@ -593,11 +593,14 @@ function PreviewStep({ onSize }: { onSize(): void }) {
     if (busy) return;
     setBusy(true);
     try {
-      const id = await s.createProject(input, design ? part.patternId : undefined);
+      const id = await s.createProject(input, design ? part.patternId : undefined, [...checked]);
       useImport.getState().reset();
-      // Knitting starts with the first part; a correction opens the part in the creator.
+      // Knitting starts with the first part. A correction opens the part in the creator, whose
+      // "Gotowe" comes back to checking this part and the next ones (the project's review).
       const first = parts[0]?.patternId ?? part.patternId;
-      navigate(design ? paths.designer(id, part.patternId) : paths.tracker(id, first));
+      navigate(
+        design ? paths.designer(id, part.patternId, { review: true }) : paths.tracker(id, first),
+      );
     } finally {
       setBusy(false);
     }

@@ -261,6 +261,8 @@ describe('new project from a PDF: parts to track', () => {
     const user = userEvent.setup();
     render(<App />);
     await toPreview(user);
+    // The first part is approved before another one is corrected.
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, następna' }));
     await user.click(tab(/Korpus/));
     await user.click(screen.getByRole('button', { name: 'Popraw' }));
     expect(screen.getByText(/schematy z PDF leżą na siatce jako kafelki/)).toBeInTheDocument();
@@ -285,6 +287,31 @@ describe('new project from a PDF: parts to track', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Z pliku wzoru' }),
     ).toBeInTheDocument();
+
+    // "Gotowe" in the creator goes back to checking this part, then the next ones.
+    await user.click(screen.getByRole('button', { name: 'Gotowe' }));
+    await waitFor(() => expect(window.location.pathname).toBe(`/projekt/${project?.id}/przeglad`));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Sprawdź części' }),
+    ).toBeInTheDocument();
+    const shown = () => screen.getByRole('heading', { level: 2 }).textContent;
+    expect(shown()).toContain('Korpus');
+    const ready = () =>
+      Object.fromEntries(
+        (useLibrary.getState().project(project?.id ?? '')?.patterns ?? []).map((p) => [
+          p.id,
+          !!p.ready,
+        ]),
+      );
+    expect(ready()).toMatchObject({ 'bottom-rib': true, body: false });
+    await user.click(screen.getByRole('button', { name: 'Zgadza się, następna' }));
+    expect(shown()).toContain('Ściągacz rękawa');
+    await waitFor(() => expect(ready()).toMatchObject({ body: true }));
+    // A part read from the file is corrected the same way: its charts become tiles.
+    await user.click(screen.getByRole('button', { name: 'Popraw w kreatorze' }));
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(`/projekt/${project?.id}/wzor/sleeve-cuff/kreator`),
+    );
   });
 
   it('puts the round together in Popraw: charts from the right, its stitches, centred, length from the PDF', async () => {

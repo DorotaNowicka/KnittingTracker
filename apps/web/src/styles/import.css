@@ -1051,3 +1051,8 @@ button.steps__link {
   margin-left: 2px;
   color: var(--guide);
 }
+
+/* Checking a new project's parts after the creator: same tabs and buttons as the preview. */
+.review-page .preview-tabs {
+  margin: var(--sp-4) 0 var(--sp-3);
+}

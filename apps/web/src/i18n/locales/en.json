@@ -91,6 +91,17 @@
     "tooWide": "The grid would be wider than 1000 stitches — use fewer increases.",
     "add": "Add rule"
   },
+  "review": {
+    "title": "Check the parts",
+    "lead": "Look at each part and confirm with “Looks right”. If something needs changing, correct the part in the creator — “Done” comes back here.",
+    "ready": "checked",
+    "rows_one": "{{count}} row",
+    "rows_other": "{{count}} rows",
+    "rounds_one": "{{count}} round",
+    "rounds_other": "{{count}} rounds",
+    "counter": "This part is tracked with a row counter only — no grid.",
+    "correct": "Correct in the creator"
+  },
   "sizes": {
     "title": "Project sizes",
     "lead": "Type the sizes this project comes in and how big each part is in each of them. The grey number is the value in the size you designed the part in — an empty field means “the same”.",
@@ -877,6 +888,7 @@
   "designer": {
     "back": "Project parts",
     "backProject": "Project",
+    "backReview": "Checking the parts",
     "title": "Pattern creator: {{name}}",
     "sizeLead": "Start with the grid: how many stitches a round or row has and how many rows this part has. You can change it later.",
     "suggested": "We filled in the size of “{{name}}”. Change it if this part is different.",

@@ -86,11 +86,19 @@ function Designer({ project, pattern }: { project: Project; pattern: Pattern }) 
     useDraft
       .getState()
       .updatePattern(pattern.id, (p) => applyDesign({ ...p, design: next }, registry));
-  const back =
-    project.kind && project.kind !== 'custom' ? paths.parts(project.id) : paths.project(project.id);
-  /** "Gotowe": the part is set up; back to the garment's parts (or the project). */
+  // Opened while checking a new project's parts: "Gotowe" goes back to checking this part.
+  const reviewing = new URLSearchParams(window.location.search).has('przeglad');
+  const back = reviewing
+    ? paths.review(project.id, pattern.id)
+    : project.kind && project.kind !== 'custom'
+      ? paths.parts(project.id)
+      : paths.project(project.id);
+  /**
+   * "Gotowe": the part is set up; back to the garment's parts (or the project). While checking a
+   * new project, back to that part, which the knitter then approves ("Zgadza się").
+   */
   const finish = async () => {
-    useDraft.getState().updatePattern(pattern.id, (p) => ({ ...p, ready: true }));
+    if (!reviewing) useDraft.getState().updatePattern(pattern.id, (p) => ({ ...p, ready: true }));
     await useDraft.getState().flush();
     navigate(back);
   };
@@ -164,7 +172,7 @@ function GridSize({
         <p className="page__back">
           <Link to={back} className="link-back">
             <Icon name="back" size={18} />
-            {t(back.endsWith('/czesci') ? 'designer.back' : 'designer.backProject')}
+            {t(backLabel(back))}
           </Link>
         </p>
         <h1 className="page__title">{t('designer.title', { name: pattern.name })}</h1>
@@ -611,11 +619,7 @@ function Workbench({
   return (
     <main className="editor designer" id="main">
       <header className="editor__bar">
-        <Link
-          to={back}
-          className="icon-btn"
-          aria-label={t(back.endsWith('/czesci') ? 'designer.back' : 'designer.backProject')}
-        >
+        <Link to={back} className="icon-btn" aria-label={t(backLabel(back))}>
           <Icon name="back" />
         </Link>
         <h1 className="designer__title">{t('designer.title', { name: pattern.name })}</h1>
@@ -876,6 +880,14 @@ function Workbench({
     </main>
   );
 }
+
+/** What the back link leads to: the parts, the review of a new project, or the project. */
+const backLabel = (back: string) =>
+  back.endsWith('/czesci')
+    ? 'designer.back'
+    : back.includes('/przeglad')
+      ? 'designer.backReview'
+      : 'designer.backProject';
 
 const QUARTERS = [1, 2, 3] as const;
 const QUARTER_LABEL = { 1: '¼', 2: '½', 3: '¾' } as const;

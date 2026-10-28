@@ -99,6 +99,21 @@
     "tooWide": "Siatka byłaby szersza niż 1000 oczek — zmniejsz liczbę dodań.",
     "add": "Dodaj regułę"
   },
+  "review": {
+    "title": "Sprawdź części",
+    "lead": "Obejrzyj każdą część i potwierdź „Zgadza się”. Jeśli coś trzeba zmienić, popraw część w kreatorze — „Gotowe” wróci tutaj.",
+    "ready": "sprawdzona",
+    "rows_one": "{{count}} rząd",
+    "rows_few": "{{count}} rzędy",
+    "rows_many": "{{count}} rzędów",
+    "rows_other": "{{count}} rzędu",
+    "rounds_one": "{{count}} okrążenie",
+    "rounds_few": "{{count}} okrążenia",
+    "rounds_many": "{{count}} okrążeń",
+    "rounds_other": "{{count}} okrążenia",
+    "counter": "Ta część jest liczona samym licznikiem rzędów — bez siatki.",
+    "correct": "Popraw w kreatorze"
+  },
   "sizes": {
     "title": "Rozmiary projektu",
     "lead": "Wpisz rozmiary, w których można zrobić ten projekt, i jakie wielkości ma każda część w każdym z nich. Szara liczba to wartość z rozmiaru, w którym zaprojektowałaś część — puste pole znaczy „tak samo”.",
@@ -959,6 +974,7 @@
   "designer": {
     "back": "Części projektu",
     "backProject": "Projekt",
+    "backReview": "Sprawdzanie części",
     "title": "Kreator wzoru: {{name}}",
     "sizeLead": "Zacznij od siatki: ile oczek ma okrążenie lub rząd i ile rzędów ma ta część. Rozmiar zmienisz później.",
     "suggested": "Wpisaliśmy wymiary z części „{{name}}”. Zmień je, jeśli ta część jest inna.",

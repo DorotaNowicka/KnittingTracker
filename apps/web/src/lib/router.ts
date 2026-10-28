@@ -20,6 +20,8 @@ export type Route =
   | { readonly name: 'start'; readonly id: string }
   /** The sizes of a hand-made project and what changes in each, part by part. */
   | { readonly name: 'sizes'; readonly id: string }
+  /** Checking a new project's parts one by one ("Zgadza się, następna"), with the creator. */
+  | { readonly name: 'review'; readonly id: string }
   /** Tracking one pattern of a project. */
   | { readonly name: 'tracker'; readonly id: string; readonly patternId: string }
   /** Editing one pattern: its charts, layout and legend. */
@@ -49,7 +51,12 @@ export const paths = {
   sizes: (id: string) => `/projekt/${enc(id)}/rozmiary`,
   tracker: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}`,
   pattern: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}/edycja`,
-  designer: (id: string, patternId: string) => `/projekt/${enc(id)}/wzor/${enc(patternId)}/kreator`,
+  /** `review`: "Gotowe" in the creator goes back to checking the project's parts. */
+  designer: (id: string, patternId: string, options: { review?: boolean } = {}) =>
+    `/projekt/${enc(id)}/wzor/${enc(patternId)}/kreator${options.review ? '?przeglad' : ''}`,
+  /** The project's parts to check, showing `patternId` (else the first not ready yet). */
+  review: (id: string, patternId?: string) =>
+    `/projekt/${enc(id)}/przeglad${patternId ? `?czesc=${enc(patternId)}` : ''}`,
   chart: (id: string, patternId: string, chartId: string) =>
     `/projekt/${enc(id)}/wzor/${enc(patternId)}/schemat/${enc(chartId)}`,
 };
@@ -69,7 +76,7 @@ export function parseRoute(pathname: string): Route {
   if (pathname === '/ustawienia') return { name: 'settings' };
   if (pathname === '/import') return { name: 'import' };
   const m =
-    /^\/projekt\/([^/]+)(?:\/(import|czesci|start|rozmiary)|\/wzor\/([^/]+)(?:\/(edycja|kreator)|\/schemat\/([^/]+))?)?$/.exec(
+    /^\/projekt\/([^/]+)(?:\/(import|czesci|start|rozmiary|przeglad)|\/wzor\/([^/]+)(?:\/(edycja|kreator)|\/schemat\/([^/]+))?)?$/.exec(
       pathname,
     );
   if (!m) return { name: 'notFound' };
@@ -78,6 +85,7 @@ export function parseRoute(pathname: string): Route {
   if (m[2] === 'czesci') return { name: 'parts', id };
   if (m[2] === 'start') return { name: 'start', id };
   if (m[2] === 'rozmiary') return { name: 'sizes', id };
+  if (m[2] === 'przeglad') return { name: 'review', id };
   if (m[2]) return { name: 'import', id };
   if (m[3] === undefined) return { name: 'project', id };
   if (!patternId) return { name: 'notFound' };
