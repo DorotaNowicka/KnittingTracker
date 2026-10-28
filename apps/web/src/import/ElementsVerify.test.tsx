@@ -402,6 +402,35 @@ describe('new project from a PDF: parts to track', () => {
     expect(screen.queryByRole('button', { name: /Tył$/ })).toBeNull();
   });
 
+  it('shows which piece of the description went to which part, and what went to none', async () => {
+    const user = userEvent.setup();
+    const described =
+      'Sweter Jesienny\nPRÓBKA:\n18 oczek = 10 cm.\nKORPUS:\nNabrać 180 oczek.\n' +
+      'RĘKAWY\nNabrać 44 oczka.\nKIESZEŃ:\nNabrać 20 oczek.\nKAPTUR:\nNabrać 90 oczek.';
+    useImport.setState({ description: { text: described, parsed: parseDescription(described) } });
+    render(<App />);
+    const map = (await screen.findByText('Opis z pliku — co trafiło do której części')).closest(
+      'details',
+    ) as HTMLElement;
+    // Something went to no part: the list is open.
+    expect(map).toHaveAttribute('open');
+    expect(map).toHaveTextContent('2 fragmenty przypisane do części. 2 bez części.');
+    const items = within(map).getAllByRole('listitem');
+    expect(items.map((li) => li.querySelector('.description-map__chip')?.textContent)).toEqual([
+      'Początek opisu',
+      'Ogólne',
+      '4Korpus',
+      '2Rękaw',
+      'Bez części',
+      'Bez części',
+    ]);
+    expect(items[4]).toHaveTextContent('KIESZEŃ:');
+    expect(map).toHaveTextContent('Bez fragmentu opisu: 1. Ściągacz dołu');
+    // A part the knitter does not track: its piece says so.
+    await user.click(screen.getByRole('checkbox', { name: /Rękaw/ }));
+    expect(map).toHaveTextContent('tej części nie śledzisz');
+  });
+
   it('checks the parts one by one from the lowest number; only the last one starts', async () => {
     const user = userEvent.setup();
     render(<App />);

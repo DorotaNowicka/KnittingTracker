@@ -17,6 +17,7 @@ import { TextField } from '../ui/fields';
 import { Icon } from '../ui/Icon';
 import { KIND_ICONS } from '../ui/kindIcons';
 import { ChartReview } from './ChartReview';
+import { DescriptionMap } from './DescriptionMap';
 import {
   describedSequence,
   mainItemId,
@@ -426,6 +427,8 @@ function PartsStep({ onBack, onNext }: { onBack(): void; onNext(): void }) {
           </fieldset>
         </div>
       )}
+
+      <DescriptionMap items={items} numbers={numbers} />
 
       <div className="form-actions">
         <button type="button" className="btn" onClick={onBack}>

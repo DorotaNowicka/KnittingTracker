@@ -16,14 +16,14 @@ export interface PartOrder {
 }
 
 const L = '\\p{L}*';
-const word = (alternatives: string) =>
+export const word = (alternatives: string) =>
   new RegExp(
     `^(?:(?:wykończeni|wykonczeni|wykonani|robieni)${L}\\s+|finishing\\s+|the\\s+)?(?:${alternatives})(?!\\p{L})`,
     'iu',
   );
 
 /** Headings per item id, tried in this order (specific names before general ones). */
-type Headings = readonly (readonly [string, RegExp])[];
+export type Headings = readonly (readonly [string, RegExp])[];
 
 const garment = (bands: Headings): Headings => [
   ...bands,
@@ -49,7 +49,7 @@ const garment = (bands: Headings): Headings => [
   ],
 ];
 
-const HEADINGS: Readonly<Partial<Record<ProjectKind, Headings>>> = {
+export const HEADINGS: Readonly<Partial<Record<ProjectKind, Headings>>> = {
   sweater: garment([]),
   cardigan: garment([
     ['buttonhole-band', word(`listw${L} z dziur${L}|buttonhole bands?`)],
@@ -102,7 +102,8 @@ const OTHER_WAY: Readonly<Partial<Record<ProjectKind, RegExp>>> = {
 };
 
 /** "3.", "Krok 2:", "Step 4 –" before a heading. */
-const NUMBERING = /^\s*(?:(?:krok|część|czesc|etap|step|part)\s*\d+\s*[:.–-]?\s*|\d+[.)]\s*)/iu;
+export const NUMBERING =
+  /^\s*(?:(?:krok|część|czesc|etap|step|part)\s*\d+\s*[:.–-]?\s*|\d+[.)]\s*)/iu;
 
 /** A part's heading on this line, or null: a short line, a line in capitals, or "Name:". */
 function headingOf(line: string, headings: Headings): { id: string; text: string } | null {

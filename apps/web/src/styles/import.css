@@ -1047,3 +1047,109 @@ button.steps__link {
 .review-page .preview-tabs {
   margin: var(--sp-4) 0 var(--sp-3);
 }
+
+/* "Opis z pliku": the pattern text by part, what went nowhere stands out. */
+.description-map {
+  margin-top: var(--sp-5);
+}
+
+.description-map__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.description-map__item {
+  display: grid;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--indigo);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+}
+
+.description-map__item--general {
+  border-left-color: var(--rule-strong);
+}
+
+.description-map__item--untracked {
+  border-left-color: var(--rule);
+  opacity: 0.85;
+}
+
+.description-map__item--loose {
+  border-color: var(--marker);
+  border-left-width: 4px;
+  background: color-mix(in srgb, var(--marker) 12%, var(--sheet));
+}
+
+.description-map__where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+  margin: 0;
+}
+
+.description-map__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px var(--sp-2);
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: var(--fs-1);
+  font-weight: 700;
+}
+
+.description-map__item--part .description-map__chip {
+  background: var(--indigo);
+  color: var(--on-indigo);
+}
+
+.description-map__item--loose .description-map__chip {
+  background: var(--marker);
+  color: #1a1408;
+}
+
+.description-map__no {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.3em;
+  height: 1.3em;
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+  font-size: 0.85em;
+}
+
+.description-map__note {
+  color: var(--ink-muted);
+  font-size: var(--fs-1);
+}
+
+.description-map__heading {
+  margin: 0;
+  font-weight: 700;
+}
+
+.description-map__text {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--fs-2);
+  white-space: pre-line;
+}
+
+.description-map__text.is-clamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.description-map__item .link-btn {
+  justify-self: start;
+  font-size: var(--fs-1);
+}
