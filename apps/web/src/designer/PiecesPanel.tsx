@@ -1,3 +1,4 @@
+import type { YarnColors } from '@kt/grid-renderer';
 import { placementArea, type Chart, type Design, type Pattern } from '@kt/core';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +20,7 @@ export function PiecesPanel({
   setDesign,
   onNewPiece,
   pattern,
+  yarns,
 }: {
   design: Design;
   /** Every piece on offer: the file's, the ready-made ones and the knitter's own. */
@@ -36,6 +38,8 @@ export function PiecesPanel({
   setDesign(design: Design): void;
   onNewPiece(): void;
   pattern: Pattern;
+  /** Yarn colours (colourwork), for the pieces' pictures. */
+  yarns?: YarnColors;
 }) {
   const { t } = useTranslation();
   const ids = useId();
@@ -53,7 +57,13 @@ export function PiecesPanel({
             aria-pressed={holding?.id === m.id}
             onClick={() => onPick(m)}
           >
-            <ChartThumb pattern={pattern} chart={m} maxWidth={72} maxHeight={48} />
+            <ChartThumb
+              pattern={pattern}
+              chart={m}
+              maxWidth={72}
+              maxHeight={48}
+              {...(yarns ? { yarns } : {})}
+            />
             <span className="piece__name">{m.name}</span>
             <span className="piece__size num">
               {t('editor.chartSize', { w: m.width, h: m.height })}

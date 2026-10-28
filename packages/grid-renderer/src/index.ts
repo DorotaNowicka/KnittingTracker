@@ -36,4 +36,5 @@ export {
   progressOverlay,
   visibleRowCount,
   type OverlayOptions,
+  type YarnColors,
 } from './fromPattern';

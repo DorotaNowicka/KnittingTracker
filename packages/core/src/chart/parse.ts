@@ -12,6 +12,8 @@ export interface ChartCell {
   /** 0 for the anchor (leftmost) cell, 1…width-1 for continuation cells. */
   readonly part: number;
   readonly width: number;
+  /** The yarn of this cell (colourwork), a letter `A`…`L`; absent when the chart has no colours. */
+  readonly yarn?: string;
 }
 
 export interface ParsedChart {
@@ -159,7 +161,17 @@ export function parseChart(chart: Chart, registry: SymbolRegistry): ParsedChart 
       }
     }
     closeOpen(chart.width);
-    cells.push(row);
+    // Colourwork: the yarn of each cell, from the chart's colour rows; a cell without a colour of
+    // its own is in the main yarn, A.
+    const colors = chart.colors ? (chart.colors[r - 1] ?? '') : null;
+    cells.push(
+      colors === null
+        ? row
+        : row.map((cell, i) => {
+            const y = colors[i];
+            return { ...cell, yarn: y && /^[A-L]$/.test(y) ? y : 'A' };
+          }),
+    );
   }
   return { chart, cells, diagnostics: diags };
 }

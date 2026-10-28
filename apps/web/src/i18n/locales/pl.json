@@ -1008,10 +1008,11 @@
     "where": "Oczko {{col}} od prawej, rząd {{row}}",
     "hint": {
       "brush": "Maluj pojedyncze oczka wybranym symbolem.",
-      "eraser": "Gumka usuwa oczka namalowane pędzlem; pod spodem zostaje wzór.",
+      "eraser": "Gumka usuwa oczka i kolory namalowane pędzlem; pod spodem zostaje wzór.",
       "pan": "Przesuwaj i powiększaj siatkę.",
       "shape": "Ustaw ujęcia i dodania w panelu obok. Najedź na regułę, żeby zobaczyć jej rzędy na siatce.",
-      "tiles": "Kliknij kafelek, żeby go zaznaczyć (Shift + klik: kilka), i przeciągnij w bok, żeby przesunąć. Wzór z biblioteki kładziesz kliknięciem w kolumnę."
+      "tiles": "Kliknij kafelek, żeby go zaznaczyć (Shift + klik: kilka), i przeciągnij w bok, żeby przesunąć. Wzór z biblioteki kładziesz kliknięciem w kolumnę.",
+      "color": "Maluj oczka wybranym kolorem włóczki; ścieg zostaje taki, jaki jest."
     },
     "brush": "Pędzel",
     "brushHint": "Symbol do malowania pojedynczych oczek. Pędzel jest zawsze na wierzchu.",
@@ -1124,7 +1125,11 @@
     "done": "Gotowe",
     "doneWithoutGrid": "Gotowe bez siatki — tylko licznik rzędów",
     "lengthCm": "Długość (cm)",
-    "lengthHint": "Wzór powtarza się w górę do tej długości."
+    "lengthHint": "Wzór powtarza się w górę do tej długości.",
+    "toolColor": "Kolor",
+    "pieceMode": "Co malujesz",
+    "pieceStitches": "Ściegi",
+    "pieceColors": "Kolory"
   },
   "rows": {
     "label": "Długość wzoru",
@@ -1257,5 +1262,18 @@
     "panelHint": "Cały opis z pliku. Fragmenty tej części są zakreślone i przewinięte na górę; pozostałe są przygaszone.",
     "panelNoPart": "Cały opis z pliku. Ta część nie ma w nim swojego fragmentu.",
     "notInProject": "tej części nie ma w projekcie"
+  },
+  "yarns": {
+    "title": "Kolory",
+    "default": "Kolor {{letter}}",
+    "empty": "Wzór kolorowy (żakard)? Dodaj kolory włóczek i maluj nimi oczka pędzlem „Kolor”.",
+    "start": "Dodaj kolory",
+    "hint": "Kolor A to kolor główny — oczka bez własnego koloru robisz nim. Kliknij kolor, żeby nim malować.",
+    "paintWith": "Maluj kolorem: {{name}}",
+    "name": "Nazwa koloru {{letter}}",
+    "color": "Odcień: {{name}}",
+    "remove": "Usuń kolor: {{name}}",
+    "inUse": "Tego koloru używa któryś wzór — nie można go usunąć.",
+    "add": "Dodaj kolor"
   }
 }

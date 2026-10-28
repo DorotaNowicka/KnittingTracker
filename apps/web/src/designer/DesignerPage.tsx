@@ -14,11 +14,13 @@ import {
   stitchBalance,
   fixBalance,
   chartToSymbolRows,
+  nextYarn,
   type Chart,
   type Design,
   type Pattern,
   type Project,
   type SymbolRegistry,
+  type Yarn,
 } from '@kt/core';
 import { chartSource, editorOverlay, quarterGuides, type GridSource } from '@kt/grid-renderer';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -27,6 +29,7 @@ import { PatternGate, SaveState } from '../editor/DraftGate';
 import { EditorCanvas, type CanvasTool, type CellPoint } from '../editor/EditorCanvas';
 import { RowNotesEditor } from '../editor/RowNotesEditor';
 import { PatternDescription } from '../ui/PatternDescription';
+import { yarnColors } from '../lib/yarns';
 import { Link } from '../lib/Link';
 import { getLastGrid, setLastGrid, type LastGrid } from '../lib/preferences';
 import { navigate, paths } from '../lib/router';
@@ -42,6 +45,7 @@ import {
   areaRect,
   brushCell,
   clipConflict,
+  colorCell,
   clipRects,
   conflictOf,
   copyTiles,
@@ -60,6 +64,7 @@ import {
   type Conflict,
 } from './designOps';
 import { MotifDialog } from './MotifDialog';
+import { YarnsPanel } from './YarnsPanel';
 import { PiecesPanel } from './PiecesPanel';
 import { ShapingPanel } from './ShapingPanel';
 import { TileBar } from './TileBar';
@@ -78,7 +83,7 @@ export function DesignerPage({ projectId, patternId }: { projectId: string; patt
   );
 }
 
-type Tool = 'tiles' | 'brush' | 'eraser' | 'pan' | 'shape';
+type Tool = 'tiles' | 'brush' | 'color' | 'eraser' | 'pan' | 'shape';
 
 function Designer({ project, pattern }: { project: Project; pattern: Pattern }) {
   const { t } = useTranslation();
@@ -261,6 +266,30 @@ function Workbench({
   }, []);
   const [tool, setTool] = useState<Tool>('tiles');
   const [symbol, setSymbol] = useState('std:p');
+  /** Yarn the colour brush paints with (colourwork). */
+  const [yarn, setYarn] = useState('B');
+  const yarns = project.yarns;
+  const colors = useMemo(() => yarnColors(yarns), [yarns]);
+  const setYarns = (next: Yarn[]) =>
+    useDraft.getState().update((p) => {
+      const { yarns: _old, ...rest } = p;
+      return next.length > 0 ? { ...rest, yarns: next } : rest;
+    });
+  /** The colour brush: a project without yarns gets its first two (main colour and a contrast). */
+  const startColor = (id?: string) => {
+    const list = yarns ?? [];
+    if (list.length === 0) {
+      const a = nextYarn([], (l) => t('yarns.default', { letter: l }));
+      const b = a ? nextYarn([a], (l) => t('yarns.default', { letter: l })) : null;
+      if (a && b) setYarns([a, b]);
+      setYarn(id ?? 'B');
+    } else if (id) {
+      setYarn(id);
+    } else if (!list.some((y) => y.id === yarn)) {
+      setYarn(list.at(-1)?.id ?? 'A');
+    }
+    setTool('color');
+  };
   const [holding, setHolding] = useState<{ motif: Chart; times: number } | null>(null);
   /** Copied tiles in hand, laid together by clicking a column. */
   const [pasting, setPasting] = useState<Clip | null>(null);
@@ -374,7 +403,7 @@ function Workbench({
     [unbalanced, drawnRows, registry],
   );
   const source = useMemo((): GridSource => {
-    const base = chartSource(parsed, registry);
+    const base = chartSource(parsed, registry, colors);
     // Halves are drawn apart: the second (back) on the left, the first (front) on the right.
     const cut = design.width - firstHalf(design.width);
     const sections =
@@ -395,7 +424,7 @@ function Workbench({
       guides: [...counting, ...axes],
       shaded: mirrors.map((m) => ({ firstCol: m.firstCol, lastCol: m.lastCol })),
     };
-  }, [parsed, registry, design.width, design.halves, guides, mirrors]);
+  }, [parsed, registry, colors, design.width, design.halves, guides, mirrors]);
   const rects = [
     ...(ghost ? ghost.rects : rectsOf(design, chosen)),
     ...(shapeRows ?? []).map((row) => ({ row1: row, row2: row, col1: 1, col2: design.width })),
@@ -590,7 +619,9 @@ function Workbench({
     const next =
       tool === 'brush'
         ? brushCell(base, registry, cell.row, cell.col, symbol)
-        : eraseCell(base, registry, cell.row, cell.col);
+        : tool === 'color'
+          ? colorCell(base, cell.row, cell.col, yarn)
+          : eraseCell(base, registry, cell.row, cell.col);
     if (next === base) return;
     stroke.current = next;
     setDesign(next);
@@ -599,11 +630,12 @@ function Workbench({
     tool === 'pan' || tool === 'shape' ? 'pan' : tool === 'tiles' ? 'select' : 'paint';
   const tools: {
     id: Tool;
-    icon: 'select' | 'brush' | 'eraser' | 'hand' | 'shape';
+    icon: 'select' | 'brush' | 'yarn' | 'eraser' | 'hand' | 'shape';
     label: string;
   }[] = [
     { id: 'tiles', icon: 'select', label: t('designer.toolTiles') },
     { id: 'brush', icon: 'brush', label: t('designer.toolBrush') },
+    { id: 'color', icon: 'yarn', label: t('designer.toolColor') },
     { id: 'eraser', icon: 'eraser', label: t('designer.toolEraser') },
     // Knitted "until N cm" the grid repeats upwards: no shape there.
     ...(pattern.targetCm === undefined
@@ -620,6 +652,15 @@ function Workbench({
       registry={registry}
       setDesign={setDesign}
       onShowRows={setShapeRows}
+    />
+  );
+  const yarnsPanel = (
+    <YarnsPanel
+      project={project}
+      active={yarn}
+      painting={tool === 'color'}
+      onPick={startColor}
+      onChange={setYarns}
     />
   );
   // Pointing at a quarter line tells how to mirror there.
@@ -646,7 +687,7 @@ function Workbench({
                 type="radio"
                 name={`${ids}-tool`}
                 checked={tool === x.id}
-                onChange={() => setTool(x.id)}
+                onChange={() => (x.id === 'color' ? startColor() : setTool(x.id))}
               />
               <span>
                 <Icon name={x.icon} size={20} />
@@ -785,11 +826,11 @@ function Workbench({
               setCursor(cell);
               stroke.current = null;
               if (tool === 'tiles') tilesStart(cell, mods?.shift ?? false);
-              else if (tool === 'brush' || tool === 'eraser') paint(cell);
+              else if (tool === 'brush' || tool === 'color' || tool === 'eraser') paint(cell);
             }}
             onStrokeMove={(cell) => {
               if (tool === 'tiles') tilesMove(cell);
-              else if (tool === 'brush' || tool === 'eraser') paint(cell);
+              else if (tool === 'brush' || tool === 'color' || tool === 'eraser') paint(cell);
             }}
             onStrokeEnd={() => {
               stroke.current = null;
@@ -801,7 +842,7 @@ function Workbench({
             }}
             onLineDoubleClick={(col) => {
               // Brush strokes own double clicks; the panel's switches work with every tool.
-              if (tool === 'brush' || tool === 'eraser') return;
+              if (tool === 'brush' || tool === 'color' || tool === 'eraser') return;
               const quarter = quarterAt(col);
               if (quarter) flipMirror(quarter);
             }}
@@ -831,6 +872,8 @@ function Workbench({
 
         <aside className="editor__panel">
           {tool === 'shape' && shapingPanel}
+          {/* Painting colours: the yarns come first, like a palette. */}
+          {tool === 'color' && yarnsPanel}
           <PatternDescription project={project} patternId={pattern.id} />
           <PiecesPanel
             design={design}
@@ -844,6 +887,7 @@ function Workbench({
             setDesign={setDesign}
             onNewPiece={() => setNewPiece(true)}
             pattern={pattern}
+            yarns={colors}
           />
           <section aria-labelledby={`${ids}-mirror`}>
             <h2 id={`${ids}-mirror`} className="panel__title">
@@ -864,6 +908,7 @@ function Workbench({
             </div>
           </section>
           {tool !== 'shape' && pattern.targetCm === undefined && shapingPanel}
+          {tool !== 'color' && yarnsPanel}
           <section aria-labelledby={`${ids}-brush`}>
             <h2 id={`${ids}-brush`} className="panel__title">
               {t('designer.brush')}
@@ -881,7 +926,13 @@ function Workbench({
         </aside>
       </div>
       {newPiece && (
-        <MotifDialog registry={registry} onSaved={pick} onClose={() => setNewPiece(false)} />
+        <MotifDialog
+          registry={registry}
+          yarns={yarns ?? []}
+          colors={colors}
+          onSaved={pick}
+          onClose={() => setNewPiece(false)}
+        />
       )}
       {/* The part is set up: "Gotowe" at the bottom, where a form ends. */}
       <footer className="designer__footer">

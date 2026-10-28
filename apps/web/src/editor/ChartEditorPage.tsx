@@ -60,6 +60,7 @@ import { CustomSymbolDialog } from './CustomSymbolDialog';
 import { PatternGate, SaveState } from './DraftGate';
 import { EditorCanvas, type CanvasTool, type CellPoint } from './EditorCanvas';
 import { SymbolLibraryDialog } from './SymbolLibraryDialog';
+import { DEFAULT_YARN_COLORS } from '../lib/yarns';
 
 /** Copied cells, shared by all charts during the session (copy from A.1, paste into A.2). */
 const useClipboard = create<{ clip: Clip | null; set(clip: Clip): void }>((set) => ({
@@ -174,7 +175,7 @@ function ChartEditor({ back, pattern, chart }: { back: string; pattern: Pattern;
     [parsed, registry],
   );
   const source = useMemo(
-    () => (parsed && registry ? chartSource(parsed, registry) : null),
+    () => (parsed && registry ? chartSource(parsed, registry, DEFAULT_YARN_COLORS) : null),
     [parsed, registry],
   );
   const highlights = useMemo(() => {

@@ -23,8 +23,16 @@ export function visibleRowCount(
   return Math.ceil((currentRow + tallest) / tallest) * tallest;
 }
 
+/** Yarn colours by letter (colourwork): `A` → `#f2ead8`. */
+export type YarnColors = ReadonlyMap<string, string>;
+
 /** Adapt a resolved pattern from `@kt/core` to the renderer's {@link GridSource}. */
-export function patternSource(grid: ResolvedPattern, rows: number): GridSource {
+export function patternSource(
+  grid: ResolvedPattern,
+  rows: number,
+  /** Colours of the project's yarns; cells of yarns not listed are drawn without colour. */
+  yarns?: YarnColors,
+): GridSource {
   const n = grid.stitchCount;
   const toCol = (stitch: number) => n - stitch + 1;
   const zones: Band[] = grid.zones.map((z) => ({
@@ -36,9 +44,12 @@ export function patternSource(grid: ResolvedPattern, rows: number): GridSource {
     .map((s) => ({ label: s.name, firstCol: toCol(s.lastStitch), lastCol: toCol(s.firstStitch) }))
     .sort((a, b) => a.firstCol - b.firstCol);
   const cache = new Map<number, GridCell>();
+  const colored =
+    !!yarns && yarns.size > 0 && grid.zones.some((z) => (z.chart.chart.colors ?? []).length > 0);
   return {
     cols: n,
     rows,
+    colored,
     zones,
     sections,
     continuesAbove: grid.plannedRows === null || grid.plannedRows > rows,
@@ -49,7 +60,14 @@ export function patternSource(grid: ResolvedPattern, rows: number): GridSource {
       if (!cell) {
         const c = grid.cellAtCol(row, col);
         const def = grid.symbol(c);
-        cell = { glyph: def.glyph, width: c.width, part: c.part, noStitch: !def.worked };
+        const fill = colored && c.yarn ? yarns?.get(c.yarn) : undefined;
+        cell = {
+          glyph: def.glyph,
+          width: c.width,
+          part: c.part,
+          noStitch: !def.worked,
+          ...(fill ? { fill } : {}),
+        };
         if (cache.size > 200_000) cache.clear();
         cache.set(key, cell);
       }
@@ -62,11 +80,17 @@ export function patternSource(grid: ResolvedPattern, rows: number): GridSource {
  * Adapt a single chart (chart editor): one zone, columns numbered from the right like the stitches
  * of an RS row. Unknown symbols are drawn as knit so a broken chart can still be fixed.
  */
-export function chartSource(parsed: ParsedChart, registry: SymbolRegistry): GridSource {
+export function chartSource(
+  parsed: ParsedChart,
+  registry: SymbolRegistry,
+  yarns?: YarnColors,
+): GridSource {
   const { width, height, name } = parsed.chart;
+  const colored = !!yarns && yarns.size > 0 && (parsed.chart.colors ?? []).length > 0;
   return {
     cols: width,
     rows: height,
+    colored,
     zones: [{ label: name, firstCol: 1, lastCol: width }],
     sections: [],
     continuesAbove: false,
@@ -74,11 +98,13 @@ export function chartSource(parsed: ParsedChart, registry: SymbolRegistry): Grid
     cell(row, col) {
       const c = parsed.cells[row - 1]?.[col - 1];
       const def = (c && registry.get(c.symbolId)) ?? registry.require('std:k');
+      const fill = colored && c?.yarn ? yarns?.get(c.yarn) : undefined;
       return {
         glyph: def.glyph,
         width: c?.width ?? 1,
         part: c?.part ?? 0,
         noStitch: !def.worked,
+        ...(fill ? { fill } : {}),
       };
     },
   };

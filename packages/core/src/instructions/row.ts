@@ -19,6 +19,8 @@ export interface InstructionToken {
   readonly problem?: 'ws-unsupported';
   /** WS-specific instruction text for `explicit` symbols. */
   readonly wsText?: { readonly pl: string; readonly en: string };
+  /** Yarn the run is worked with (colourwork); absent: no colour of its own. */
+  readonly yarn?: string;
 }
 
 export interface RowInstructions {
@@ -60,8 +62,9 @@ export function rowInstructions(grid: ResolvedPattern, row: number): RowInstruct
       if (def.ws.mode === 'explicit') wsText = def.ws.text;
     }
 
+    const yarn = cell.yarn;
     const prev = tokens.at(-1);
-    if (prev && prev.chartSymbolId === def.id && prev.problem === problem) {
+    if (prev && prev.chartSymbolId === def.id && prev.problem === problem && prev.yarn === yarn) {
       tokens[tokens.length - 1] = { ...prev, count: prev.count + 1, toStitch: lastStitch };
       continue;
     }
@@ -73,6 +76,7 @@ export function rowInstructions(grid: ResolvedPattern, row: number): RowInstruct
       toStitch: lastStitch,
       ...(problem ? { problem } : {}),
       ...(wsText ? { wsText } : {}),
+      ...(yarn ? { yarn } : {}),
     });
   }
   return { row, side, direction: rs ? 'right-to-left' : 'left-to-right', tokens };

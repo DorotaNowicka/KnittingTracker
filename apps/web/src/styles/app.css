@@ -2380,3 +2380,34 @@ body {
   display: block;
   height: min(45vh, 24rem);
 }
+
+/* Colourwork: a yarn's swatch and its name. */
+.yarn-swatch {
+  display: inline-block;
+  flex: none;
+  vertical-align: -0.15em;
+}
+
+.yarn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.legend--yarns {
+  margin-bottom: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.legend--yarns .legend__item {
+  align-items: center;
+}
+
+.row-text__what {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--sp-2);
+}

@@ -18,6 +18,8 @@ export interface GridCell {
   readonly part: number;
   /** "No stitch" cells are shaded instead of drawn. */
   readonly noStitch: boolean;
+  /** Colourwork: the cell's yarn colour (#rrggbb); absent when it has no colour of its own. */
+  readonly fill?: string;
 }
 
 export interface Band {
@@ -70,6 +72,11 @@ export interface GridSource {
   /** Column ranges drawn hatched, e.g. a mirror image the knitter doesn't draw herself. */
   readonly shaded?: readonly { readonly firstCol: number; readonly lastCol: number }[];
   cell(row: number, col: number): GridCell;
+  /**
+   * Colourwork: cells are painted in their yarn's colour. Done cells are then only crossed out
+   * (hatched), never tinted, so the colours stay true.
+   */
+  readonly colored?: boolean;
   /** Stitch number printed above a column. */
   stitchNumber(col: number): number;
   /** True when the visible rows end before the work does ("continues" edge). */

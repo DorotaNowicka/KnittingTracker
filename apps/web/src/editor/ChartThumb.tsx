@@ -7,8 +7,10 @@ import {
   GridGeometry,
   paint,
   readPalette,
+  type YarnColors,
 } from '@kt/grid-renderer';
 import { useEffect, useRef } from 'react';
+import { DEFAULT_YARN_COLORS } from '../lib/yarns';
 
 const FONT = "'Atkinson Hyperlegible Next Variable', system-ui, sans-serif";
 
@@ -18,11 +20,14 @@ export function ChartThumb({
   chart,
   maxWidth = 160,
   maxHeight = 96,
+  yarns = DEFAULT_YARN_COLORS,
 }: {
   pattern: Pattern;
   chart: Chart;
   maxWidth?: number;
   maxHeight?: number;
+  /** Yarn colours (colourwork); the suggested ones by default. */
+  yarns?: YarnColors;
 }) {
   const ref = useRef<HTMLImageElement>(null);
   const cell = clampCellPx(Math.min(16, maxWidth / chart.width, maxHeight / chart.height));
@@ -45,7 +50,7 @@ export function ChartThumb({
     const dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    const source = chartSource(parseChart(chart, registry), registry);
+    const source = chartSource(parseChart(chart, registry), registry, yarns);
     const geo = new GridGeometry(source, cell);
     const cam = { cell, scrollX: geo.colX(1), scrollY: geo.gridTop, width: w, height: h };
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -57,7 +62,7 @@ export function ChartThumb({
       FONT,
     );
     img.src = canvas.toDataURL('image/png');
-  }, [pattern, chart, cell, w, h]);
+  }, [pattern, chart, cell, w, h, yarns]);
 
   return <img ref={ref} className="chart-thumb" width={w} height={h} alt="" />;
 }

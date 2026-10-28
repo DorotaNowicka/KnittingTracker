@@ -922,10 +922,11 @@
     "where": "Stitch {{col}} from the right, row {{row}}",
     "hint": {
       "brush": "Paint single stitches with the chosen symbol.",
-      "eraser": "The eraser removes stitches painted with the brush; the pattern underneath stays.",
+      "eraser": "The eraser removes stitches and colours painted with a brush; the pattern underneath stays.",
       "pan": "Pan and zoom the grid.",
       "shape": "Set decreases and increases in the panel. Point at a rule to see its rows on the grid.",
-      "tiles": "Click a tile to select it (Shift + click: several) and drag it sideways to move it. Lay a library piece by clicking a column."
+      "tiles": "Click a tile to select it (Shift + click: several) and drag it sideways to move it. Lay a library piece by clicking a column.",
+      "color": "Paint stitches with the chosen yarn colour; the stitch stays as it is."
     },
     "brush": "Brush",
     "brushHint": "The symbol to paint single stitches with. The brush is always on top.",
@@ -1016,7 +1017,11 @@
     "done": "Done",
     "doneWithoutGrid": "Done without a grid — just count rows",
     "lengthCm": "Length (cm)",
-    "lengthHint": "The pattern repeats upwards to this length."
+    "lengthHint": "The pattern repeats upwards to this length.",
+    "toolColor": "Colour",
+    "pieceMode": "What you paint",
+    "pieceStitches": "Stitches",
+    "pieceColors": "Colours"
   },
   "rows": {
     "label": "Pattern length",
@@ -1131,5 +1136,18 @@
     "panelHint": "The file's whole description. This part's pieces are highlighted and scrolled to the top; the others are dimmed.",
     "panelNoPart": "The file's whole description. This part has no piece of its own in it.",
     "notInProject": "this part is not in the project"
+  },
+  "yarns": {
+    "title": "Colours",
+    "default": "Colour {{letter}}",
+    "empty": "A colourwork pattern? Add your yarn colours and paint stitches with them using the “Colour” brush.",
+    "start": "Add colours",
+    "hint": "Colour A is the main colour — stitches without a colour of their own are knitted with it. Click a colour to paint with it.",
+    "paintWith": "Paint with: {{name}}",
+    "name": "Name of colour {{letter}}",
+    "color": "Shade: {{name}}",
+    "remove": "Remove colour: {{name}}",
+    "inUse": "A pattern uses this colour — it can't be removed.",
+    "add": "Add a colour"
   }
 }

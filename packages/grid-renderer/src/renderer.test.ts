@@ -426,4 +426,40 @@ describe('editor', () => {
     expect(stat.some((d) => d.t === 'lines' && d.stroke === 'danger')).toBe(false);
     expect(editorOverlay({}).done(1)).toBeNull();
   });
+
+  it('paints colourwork in the yarns, light symbols on dark yarn, done cells only crossed out', () => {
+    const base = charts[0];
+    if (!base) throw new Error('fixture');
+    const colored: Chart = { ...base, colors: ['BB-AAA', '------'] };
+    const yarns = new Map([
+      ['A', '#f2ead8'],
+      ['B', '#2b3a55'],
+    ]);
+    const cs = chartSource(parseChart(colored, registry), registry, yarns);
+    expect(cs.colored).toBe(true);
+    expect(cs.cell(1, 1).fill).toBe('#2b3a55');
+    // No colour of its own: the main yarn.
+    expect(cs.cell(1, 3).fill).toBe('#f2ead8');
+    const geo = new GridGeometry(cs, 20);
+    const done = {
+      ...editorOverlay({}),
+      done: (row: number) => (row === 1 ? 'all' : null),
+    } as const;
+    const cmds = buildScene(cs, geo, cam(), done, 'static');
+    const fills = cmds.filter((d) => d.t === 'rect' && d.color);
+    // Row 1 in two runs (B, then A), row 2 in one (A).
+    expect(fills.map((d) => (d.t === 'rect' ? [d.color, d.w] : null))).toEqual([
+      ['#2b3a55', 40],
+      ['#f2ead8', 80],
+      ['#f2ead8', 120],
+    ]);
+    expect(cmds.some((d) => d.t === 'rect' && d.fill === 'done')).toBe(false);
+    expect(
+      cmds.filter((d) => d.t === 'hatch').map((d) => (d.t === 'hatch' ? d.stroke : '')),
+    ).toEqual(['sheet', 'ink']);
+    // The purl on the dark yarn is drawn light.
+    expect(cmds.some((d) => d.t === 'glyphs' && d.ink === '#ffffff')).toBe(true);
+    // Without yarns the same chart is drawn as before.
+    expect(chartSource(parseChart(colored, registry), registry).colored).toBe(false);
+  });
 });

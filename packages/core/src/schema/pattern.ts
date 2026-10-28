@@ -104,6 +104,17 @@ export const legendEntrySchema = z.object({
 /** Reserved chart character: continuation of the multi-cell symbol anchored to its left. */
 export const CONTINUATION = '.';
 
+/** A yarn's id: one letter, A (usually the main colour) to L. Charts' colour rows use it. */
+export const yarnIdSchema = z.string().regex(/^[A-L]$/);
+
+/** A yarn of a colourwork project: its letter, the knitter's name for it and its colour. */
+export const yarnSchema = z.object({
+  id: yarnIdSchema,
+  name: z.string().min(1).max(40),
+  /** #rrggbb */
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
 export const chartSchema = z.object({
   id,
   name: z.string().min(1).max(40),
@@ -112,6 +123,11 @@ export const chartSchema = z.object({
   /** Single character → symbol id. `.` is reserved for continuation cells. */
   palette: z.record(z.string().length(1), id),
   rows: z.array(z.string()),
+  /**
+   * Colour of each cell (colourwork): rows like `rows`, one character per cell — the id of a yarn
+   * of the project (`A`…`L`); any other character (`-`) is the main yarn, A.
+   */
+  colors: z.array(z.string().max(1000)).max(1000).optional(),
 });
 
 export const segmentSchema = z.discriminatedUnion('kind', [
@@ -222,6 +238,11 @@ export const designSchema = z.object({
   placements: z.array(placementSchema),
   /** Symbols painted with the brush: anchor stitch from the right edge, row from the bottom. */
   cells: z.array(z.object({ row: posInt.max(1000), col: posInt.max(1000), symbolId: id })),
+  /** Colours painted with the colour brush (on top of the pieces' own colours), cell by cell. */
+  colorCells: z
+    .array(z.object({ row: posInt.max(1000), col: posInt.max(1000), yarn: yarnIdSchema }))
+    .max(200000)
+    .optional(),
   /**
    * Split in two halves, knitted in this order (a body in the round: front, then back): names of
    * the half starting at stitch 1 (the right one) and of the other.
@@ -310,6 +331,8 @@ export const projectSchema = z.object({
   revision: nonNegInt,
   designer: z.string().max(120).optional(),
   notes: z.string().max(5000).optional(),
+  /** Yarns of a colourwork project; charts colour their cells with these letters. */
+  yarns: z.array(yarnSchema).max(12).optional(),
   /** The pattern text of the imported file, shown beside the grid with each part's piece marked. */
   description: z.string().max(100000).optional(),
   /** Garment sizes; per-size numbers in patterns are indexed by position in this list. */
@@ -349,6 +372,7 @@ export type Design = z.infer<typeof designSchema>;
 export type DesignSizes = z.infer<typeof designSizesSchema>;
 export type ShapingRule = z.infer<typeof shapingRuleSchema>;
 export type RowNote = z.infer<typeof rowNoteSchema>;
+export type Yarn = z.infer<typeof yarnSchema>;
 export type Placement = z.infer<typeof placementSchema>;
 export type LegendEntry = z.infer<typeof legendEntrySchema>;
 export type CustomSymbol = z.infer<typeof customSymbolSchema>;

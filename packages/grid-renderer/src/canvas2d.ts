@@ -100,7 +100,7 @@ export function paint(
     switch (cmd.t) {
       case 'rect':
         ctx.globalAlpha = cmd.alpha ?? 1;
-        ctx.fillStyle = palette[cmd.fill];
+        ctx.fillStyle = cmd.color ?? palette[cmd.fill];
         ctx.fillRect(cmd.x, cmd.y, cmd.w, cmd.h);
         ctx.globalAlpha = 1;
         break;
@@ -142,7 +142,7 @@ export function paint(
         }
         ctx.strokeStyle = palette[cmd.stroke];
         ctx.lineWidth = cmd.width;
-        ctx.globalAlpha = 0.55;
+        ctx.globalAlpha = cmd.alpha ?? 0.55;
         ctx.stroke();
         ctx.restore();
         break;
@@ -150,17 +150,17 @@ export function paint(
       case 'glyphs': {
         const strokePath = new Path2D();
         const ctxProxy = strokePath as unknown as CanvasRenderingContext2D;
-        ctx.fillStyle = palette.ink;
+        const ink = cmd.ink ?? palette.ink;
+        ctx.fillStyle = ink;
         for (const item of cmd.items) {
           for (const p of item.glyph.primitives) {
             if (p.kind === 'polygon' || (p.kind === 'circle' && p.fill === 'ink')) {
               ctx.beginPath();
               tracePrimitive(ctx, p, item.x, item.y, cmd.cell);
-              ctx.fillStyle =
-                p.kind === 'polygon' && p.fill === 'muted' ? palette.noStitch : palette.ink;
+              ctx.fillStyle = p.kind === 'polygon' && p.fill === 'muted' ? palette.noStitch : ink;
               ctx.fill();
             } else if (p.kind === 'text') {
-              ctx.fillStyle = palette.ink;
+              ctx.fillStyle = ink;
               setText(`600 ${Math.round(p.size * cmd.cell)}px ${font}`, 'center');
               ctx.fillText(p.text, item.x + p.at[0] * cmd.cell, item.y + p.at[1] * cmd.cell);
             } else {
@@ -168,7 +168,7 @@ export function paint(
             }
           }
         }
-        ctx.strokeStyle = palette[cmd.stroke];
+        ctx.strokeStyle = cmd.ink ?? palette[cmd.stroke];
         ctx.lineWidth = cmd.lineWidth;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';

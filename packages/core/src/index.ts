@@ -58,6 +58,8 @@ export {
   type SymbolRows,
 } from './chart/edit';
 
+export * from './chart/colors';
+
 export {
   createHistory,
   EDITOR_HISTORY_LIMIT,

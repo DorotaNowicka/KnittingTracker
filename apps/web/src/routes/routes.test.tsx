@@ -520,6 +520,37 @@ describe('screens', () => {
     );
   });
 
+  it('a colourwork row is read by its yarns, and the legend lists the colours', async () => {
+    const design = {
+      ...blankDesign(6, 2),
+      colorCells: [
+        { row: 1, col: 3, yarn: 'B' },
+        { row: 1, col: 4, yarn: 'B' },
+      ],
+    };
+    const project = {
+      ...insertPattern(
+        blankProject({ id: 'cw', name: 'Czapka', sizes: ['M'], now: '2026-10-28T21:00:00.000Z' }),
+        applyDesign({ ...blankPattern('band', 'Pas'), design }, createRegistry()),
+      ).project,
+      yarns: [
+        { id: 'A', name: 'ecru', color: '#f2ead8' },
+        { id: 'B', name: 'antracyt', color: '#2b3a55' },
+      ],
+    };
+    await useLibrary.getState().addProject(project);
+    navigate('/projekt/cw/wzor/band');
+    render(<App />);
+    const list = await screen.findByRole('list', { name: 'Kolory', hidden: true });
+    expect(
+      within(list)
+        .getAllByRole('listitem', { hidden: true })
+        .map((li) => li.textContent),
+    ).toEqual(['ecruA', 'antracytB']);
+    const items = document.querySelectorAll('.row-text__item');
+    expect([...items].map((li) => li.textContent)).toEqual(['2×ecru', '2×antracyt', '2×ecru']);
+  });
+
   it('the legend and the row instructions fold away, and stay folded on this device', async () => {
     const user = userEvent.setup();
     localStorage.removeItem('kt.section.legend');

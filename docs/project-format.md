@@ -47,6 +47,7 @@ Frozen v1 and v2 files live in `packages/test-fixtures/files/` and are opened by
 |---|---|---|
 | `id`, `revision` | string, int | `revision` grows once per editing session |
 | `name`, `designer?`, `notes?` | string | Free text written by the user |
+| `yarns?` | `{ id, name, color }[]` | Colourwork, max 12: `id` is a letter `A`…`L` (A = the main colour), `color` is `#rrggbb` |
 | `description?` | string | The pattern text of an imported file (max 100 000 characters). The tracker and the creator show it beside the grid, cut at its part headings, each part's piece highlighted |
 | `sizes`, `sizeIndex` | string[], int | e.g. `["S","M","L"]`; `sizeIndex` is the size being knitted. Per-size numbers in patterns follow this list |
 | `gauge?` | `{ stitches, rows }` | The designer's gauge in 10 cm (decimals allowed), used for length estimates |
@@ -113,6 +114,11 @@ Progress is **not** part of project files; it travels in backups.
 
 `C...` is one 4-cell cable: the anchor `C` plus three continuation cells. "No stitch" cells use a
 palette entry mapped to `std:none`.
+
+**Colourwork:** an optional `"colors"` array, row for row like `rows`, gives each cell's yarn: a
+letter of the project's `yarns` (`"-BBA-"`). In a chart with colours, `-` is the main yarn, A. The
+stitch stays in `rows` — a stranded chart is usually all knit. A creator design paints colours with
+`colorCells` (`{ row, col, yarn }`, counted like `cells`), on top of the colours its pieces bring.
 
 ### Layout
 

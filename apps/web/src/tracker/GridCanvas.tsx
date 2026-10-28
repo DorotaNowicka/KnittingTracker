@@ -5,6 +5,7 @@ import {
   progressOverlay,
   quarterGuides,
   type GridSource,
+  type YarnColors,
 } from '@kt/grid-renderer';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +27,8 @@ interface Props {
   readonly cell: number;
   readonly veil: boolean;
   readonly request: ViewRequest | null;
+  /** Yarn colours (colourwork). */
+  readonly yarns?: YarnColors;
   onCellChange(cell: number): void;
   onTap(index: number): void;
 }
@@ -38,7 +41,7 @@ const FONT = "'Atkinson Hyperlegible Next Variable', system-ui, sans-serif";
  * a tap marks, two fingers pinch to zoom; wheel pans, ctrl+wheel zooms; keyboard moves a cursor.
  */
 export function GridCanvas(props: Props) {
-  const { grid, model, done, mode, rows, cell, veil, request, onCellChange, onTap } = props;
+  const { grid, model, done, mode, rows, cell, veil, request, yarns, onCellChange, onTap } = props;
   const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<GridRenderer | null>(null);
@@ -66,9 +69,9 @@ export function GridCanvas(props: Props) {
 
   const guides = useGuides((s) => s.on);
   const source: GridSource = useMemo(() => {
-    const base = patternSource(grid, rows);
+    const base = patternSource(grid, rows, yarns);
     return guides ? { ...base, guides: quarterGuides(base) } : base;
-  }, [grid, rows, guides]);
+  }, [grid, rows, guides, yarns]);
   const overlay = useMemo(
     () => progressOverlay(model, done, { cursor, veilAbove: veil }),
     [model, done, cursor, veil],

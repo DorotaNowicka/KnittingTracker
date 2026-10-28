@@ -187,7 +187,7 @@ const span = (design: Design, cell: Design['cells'][number], registry: SymbolReg
   return { left, right: left + (registry.get(cell.symbolId)?.width ?? 1) - 1 };
 };
 
-/** Remove brush cells that cover (row, col). */
+/** Remove brush cells that cover (row, col), and a colour painted there (the pieces' show again). */
 export function eraseCell(
   design: Design,
   registry: SymbolRegistry,
@@ -199,7 +199,22 @@ export function eraseCell(
     const s = span(design, c, registry);
     return col < s.left || col > s.right;
   });
-  return cells.length === design.cells.length ? design : { ...design, cells };
+  const at = fromRight(design, col);
+  const colors = design.colorCells?.filter((c) => !(c.row === row && c.col === at));
+  const colorsChanged = colors !== undefined && colors.length !== design.colorCells?.length;
+  if (cells.length === design.cells.length && !colorsChanged) return design;
+  return { ...design, cells, ...(colorsChanged ? { colorCells: colors } : {}) };
+}
+
+/** Paint a cell (display column `col`) with a yarn (colourwork); the stitch stays as it is. */
+export function colorCell(design: Design, row: number, col: number, yarn: string): Design {
+  const at = fromRight(design, col);
+  const old = design.colorCells ?? [];
+  if (old.some((c) => c.row === row && c.col === at && c.yarn === yarn)) return design;
+  return {
+    ...design,
+    colorCells: [...old.filter((c) => !(c.row === row && c.col === at)), { row, col: at, yarn }],
+  };
 }
 
 /**
@@ -238,6 +253,9 @@ export function resizeDesign(design: Design, width: number, height: number): Des
     width,
     height,
     cells: design.cells.filter((c) => c.col <= width && c.row <= height),
+    ...(design.colorCells
+      ? { colorCells: design.colorCells.filter((c) => c.col <= width && c.row <= height) }
+      : {}),
   };
 }
 

@@ -1440,3 +1440,87 @@ textarea {
 .designer-notes {
   margin-top: var(--sp-5);
 }
+
+/* "Kolory": the project's yarns in the creator (colourwork). */
+.yarns__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yarns__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.yarns__pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--target);
+  padding: 2px var(--sp-2);
+  border: 2px solid var(--rule);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.yarns__pick:hover {
+  border-color: var(--rule-strong);
+}
+
+.yarns__pick.is-active {
+  border-color: var(--indigo);
+  box-shadow: 0 0 0 2px var(--indigo);
+}
+
+.yarns__pick:focus-visible {
+  outline: 3px solid var(--indigo);
+  outline-offset: 2px;
+}
+
+.yarns__pick--wide {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.yarns__letter {
+  font-weight: 700;
+}
+
+.yarns__name {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+}
+
+.yarns__color {
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-control);
+  background: var(--sheet);
+  cursor: pointer;
+}
+
+.yarns > .btn {
+  justify-self: start;
+}
+
+.yarns__list--pick {
+  margin-top: var(--sp-3);
+}

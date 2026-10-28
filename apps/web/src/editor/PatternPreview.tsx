@@ -1,17 +1,25 @@
 import type { ResolvedPattern } from '@kt/core';
-import { editorOverlay, patternSource, visibleRowCount } from '@kt/grid-renderer';
+import { editorOverlay, patternSource, visibleRowCount, type YarnColors } from '@kt/grid-renderer';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DEFAULT_YARN_COLORS } from '../lib/yarns';
 import { EditorCanvas } from './EditorCanvas';
 
 /** A pattern's grid to look at (pan and zoom, no marking): its first rows, at least two repeats. */
-export function PatternPreview({ stage }: { stage: ResolvedPattern | null }) {
+export function PatternPreview({
+  stage,
+  yarns = DEFAULT_YARN_COLORS,
+}: {
+  stage: ResolvedPattern | null;
+  /** Yarn colours (colourwork); the suggested ones when the project's are not at hand. */
+  yarns?: YarnColors;
+}) {
   const { t } = useTranslation();
   const rows = stage ? visibleRowCount(stage, 1, 'end') : 1;
   const shown = stage ? Math.min(rows, Math.max(tallestRows(stage), 12)) : 1;
   const source = useMemo(
-    () => (stage && stage.stitchCount > 0 ? patternSource(stage, shown) : null),
-    [stage, shown],
+    () => (stage && stage.stitchCount > 0 ? patternSource(stage, shown, yarns) : null),
+    [stage, shown, yarns],
   );
   const overlay = useMemo(() => editorOverlay({}), []);
   if (!stage || !source) return <p className="hint">{t('patternEdit.previewEmpty')}</p>;

@@ -404,6 +404,42 @@ describe('pattern creator', () => {
     expect(rows.map((r) => r[1])).toEqual(['std:k', 'std:none', 'std:none']);
   });
 
+  it('paints colours with the colour brush: the project gets its yarns, the chart its colours', async () => {
+    const user = userEvent.setup();
+    await newGrid(user, 4, 2);
+    expect(screen.getByText(/Wzór kolorowy \(żakard\)\?/)).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'Kolor' }));
+    await waitFor(() =>
+      expect(useDraft.getState().project?.yarns?.map((y) => y.id)).toEqual(['A', 'B']),
+    );
+    expect(screen.getByRole('button', { name: 'Maluj kolorem: Kolor B' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await clickStitch(user, 2);
+    await waitFor(() =>
+      expect(pattern()?.design?.colorCells).toEqual([{ row: 1, col: 2, yarn: 'B' }]),
+    );
+    // The chart knitted from the grid: stitch 2 from the right in B, the rest in the main colour.
+    expect(pattern()?.charts[0]?.colors?.[0]).toBe('--B-');
+    expect((canvas.source as { colored?: boolean } | null)?.colored).toBe(true);
+    // Colours in use can't be removed; a new one can be added and renamed.
+    expect(screen.getByRole('button', { name: 'Usuń kolor: Kolor B' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Usuń kolor: Kolor A' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Dodaj kolor' }));
+    const name = await screen.findByRole('textbox', { name: 'Nazwa koloru C' });
+    await user.clear(name);
+    await user.type(name, 'ecru');
+    await waitFor(() => expect(useDraft.getState().project?.yarns?.[2]?.name).toBe('ecru'));
+    await user.click(screen.getByRole('button', { name: 'Usuń kolor: ecru' }));
+    await waitFor(() => expect(useDraft.getState().project?.yarns).toHaveLength(2));
+    // The eraser takes the colour off again.
+    await user.click(screen.getByRole('radio', { name: 'Gumka' }));
+    await clickStitch(user, 2);
+    await waitFor(() => expect(pattern()?.design?.colorCells).toEqual([]));
+    expect(pattern()?.charts[0]?.colors).toBeUndefined();
+  });
+
   it('offers the grid size typed for the previous part of the project', async () => {
     const user = userEvent.setup();
     const id = 'two-parts';

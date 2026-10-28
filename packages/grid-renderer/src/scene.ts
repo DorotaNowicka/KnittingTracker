@@ -67,6 +67,8 @@ export type DrawCommand =
       readonly h: number;
       readonly fill: ColorRole;
       readonly alpha?: number;
+      /** A colour of its own (a yarn), used instead of the role. */
+      readonly color?: string;
     }
   | {
       readonly t: 'lines';
@@ -86,11 +88,15 @@ export type DrawCommand =
       readonly width: number;
       /** World offset (scrollX − scrollY) so hatch lines stay fixed to the chart while panning. */
       readonly phase: number;
+      /** Opacity of the lines (default 0.55). */
+      readonly alpha?: number;
     }
   | {
       readonly t: 'glyphs';
       readonly cell: number;
       readonly stroke: ColorRole;
+      /** Symbols on dark yarn: drawn in this light colour instead of the ink. */
+      readonly ink?: string;
       readonly lineWidth: number;
       readonly items: readonly { readonly x: number; readonly y: number; readonly glyph: Glyph }[];
     }
@@ -121,6 +127,22 @@ export type DrawCommand =
       readonly h: number;
     }
   | { readonly t: 'unclip' };
+
+const darkCache = new Map<string, boolean>();
+/** Is a yarn colour dark enough for light symbols (relative luminance below 0.22)? */
+function isDarkFill(hex: string): boolean {
+  let dark = darkCache.get(hex);
+  if (dark === undefined) {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+    const lin = (v: string | undefined) => {
+      const c = parseInt(v ?? 'ff', 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    dark = m ? 0.2126 * lin(m[1]) + 0.7152 * lin(m[2]) + 0.0722 * lin(m[3]) < 0.22 : false;
+    darkCache.set(hex, dark);
+  }
+  return dark;
+}
 
 /** Level of detail by cell size: below these sizes details are dropped to keep zoomed-out views fast and calm. */
 export const LOD = { glyphs: 4.5, rules: 4.5, everyRowNumber: 13 } as const;
@@ -189,7 +211,36 @@ export function buildScene(
   if (cols && rows) {
     out.push({ t: 'clip', x: sx(area.x), y: sy(area.y), w: area.w, h: area.h });
 
-    // Done cells: tint + hatch (never colour alone).
+    // Colourwork: each cell in its yarn's colour, in runs of the same colour.
+    for (let row = rows.first; doStatic && source.colored && row <= rows.last; row++) {
+      const y = sy(geo.rowY(row));
+      for (const r of geo.runs) {
+        const a = Math.max(r.firstCol, cols.first);
+        const b = Math.min(r.lastCol, cols.last);
+        let start = a;
+        let fill: string | undefined;
+        for (let col = a; col <= b + 1; col++) {
+          const f = col <= b ? source.cell(row, col).fill : undefined;
+          if (f === fill && col <= b) continue;
+          if (fill) {
+            out.push({
+              t: 'rect',
+              x: sx(geo.colX(start)),
+              y,
+              w: (col - start) * c,
+              h: c,
+              fill: 'sheet',
+              color: fill,
+            });
+          }
+          fill = f;
+          start = col;
+        }
+      }
+    }
+
+    // Done cells: tint + hatch (never colour alone). On colourwork only crossed out, in two tones
+    // so the lines show on light and dark yarn alike.
     for (let row = rows.first; doStatic && row <= rows.last; row++) {
       const d = overlay.done(row);
       if (!d) continue;
@@ -204,6 +255,38 @@ export function buildScene(
         if (lo > hi) continue;
         const x = sx(geo.colX(lo));
         const w = (hi - lo + 1) * c;
+        if (source.colored) {
+          const spacing = Math.max(5, c / 2.5);
+          const width = Math.max(1, c / 22);
+          const phase = cam.scrollX - cam.scrollY;
+          out.push(
+            {
+              t: 'hatch',
+              phase,
+              x,
+              y,
+              w,
+              h: c,
+              stroke: 'sheet',
+              spacing,
+              width: width * 2.6,
+              alpha: 0.9,
+            },
+            {
+              t: 'hatch',
+              phase,
+              x,
+              y,
+              w,
+              h: c,
+              stroke: 'ink',
+              spacing,
+              width: width * 1.2,
+              alpha: 0.9,
+            },
+          );
+          continue;
+        }
         out.push({ t: 'rect', x, y, w, h: c, fill: 'done' });
         if (c >= LOD.rules)
           out.push({
@@ -245,6 +328,8 @@ export function buildScene(
 
     // No-stitch cells and glyphs.
     const items: { x: number; y: number; glyph: Glyph }[] = [];
+    /** Symbols on dark yarn, drawn light. */
+    const onDark: { x: number; y: number; glyph: Glyph }[] = [];
     for (let row = rows.first; doStatic && row <= rows.last; row++) {
       const y = sy(geo.rowY(row));
       for (let col = cols.first; col <= cols.last; col++) {
@@ -260,7 +345,11 @@ export function buildScene(
           (cell.part === 0 || col === cols.first) &&
           cell.glyph.primitives.length > 0
         ) {
-          items.push({ x: x - cell.part * c, y, glyph: cell.glyph });
+          (cell.fill && isDarkFill(cell.fill) ? onDark : items).push({
+            x: x - cell.part * c,
+            y,
+            glyph: cell.glyph,
+          });
         }
       }
     }
@@ -290,6 +379,16 @@ export function buildScene(
     }
     if (items.length > 0) {
       out.push({ t: 'glyphs', cell: c, stroke: 'ink', lineWidth: Math.max(1.2, c * 0.1), items });
+    }
+    if (onDark.length > 0) {
+      out.push({
+        t: 'glyphs',
+        cell: c,
+        stroke: 'ink',
+        ink: '#ffffff',
+        lineWidth: Math.max(1.2, c * 0.1),
+        items: onDark,
+      });
     }
     if (doStatic) out.push(zoneBorders(source, geo, cam, rows));
     if (doStatic && source.guides && source.guides.length > 0) {

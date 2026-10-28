@@ -6,6 +6,7 @@ import { getWakeLockPref } from '../lib/preferences';
 import { Link } from '../lib/Link';
 import { navigate, paths } from '../lib/router';
 import { useWakeLock } from '../lib/wakeLock';
+import { yarnColors, usedYarns } from '../lib/yarns';
 import { Celebration } from '../tracker/Celebration';
 import { PatternDescription } from '../ui/PatternDescription';
 import { useSession } from '../state/session';
@@ -121,6 +122,10 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
     [dispatch, mode],
   );
 
+  // Yarn colours for the grid (colourwork): the same map until the yarns change.
+  const yarns = s.project?.yarns;
+  const colors = useMemo(() => yarnColors(yarns), [yarns]);
+
   // Keyboard shortcuts (FR-12). Ignored while typing in a form field.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -188,6 +193,11 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
   const finished = project.finishedRows?.[grid.pattern.id];
   const complete = next === null || finished !== undefined;
   const nextPattern = nextPatternOf(project, grid.pattern.id);
+  const patternYarns = usedYarns(
+    grid.zones.map((z) => z.chart.chart),
+    project.yarns,
+    (letter) => t('yarns.default', { letter }),
+  );
   /** Finish this part: on to the next one, or — the last part — congratulations. */
   const finishPart = (rows: number, nextId?: string | null) => {
     void s.finishPattern(rows).then(() => {
@@ -362,6 +372,7 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
               cell={view.cell}
               veil={view.veil}
               request={request}
+              yarns={colors}
               onCellChange={(cell) => setView((v) => (v.cell === cell ? v : { ...v, cell }))}
               onTap={onTap}
             />
@@ -396,9 +407,15 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             onNext={goTo}
             onProject={() => projectRef.current?.showModal()}
           />
-          {showGrid && <RowText grid={grid} row={summary.currentRow} next={next} />}
           {showGrid && (
-            <Legend grid={grid} onRename={(id, name) => void s.setLegendName(id, name)} />
+            <RowText grid={grid} row={summary.currentRow} next={next} yarns={patternYarns} />
+          )}
+          {showGrid && (
+            <Legend
+              grid={grid}
+              yarns={patternYarns}
+              onRename={(id, name) => void s.setLegendName(id, name)}
+            />
           )}
           <PatternDescription project={project} patternId={grid.pattern.id} />
           <ViewControls

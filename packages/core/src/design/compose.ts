@@ -6,6 +6,7 @@ import {
   paintCell,
   repairRows,
 } from '../chart/edit';
+import { chartColorRows, withColorRows } from '../chart/colors';
 import { STD } from '../symbols/library';
 import { boundOffAbove, shapeRows } from './shaping';
 import type { SymbolRegistry } from '../symbols/registry';
@@ -93,6 +94,48 @@ export function composeDesign(design: Design, registry: SymbolRegistry): string[
   }
   for (const area of mirrorAreas(design)) out = mirrorInto(out, registry, area);
   return out;
+}
+
+/**
+ * The design's colours (colourwork), row 1 first, RS view left → right; null where a cell has no
+ * colour of its own. Pieces bring their own colours (a piece without colours clears what is under
+ * it), the colour brush paints on top, and mirrors copy colours like they copy stitches.
+ */
+export function composeColors(design: Design): (string | null)[][] {
+  const rows: (string | null)[][] = Array.from({ length: design.height }, () =>
+    Array<string | null>(design.width).fill(null),
+  );
+  const motifs = new Map(design.motifs.map((m) => [m.id, m] as const));
+  for (const placement of design.placements) {
+    const motif = motifs.get(placement.motifId);
+    if (!motif) continue;
+    const area = placementArea(design, placement, motif);
+    if (!area) continue;
+    const colors = chartColorRows(motif);
+    for (let y = area.bottom; y <= area.top; y++) {
+      const source = colors[(y - area.bottom) % motif.height];
+      const row = rows[y - 1];
+      if (!row || !source) continue;
+      for (let x = area.left; x <= area.right; x++) {
+        row[x - 1] = source[motif.width - 1 - ((area.right - x) % motif.width)] ?? null;
+      }
+    }
+  }
+  for (const cell of design.colorCells ?? []) {
+    const x = design.width - cell.col + 1;
+    const row = rows[cell.row - 1];
+    if (row && x >= 1) row[x - 1] = cell.yarn;
+  }
+  for (const area of mirrorAreas(design)) {
+    const width = area.lastCol - area.firstCol + 1;
+    for (const row of rows) {
+      const source = [...row];
+      // Each cell lands as far left of the axis as it was right of it.
+      for (let k = 0; k < width; k++)
+        row[area.lastCol - 1 - k] = source[area.axisCol - 1 + k] ?? null;
+    }
+  }
+  return rows;
 }
 
 /** Stitches right of a mirror axis at `quarter` quarters of the width. */
@@ -207,9 +250,12 @@ export function halfCuts(design: Design, registry: SymbolRegistry): number[] {
 
 /** The whole design as one chart, as it is knitted (the creator shows it like this). */
 export function designChart(design: Design, registry: SymbolRegistry, name: string): Chart {
-  return applySymbolRows(
-    blankChart({ id: DESIGN_CHART_ID, name: name.slice(0, 40) || 'Wzór' }, 1, 1),
-    knittedRows(design, registry),
+  return withColorRows(
+    applySymbolRows(
+      blankChart({ id: DESIGN_CHART_ID, name: name.slice(0, 40) || 'Wzór' }, 1, 1),
+      knittedRows(design, registry),
+    ),
+    composeColors(design),
   );
 }
 
@@ -234,7 +280,9 @@ export function applyDesign(
   // Knitted "until N cm": no planned rows, the chart repeats upwards. It is composed as tall as
   // it takes every piece to come round again, so each keeps its own rhythm across repeats.
   const open = pattern.targetCm !== undefined;
-  const rows = knittedRows(open ? repeatingDesign(design) : design, registry);
+  const composed = open ? repeatingDesign(design) : design;
+  const rows = knittedRows(composed, registry);
+  const colors = composeColors(composed);
   // Planned rows: the grid's height, per size when the sizes have their own heights.
   const heights = drawn.sizes?.height;
   const planned = open
@@ -244,7 +292,12 @@ export function applyDesign(
   if (!halves) {
     return {
       ...rest,
-      charts: [applySymbolRows(blankChart({ id: DESIGN_CHART_ID, name }, 1, 1), rows)],
+      charts: [
+        withColorRows(
+          applySymbolRows(blankChart({ id: DESIGN_CHART_ID, name }, 1, 1), rows),
+          colors,
+        ),
+      ],
       layout: [
         { kind: 'marker', id: 'start' },
         { kind: 'chart', placementId: `${DESIGN_CHART_ID}-1`, chartId: DESIGN_CHART_ID },
@@ -255,9 +308,12 @@ export function applyDesign(
   // RS view: the first half is on the right.
   const cut = cutOf(design);
   const half = (id: string, from: number, to: number) =>
-    applySymbolRows(
-      blankChart({ id, name }, 1, 1),
-      rows.map((r) => r.slice(from, to)),
+    withColorRows(
+      applySymbolRows(
+        blankChart({ id, name }, 1, 1),
+        rows.map((r) => r.slice(from, to)),
+      ),
+      colors.map((r) => r.slice(from, to)),
     );
   return {
     ...rest,
@@ -295,6 +351,13 @@ function repeatingDesign(withShape: Design): Design {
     cells: Array.from({ length: copies }, (_, k) =>
       design.cells.map((c) => ({ ...c, row: c.row + k * design.height })),
     ).flat(),
+    ...(design.colorCells
+      ? {
+          colorCells: Array.from({ length: copies }, (_, k) =>
+            (design.colorCells ?? []).map((c) => ({ ...c, row: c.row + k * design.height })),
+          ).flat(),
+        }
+      : {}),
   };
 }
 
@@ -355,14 +418,22 @@ export function designAtSize(design: Design, sizeIndex: number): Design {
     const col = Math.round(moved - (repeatX * motif.width - 1) / 2);
     return { ...p, repeatX, col: Math.max(1, col) };
   });
-  const cells = design.cells.map((c) => {
+  const moveCol = <T extends { col: number }>(c: T): T => {
     const i = regionAt(before, c.col);
     const from = before[i];
     const to = after[i];
     const col = from && to ? Math.round(c.col + middle(to) - middle(from)) : c.col;
     return { ...c, col: Math.max(1, col) };
-  });
-  return { ...design, width, height, placements, cells };
+  };
+  const cells = design.cells.map(moveCol);
+  return {
+    ...design,
+    width,
+    height,
+    placements,
+    cells,
+    ...(design.colorCells ? { colorCells: design.colorCells.map(moveCol) } : {}),
+  };
 }
 
 /** A new, empty design (all knit). */

@@ -1,8 +1,16 @@
-import { legendLabel, rowInstructions, type ResolvedPattern, type StitchLocation } from '@kt/core';
+import {
+  legendLabel,
+  rowInstructions,
+  STD,
+  type ResolvedPattern,
+  type StitchLocation,
+  type Yarn,
+} from '@kt/core';
 import { CELL_PX_MAX } from '@kt/grid-renderer';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Foldable } from '../ui/Foldable';
+import { YarnSwatch } from '../ui/YarnSwatch';
 import { Icon } from '../ui/Icon';
 import { SymbolGlyph } from '../ui/SymbolGlyph';
 
@@ -14,10 +22,13 @@ export function RowText({
   grid,
   row,
   next,
+  yarns = [],
 }: {
   grid: ResolvedPattern;
   row: number;
   next: StitchLocation | null;
+  /** The pattern's yarns (colourwork): runs say which yarn they are worked with. */
+  yarns?: readonly Yarn[];
 }) {
   const { t, i18n } = useTranslation();
   const info = useMemo(() => rowInstructions(grid, row), [grid, row]);
@@ -47,6 +58,7 @@ export function RowText({
           const lo = Math.min(tok.fromStitch, tok.toStitch);
           const hi = Math.max(tok.fromStitch, tok.toStitch);
           const current = nextStitch !== null && nextStitch >= lo && nextStitch <= hi;
+          const yarn = tok.yarn ? yarns.find((y) => y.id === tok.yarn) : undefined;
           return (
             <li
               key={`${tok.fromStitch}-${i}`}
@@ -54,7 +66,13 @@ export function RowText({
               aria-current={current ? 'step' : undefined}
             >
               <span className="num row-text__count">{tok.count}×</span>
-              <span>{tok.wsText ? tok.wsText[l] : legendLabel(grid.pattern, s, l)}</span>
+              <span className="row-text__what">
+                {/* Colourwork: a knit run is said by its yarn alone ("3× ecru"). */}
+                {!(yarn && tok.chartSymbolId === STD.knit) && (
+                  <span>{tok.wsText ? tok.wsText[l] : legendLabel(grid.pattern, s, l)}</span>
+                )}
+                {yarn && <YarnChip yarn={yarn} />}
+              </span>
               {tok.problem && <span className="row-text__problem">{t('rowText.wsProblem')}</span>}
             </li>
           );
@@ -72,9 +90,12 @@ export function RowText({
 export function Legend({
   grid,
   onRename,
+  yarns = [],
 }: {
   grid: ResolvedPattern;
   onRename?: (symbolId: string, name: string) => void;
+  /** The pattern's yarns (colourwork), listed above the symbols. */
+  yarns?: readonly Yarn[];
 }) {
   const { t, i18n } = useTranslation();
   const l = lang(i18n.language);
@@ -86,6 +107,21 @@ export function Legend({
   }, [grid]);
   return (
     <Foldable id="legend" title={t('legend.title')}>
+      {yarns.length > 0 && (
+        <ul className="legend legend--yarns" aria-label={t('yarns.title')}>
+          {yarns.map((y) => (
+            <li key={y.id} className="legend__item">
+              <YarnSwatch color={y.color} size={22} />
+              <span className="legend__text">
+                <span className="legend__label">
+                  {y.name}
+                  <span className="legend__number num">{y.id}</span>
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       <ul className="legend">
         {used.map((s) => {
           const entry = grid.pattern.legend.find((e) => e.symbolId === s.id);
@@ -122,6 +158,16 @@ export function Legend({
         })}
       </ul>
     </Foldable>
+  );
+}
+
+/** A yarn as a small swatch with its name (colourwork). */
+export function YarnChip({ yarn }: { yarn: Yarn }) {
+  return (
+    <span className="yarn-chip">
+      <YarnSwatch color={yarn.color} />
+      {yarn.name}
+    </span>
   );
 }
 
