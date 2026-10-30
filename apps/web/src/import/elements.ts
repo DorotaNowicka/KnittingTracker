@@ -125,6 +125,41 @@ export function describedSequence(
   return kept.length > 0 ? kept : null;
 }
 
+/**
+ * One pattern of a part worked as a stack (see `StackEntry` in the session): a band of a yoke
+ * between arrows, or a chart worked to a length before the next one.
+ */
+export interface StackEntry {
+  /** Pattern id in the project, unique (`yoke-1`, `yoke-2`…). */
+  readonly id: string;
+  /** What it is worked from, for its name ("A.1", "A.1 · A.2"). */
+  readonly title: string;
+  /** The recognised charts (indices) it is cut from. */
+  readonly charts: readonly number[];
+  /** Its charts side by side in working order, each over its stitches. */
+  readonly sequence: readonly { readonly chart: DraftChart; readonly stitches: number }[];
+  /** Stitches of the round (or row) at the size being knitted. */
+  readonly stitches: number;
+  /**
+   * Stitches in every size of the project, when the text gives them for each (the sizes drawn
+   * with the same charts); otherwise every size takes `stitches`.
+   */
+  readonly perSize?: readonly number[];
+  /** Length per size, like `perSize`. */
+  readonly cmPerSize?: readonly number[];
+  /** Rows to work; absent when it is worked to a length. */
+  readonly rows?: number;
+  /** Length to work it to (cm), when the text says. */
+  readonly cm?: number;
+  /** Rows the counter shows a message for (an arrow's increase round). */
+  readonly notes?: readonly {
+    readonly rows?: readonly number[];
+    readonly every?: number;
+    readonly from?: number;
+    readonly message: string;
+  }[];
+}
+
 export interface BuildInput {
   readonly id: string;
   readonly name: string;
@@ -144,6 +179,14 @@ export interface BuildInput {
   readonly setups?: Readonly<Record<string, PartSetup>>;
   /** Length to knit per part id (cm, chosen size) as the file says. */
   readonly lengths?: Readonly<Record<string, number>>;
+  /**
+   * Parts worked as a stack of patterns (part id → its entries in working order). A part with a
+   * stack becomes those patterns, grouped under its name; the knitter's corrections of an entry
+   * are in `setups` under the entry's id (stitches, length).
+   */
+  readonly stacks?: Readonly<Record<string, readonly StackEntry[]>>;
+  /** Charts no plain part takes: those of a stack, and those drawn for other sizes. */
+  readonly taken?: readonly number[];
 }
 
 /** Name of the plain knit filler beside a centred pattern. */
@@ -195,15 +238,30 @@ function patternFromSetup(
   setup: PartSetup,
   halves: boolean,
 ): Pattern {
+  const sequence = setup.sequence.flatMap((s) => {
+    const c = input.charts[s.chart];
+    return c ? [{ chart: c, stitches: s.stitches }] : [];
+  });
+  return patternOf(input, part.id, part.label[input.lang], sequence, setup.stitches, halves);
+}
+
+/** A pattern of charts side by side, each over its stitches, centred in a round of `stitches`. */
+function patternOf(
+  input: BuildInput,
+  id: string,
+  name: string,
+  given: readonly { readonly chart: DraftChart; readonly stitches: number }[],
+  stitches: number,
+  halves: boolean,
+): Pattern {
   const n = Math.max(1, input.sizes.length);
   const each = (v: number) => Array.from({ length: n }, () => v);
   const fill: DraftChart = { name: FILL_NAME[input.lang], rows: [[STD.knit]] };
-  const items = setup.sequence.flatMap((s) => {
-    const c = input.charts[s.chart];
-    return c && s.stitches > 0 ? [{ chart: c.name, stitches: s.stitches }] : [];
-  });
+  const items = given.flatMap((s) =>
+    s.stitches > 0 ? [{ chart: s.chart.name, stitches: s.stitches }] : [],
+  );
   const used = items.reduce((sum, s) => sum + s.stitches, 0);
-  const total = Math.max(1, setup.stitches);
+  const total = Math.max(1, stitches);
   const centred = (width: number) => {
     if (width <= used || items.length === 0) return items;
     const right = Math.floor((width - used) / 2);
@@ -217,13 +275,11 @@ function patternFromSetup(
   const front = Math.ceil(total / 2);
   const twice = halves && items.length > 0 && used <= total - front;
   const sequence = twice ? [...centred(front), ...centred(total - front)] : centred(total);
-  const charts = [
-    ...new Set(setup.sequence.map((s) => s.chart).filter((i) => input.charts[i] !== undefined)),
-  ].flatMap((i) => (input.charts[i] ? [input.charts[i]] : []));
+  const charts = [...new Set(given.map((s) => s.chart))];
   const usesFill = sequence.some((s) => s.chart === fill.name);
   return buildPattern({
-    id: part.id,
-    name: part.label[input.lang],
+    id,
+    name,
     sizes: input.sizes,
     charts: usesFill ? [...charts, fill] : charts,
     legend: input.legend,
@@ -231,6 +287,60 @@ function patternFromSetup(
     stitchCount: each(total),
     ...(twice ? { marker: each(front) } : {}),
     sectionNames: input.layout.sectionNames,
+  });
+}
+
+/**
+ * The patterns of a part worked as a stack: one per entry, numbered and grouped under the part
+ * ("Karczek 1 · A.1", "Karczek 2 · A.1"…); a stack of one entry is just the part.
+ */
+function stackPatterns(input: BuildInput, part: KindPart, stack: readonly StackEntry[]): Pattern[] {
+  const label = part.label[input.lang];
+  const single = stack.length === 1;
+  return stack.map((entry, i) => {
+    const own = input.setups?.[entry.id];
+    const stitches = Math.max(1, own?.stitches ?? entry.stitches);
+    // One chart over the whole round repeats; several are placed as the setup says.
+    const sequence =
+      entry.sequence.length === 1 && entry.sequence[0]
+        ? [{ chart: entry.sequence[0].chart, stitches }]
+        : entry.sequence;
+    const id = single ? part.id : entry.id;
+    const name = single ? label : `${label} ${i + 1} · ${entry.title}`.slice(0, 60);
+    const n = Math.max(1, input.sizes.length);
+    const perSize =
+      !own && entry.perSize?.length === n && entry.sequence.length === 1 ? entry.perSize : null;
+    const only = entry.sequence[0];
+    const built =
+      perSize && only
+        ? buildPattern({
+            id,
+            name,
+            sizes: input.sizes,
+            charts: [only.chart],
+            legend: input.legend,
+            sequence: [{ chart: only.chart.name, stitches: perSize }],
+            stitchCount: perSize,
+            sectionNames: input.layout.sectionNames,
+          })
+        : patternOf(input, id, name, sequence, stitches, false);
+    const cm =
+      own?.cm === null
+        ? undefined
+        : (own?.cm ?? (entry.cmPerSize?.length === n ? [...entry.cmPerSize] : entry.cm));
+    const notes = (entry.notes ?? []).slice(0, 20).map((n, k) => ({
+      id: `arrow-${k + 1}`,
+      message: n.message.slice(0, 200),
+      ...(n.rows ? { rows: [...n.rows] } : {}),
+      ...(n.every ? { every: n.every } : {}),
+      ...(n.from ? { from: n.from } : {}),
+    }));
+    return {
+      ...built,
+      ...(cm ? { targetCm: cm } : entry.rows ? { rows: entry.rows } : {}),
+      ...(notes.length > 0 ? { rowNotes: notes } : {}),
+      ...(single ? {} : { group: label }),
+    };
   });
 }
 
@@ -253,7 +363,9 @@ export function buildProjectFromElements(input: BuildInput): Project {
     const state = input.elements[item.id];
     if (!state?.include) continue;
     const parts = trackedPartsOf(item, state);
+    const taken = new Set(input.taken ?? []);
     const charts = [...new Set(state.charts)]
+      .filter((i) => !taken.has(i))
       .sort((a, b) => a - b)
       .flatMap((i) => (input.charts[i] ? [input.charts[i]] : []));
     // The description lays out one round: it fits the main element when that is one piece and
@@ -264,6 +376,15 @@ export function buildProjectFromElements(input: BuildInput): Project {
         : null;
     const described = sequence !== null;
     for (const part of parts) {
+      const stack = input.stacks?.[part.id];
+      if (stack && stack.length > 0 && !input.setups?.[part.id]) {
+        for (const pattern of stackPatterns(input, part, stack)) {
+          const r = insertPattern(project, pattern);
+          project = r.project;
+          if (item.id === main) mainPatternId ??= r.patternId;
+        }
+        continue;
+      }
       const setup = input.setups?.[part.id];
       const built: Pattern = setup
         ? patternFromSetup(input, part, setup, splitsFrontBack(input.kind, part.id))

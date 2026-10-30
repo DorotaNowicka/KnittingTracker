@@ -794,7 +794,9 @@
     "finishedRows_one": "finished after {{count}} row",
     "finishedRows_other": "finished after {{count}} rows",
     "finishedRounds_one": "finished after {{count}} round",
-    "finishedRounds_other": "finished after {{count}} rounds"
+    "finishedRounds_other": "finished after {{count}} rounds",
+    "bands_one": "{{count}} stage",
+    "bands_other": "{{count}} stages"
   },
   "elements": {
     "recognised": "Recognised from the words: {{words}}. If it's something else, change the kind.",
@@ -880,7 +882,19 @@
     "agreeNext": "Looks right, next",
     "checkedPart": "(checked)",
     "progress": "Parts checked: {{done}} of {{count}}.",
-    "nextIs": "Next: {{part}}."
+    "nextIs": "Next: {{part}}.",
+    "bandRepeats_one": "{{chart}}: {{count}} repeat of {{width}} sts",
+    "bandRepeats_other": "{{chart}}: {{count}} repeats of {{width}} sts",
+    "bandOver": "{{chart}} over {{count}} stitches — the chart doesn't fit evenly, check it in “Fix”",
+    "bandRowsRound_one": "Worked once: {{count}} round",
+    "bandRowsRound_other": "Worked once: {{count}} rounds",
+    "bandRowsFlat_one": "Worked once: {{count}} row",
+    "bandRowsFlat_other": "Worked once: {{count}} rows",
+    "bandToCmRound": "Repeated up to {{cm}} cm",
+    "bandToCmFlat": "Repeated up to {{cm}} cm",
+    "bandLastRound": "In the last round — {{note}}",
+    "bandLastRow": "In the last row — {{note}}",
+    "repeatOwn": "The charts differ in height — each repeats upwards on its own"
   },
   "parts": {
     "toProject": "Go to the project",
@@ -1155,5 +1169,15 @@
     "remove": "Remove colour: {{name}}",
     "inUse": "A pattern uses this colour — it can't be removed.",
     "add": "Add a colour"
+  },
+  "band": {
+    "title": "Stitches of this band",
+    "hint": "A band is the rows of a chart worked over one stitch count — from arrow to arrow, or until the motif changes. The chart goes round as many times as it fits.",
+    "fits_one": "✓ The chart fits {{count}} time, {{width}} sts each.",
+    "fits_other": "✓ The chart fits {{count}} times, {{width}} sts each.",
+    "notEven": {
+      "round": "The round doesn't divide evenly into charts of {{width}} sts — {{rest}} sts are left. Check the stitch count in the pattern.",
+      "row": "The row doesn't divide evenly into charts of {{width}} sts — {{rest}} sts are left. Check the stitch count in the pattern."
+    }
   }
 }

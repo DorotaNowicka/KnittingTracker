@@ -26,6 +26,7 @@ import {
   trackedPartsOf,
   type ElementState,
 } from './elements';
+import { BandEditor } from './BandEditor';
 import { LayoutEditor } from './LayoutEditor';
 import { yarnColors } from '../lib/yarns';
 import { GarmentDiagram } from '../garment/GarmentDiagram';
@@ -510,6 +511,26 @@ interface PreviewPart {
   readonly label: string;
   readonly number: number | undefined;
   readonly item: KindItem;
+  /** A band (or step) of a part worked as a stack: its pattern's full name ("Karczek 2 · A.1"). */
+  readonly band?: { readonly name: string };
+}
+
+/**
+ * The draft's patterns of a part: the part's own, or its stack's ("yoke-1", "yoke-2"…), each a
+ * part to check; a band's tab is short ("Karczek 2"), its heading says what it is made of.
+ */
+function partPatterns(draft: Project, partId: string) {
+  const own = draft.patterns.filter((x) => x.id === partId);
+  if (own.length > 0) return own.map((x) => ({ id: x.id, band: null }));
+  return draft.patterns
+    .filter(
+      (x) =>
+        x.group && x.id.startsWith(`${partId}-`) && /^\d+$/.test(x.id.slice(partId.length + 1)),
+    )
+    .map((x) => ({
+      id: x.id,
+      band: { number: Number(x.id.slice(partId.length + 1)), name: x.name },
+    }));
 }
 
 /**
@@ -560,14 +581,16 @@ function PreviewStep({ onSize }: { onSize(): void }) {
   const parts: PreviewPart[] = items
     .filter((it) => s.elements[it.id]?.include)
     .flatMap((it) =>
-      trackedPartsOf(it, s.elements[it.id]).map((p) => ({
-        patternId: p.id,
-        label: p.label[lang],
-        number: s.projectKind === 'custom' ? undefined : numbers[it.id],
-        item: it,
-      })),
-    )
-    .filter((p) => draft.patterns.some((x) => x.id === p.patternId));
+      trackedPartsOf(it, s.elements[it.id]).flatMap((p) =>
+        partPatterns(draft, p.id).map((x) => ({
+          patternId: x.id,
+          label: x.band ? `${p.label[lang]} ${x.band.number}` : p.label[lang],
+          number: s.projectKind === 'custom' ? undefined : numbers[it.id],
+          item: it,
+          ...(x.band ? { band: { name: x.band.name } } : {}),
+        })),
+      ),
+    );
   // Parts are checked in knitting order, from the lowest number. When the part on screen goes
   // away (skipped, or the body made in pieces), its item's first part or the next one shows.
   const itemAt = (id: string) => items.findIndex((it) => it.id === id);
@@ -709,11 +732,15 @@ const lcm = (a: number, b: number) => (a > 0 && b > 0 ? (a / gcd(a, b)) * b : Ma
 
 /** What the part's grid is built from, in a few lines. */
 function useFacts(part: PreviewPart, stage: ResolvedPattern | null) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
   const s = useImport();
   const state = s.elements[part.item.id];
+  const entry = s.entryOf(part.patternId, lang)?.entry ?? null;
   // The part's own charts: as set in "Popraw", or as the import gives them.
-  const charts = [...new Set(s.partSetup(part.patternId).sequence.map((x) => x.chart))];
+  const charts = entry
+    ? [...entry.charts]
+    : [...new Set(s.partSetup(part.patternId).sequence.map((x) => x.chart))];
   const uncertain = charts.reduce(
     (n, i) => n + (s.charts[i]?.confidence.flat().filter((v) => v < UNCERTAIN).length ?? 0),
     0,
@@ -732,20 +759,60 @@ function useFacts(part: PreviewPart, stage: ResolvedPattern | null) {
         .join(' · ')
     : '';
   const round = stage?.pattern.construction !== 'flat';
-  // Charts of different heights line up again after the least common multiple of their heights.
-  const repeat = stage ? stage.zones.reduce((m, z) => lcm(m, z.chart.chart.height), 1) : 0;
+  // Charts of different heights line up again after the least common multiple of their heights;
+  // when that is far beyond the tallest, each just repeats on its own.
+  const heights = stage ? stage.zones.map((z) => z.chart.chart.height) : [];
+  const repeat = heights.reduce((m, h) => lcm(m, h), 1);
+  const tallest = Math.max(0, ...heights);
+  const stitches = stage
+    ? t(round ? 'preview.stitchesRound' : 'preview.stitchesFlat', { count: stage.stitchCount })
+    : '';
+  if (entry && stage) {
+    // A band of a stack: one chart around the round, its rows once or to a length.
+    const only = entry.sequence.length === 1 ? entry.sequence[0] : undefined;
+    const width = only?.chart.rows[0]?.length ?? 0;
+    const total = stage.stitchCount;
+    const pattern = stage.pattern;
+    const target = pattern.targetCm;
+    const cm = Array.isArray(target) ? (target[s.chosenSize()] ?? null) : (target ?? null);
+    const rows = typeof pattern.rows === 'number' ? pattern.rows : null;
+    const note = pattern.rowNotes?.find((n) => n.rows?.includes(rows ?? -1))?.message;
+    return {
+      charts,
+      uncertain,
+      described: true,
+      stitches,
+      layout: only
+        ? width > 0 && total % width === 0
+          ? t('preview.bandRepeats', { chart: only.chart.name, count: total / width, width })
+          : t('preview.bandOver', { chart: only.chart.name, count: total })
+        : layout
+          ? t('preview.layoutSideBySide', { charts: layout })
+          : '',
+      repeat:
+        cm !== null
+          ? t(round ? 'preview.bandToCmRound' : 'preview.bandToCmFlat', { cm })
+          : rows !== null
+            ? t(round ? 'preview.bandRowsRound' : 'preview.bandRowsFlat', { count: rows })
+            : '',
+      note: note ? t(round ? 'preview.bandLastRound' : 'preview.bandLastRow', { note }) : '',
+    };
+  }
   return {
     charts,
     uncertain,
     described,
-    stitches: stage
-      ? t(round ? 'preview.stitchesRound' : 'preview.stitchesFlat', { count: stage.stitchCount })
-      : '',
+    stitches,
     layout: layout
       ? t(described ? 'preview.layoutDescribed' : 'preview.layoutSideBySide', { charts: layout })
       : '',
     repeat:
-      repeat > 0 ? t(round ? 'preview.repeatRound' : 'preview.repeatFlat', { count: repeat }) : '',
+      repeat > 0 && repeat > tallest * 4
+        ? t('preview.repeatOwn')
+        : repeat > 0
+          ? t(round ? 'preview.repeatRound' : 'preview.repeatFlat', { count: repeat })
+          : '',
+    note: '',
   };
 }
 
@@ -769,7 +836,9 @@ function PartPreview({
     <section className="part-preview" aria-labelledby={headingId}>
       <h2 id={headingId} className="section-title part-panel__title">
         {part.number !== undefined && <span className="part-button__no">{part.number}</span>}
-        {size ? t('preview.title', { part: part.label, size }) : part.label}
+        {size
+          ? t('preview.title', { part: part.band?.name ?? part.label, size })
+          : (part.band?.name ?? part.label)}
       </h2>
       {facts.charts.length === 0 ? (
         <div className="notice notice--warning">
@@ -787,7 +856,7 @@ function PartPreview({
       ) : (
         <>
           <ul className="facts-list">
-            {[facts.stitches, facts.layout, facts.repeat].filter(Boolean).map((f) => (
+            {[facts.stitches, facts.layout, facts.repeat, facts.note].filter(Boolean).map((f) => (
               <li key={f}>{f}</li>
             ))}
           </ul>
@@ -838,7 +907,11 @@ function FixPart({
   if (!state || !result) return null;
   const update = (change: Partial<ElementState>) => s.updateElement(item.id, change);
   const setup = s.partSetup(part.patternId);
-  const used = [...new Set(setup.sequence.map((x) => x.chart))].sort((a, b) => a - b);
+  // A band of a stack is corrected on its own: its stitches (and length), not a round of charts.
+  const entry = s.entryOf(part.patternId, lang)?.entry ?? null;
+  const used = entry
+    ? [...entry.charts]
+    : [...new Set(setup.sequence.map((x) => x.chart))].sort((a, b) => a - b);
   const round = stage?.pattern.construction !== 'flat';
   // The creator's grid: as tall as the tallest chart of the layout.
   const tallest = Math.max(
@@ -898,28 +971,44 @@ function FixPart({
         })}
       </details>
 
-      <details className="fix" open>
-        <summary>
-          <b>{t('layout.title')}</b>
-          <span>
-            {[
-              setup.sequence.map((x) => s.charts[x.chart]?.name ?? '?').join(' · '),
-              t(round ? 'layout.inRound' : 'layout.inRow', { count: setup.stitches }),
-            ]
-              .filter(Boolean)
-              .join(' — ')}
-          </span>
-        </summary>
-        <LayoutEditor
-          setup={setup}
-          charts={s.charts}
-          stage={stage}
-          round={round}
-          halves={splitsFrontBack(s.projectKind, part.patternId)}
-          length={s.lengthGuess(part.patternId)}
-          onChange={(next) => s.setPartSetup(part.patternId, next)}
-        />
-      </details>
+      {entry ? (
+        <details className="fix" open>
+          <summary>
+            <b>{t('band.title')}</b>
+            <span>{[entry.title, facts.stitches].filter(Boolean).join(' — ')}</span>
+          </summary>
+          <BandEditor
+            entry={entry}
+            setup={s.setups[entry.id]}
+            stage={stage}
+            round={round}
+            onChange={(next) => s.setPartSetup(entry.id, next)}
+          />
+        </details>
+      ) : (
+        <details className="fix" open>
+          <summary>
+            <b>{t('layout.title')}</b>
+            <span>
+              {[
+                setup.sequence.map((x) => s.charts[x.chart]?.name ?? '?').join(' · '),
+                t(round ? 'layout.inRound' : 'layout.inRow', { count: setup.stitches }),
+              ]
+                .filter(Boolean)
+                .join(' — ')}
+            </span>
+          </summary>
+          <LayoutEditor
+            setup={setup}
+            charts={s.charts}
+            stage={stage}
+            round={round}
+            halves={splitsFrontBack(s.projectKind, part.patternId)}
+            length={s.lengthGuess(part.patternId)}
+            onChange={(next) => s.setPartSetup(part.patternId, next)}
+          />
+        </details>
+      )}
 
       {/* After the layout: the creator opens with it (width = stitches, height = tallest chart). */}
       <div className="fix-designer">
@@ -990,13 +1079,16 @@ function FixPart({
 
 /** What else the project will hold, and charts that went to no part. */
 function ProjectNotes({ draft }: { draft: Project }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const s = useImport();
-  const used = new Set(
-    Object.values(s.elements)
+  const lang = i18n.language.startsWith('en') ? 'en' : 'pl';
+  // Charts of the parts, those cut into bands, and those drawn for other sizes are all placed.
+  const used = new Set([
+    ...Object.values(s.elements)
       .filter((e) => e.include)
       .flatMap((e) => e.charts),
-  );
+    ...s.stacks(lang).taken,
+  ]);
   const unused = s.charts.length - used.size;
   return (
     <>

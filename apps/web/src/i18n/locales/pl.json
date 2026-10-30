@@ -864,7 +864,11 @@
     "finishedRounds_one": "zakończony po {{count}} okrążeniu",
     "finishedRounds_few": "zakończony po {{count}} okrążeniach",
     "finishedRounds_many": "zakończony po {{count}} okrążeniach",
-    "finishedRounds_other": "zakończony po {{count}} okrążeniach"
+    "finishedRounds_other": "zakończony po {{count}} okrążeniach",
+    "bands_one": "{{count}} etap",
+    "bands_few": "{{count}} etapy",
+    "bands_many": "{{count}} etapów",
+    "bands_other": "{{count}} etapu"
   },
   "elements": {
     "recognised": "Rozpoznaliśmy po słowach: {{words}}. Jeśli to coś innego, zmień rodzaj.",
@@ -966,7 +970,25 @@
     "agreeNext": "Zgadza się, następna",
     "checkedPart": "(sprawdzona)",
     "progress": "Sprawdzone części: {{done}} z {{count}}.",
-    "nextIs": "Następna: {{part}}."
+    "nextIs": "Następna: {{part}}.",
+    "bandRepeats_one": "{{chart}}: {{count}} powtórzenie po {{width}} o.",
+    "bandRepeats_few": "{{chart}}: {{count}} powtórzenia po {{width}} o.",
+    "bandRepeats_many": "{{chart}}: {{count}} powtórzeń po {{width}} o.",
+    "bandRepeats_other": "{{chart}}: {{count}} powtórzenia po {{width}} o.",
+    "bandOver": "{{chart}} na {{count}} oczkach — schemat nie mieści się równo, sprawdź w „Popraw”",
+    "bandRowsRound_one": "Przerabiasz raz: {{count}} okrążenie",
+    "bandRowsRound_few": "Przerabiasz raz: {{count}} okrążenia",
+    "bandRowsRound_many": "Przerabiasz raz: {{count}} okrążeń",
+    "bandRowsRound_other": "Przerabiasz raz: {{count}} okrążenia",
+    "bandRowsFlat_one": "Przerabiasz raz: {{count}} rząd",
+    "bandRowsFlat_few": "Przerabiasz raz: {{count}} rzędy",
+    "bandRowsFlat_many": "Przerabiasz raz: {{count}} rzędów",
+    "bandRowsFlat_other": "Przerabiasz raz: {{count}} rzędu",
+    "bandToCmRound": "Powtarzasz w górę do {{cm}} cm",
+    "bandToCmFlat": "Powtarzasz w górę do {{cm}} cm",
+    "bandLastRound": "W ostatnim okrążeniu — {{note}}",
+    "bandLastRow": "W ostatnim rzędzie — {{note}}",
+    "repeatOwn": "Schematy mają różną wysokość — każdy powtarza się w górę po swojemu"
   },
   "parts": {
     "toProject": "Przejdź do projektu",
@@ -1281,5 +1303,17 @@
     "remove": "Usuń kolor: {{name}}",
     "inUse": "Tego koloru używa któryś wzór — nie można go usunąć.",
     "add": "Dodaj kolor"
+  },
+  "band": {
+    "title": "Oczka tego pasa",
+    "hint": "Pas to rzędy schematu przerabiane na jednej liczbie oczek — od strzałki do strzałki albo do zmiany motywu. Schemat idzie dookoła tyle razy, ile się zmieści.",
+    "fits_one": "✓ Schemat mieści się {{count}} raz, po {{width}} o.",
+    "fits_few": "✓ Schemat mieści się {{count}} razy, po {{width}} o.",
+    "fits_many": "✓ Schemat mieści się {{count}} razy, po {{width}} o.",
+    "fits_other": "✓ Schemat mieści się {{count}} razy, po {{width}} o.",
+    "notEven": {
+      "round": "Okrążenie nie dzieli się równo na schematy po {{width}} o. — zostaje {{rest}} o. Sprawdź liczbę oczek w opisie.",
+      "row": "Rząd nie dzieli się równo na schematy po {{width}} o. — zostaje {{rest}} o. Sprawdź liczbę oczek w opisie."
+    }
   }
 }

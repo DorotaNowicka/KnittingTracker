@@ -413,9 +413,11 @@ describe('new project from a PDF: parts to track', () => {
     const map = (await screen.findByText('Opis z pliku — co trafiło do której części')).closest(
       'details',
     ) as HTMLElement;
-    // Something went to no part: the list is open.
-    expect(map).toHaveAttribute('open');
+    // Folded at first; the summary says what went to no part.
+    expect(map).not.toHaveAttribute('open');
     expect(map).toHaveTextContent('2 fragmenty przypisane do części. 2 bez części.');
+    await user.click(screen.getByText('Opis z pliku — co trafiło do której części'));
+    expect(map).toHaveAttribute('open');
     const items = [...map.querySelectorAll('.description-paper__block')];
     expect(items.map((b) => b.querySelector('.description-paper__tag')?.textContent)).toEqual([
       'Początek opisu',
@@ -610,5 +612,62 @@ describe('new project from a PDF: size and legend first', () => {
     expect(screen.queryByText('Legenda')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Dalej' }));
     expect(screen.getByRole('group', { name: 'Co chcesz śledzić?' })).toBeInTheDocument();
+  });
+});
+
+describe('new project from a PDF: a yoke in bands', () => {
+  it('checks each band on its own, with its stitches and the arrow round', async () => {
+    const user = userEvent.setup();
+    const yokeText = [
+      'ROZMIARY: S - M',
+      'KARCZEK:',
+      'Przerabiać schemat A.1 na okrągło. W okrążeniach oznaczonych strzałką w schemacie A.1 dodawać oczka:',
+      'Strzałka-1: równomiernie dodać 36-38 oczek = 156-162 oczka (26-27 motywów po 6 oczek).',
+    ].join('\n');
+    // A.1 in steps: 4 stitches for 3 rows (an arrow at row 3), then 6 for 4 rows.
+    const rows = [...Array<number>(3).fill(4), ...Array<number>(4).fill(6)].map((w) =>
+      Array.from({ length: 6 }, (_, c) => cell(c < 6 - w ? 'std:none' : 'std:k')),
+    );
+    const yoke = {
+      ...chart('A.1'),
+      arrows: [3],
+      recognized: { cols: 6, rows: 7, cells: rows },
+    };
+    const res: ImportResult = {
+      ...result,
+      charts: [yoke],
+      text: yokeText,
+      description: parseDescription(yokeText),
+    };
+    const elements = initialElements('sweater', 1);
+    useImport.setState({
+      result: res,
+      charts: res.charts.map((c) => draftOf(c.recognized, c.name ?? '')),
+      description: { text: yokeText, parsed: res.description },
+      elements: { ...elements, yoke: { include: true, option: null, charts: [] } },
+      order: { order: ['neck', 'yoke', 'body'], source: 'headings', evidence: [] },
+    });
+    render(<App />);
+    await toPreview(user);
+    await user.click(tab(/Karczek 2/));
+    expect(
+      screen.getByRole('heading', { name: /Karczek 2 · A\.1 — rozmiar M/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('162 oczka w okrążeniu')).toBeInTheDocument();
+    expect(screen.getByText('A.1 rz. 4–7: 27 powtórzeń po 6 o.')).toBeInTheDocument();
+    await user.click(tab(/Karczek 1/));
+    expect(
+      screen.getByText(
+        'W ostatnim okrążeniu — Strzałka 1: równomiernie dodaj 38 oczek – będzie 162 oczka.',
+      ),
+    ).toBeInTheDocument();
+    // "Popraw": the band's stitches, not a round of charts.
+    await user.click(screen.getByRole('button', { name: 'Popraw' }));
+    const stitches = screen.getByLabelText('Oczek w okrążeniu');
+    expect(stitches).toHaveValue('124');
+    await user.clear(stitches);
+    await user.type(stitches, '128{Enter}');
+    expect(await screen.findByText('✓ Schemat mieści się 32 razy, po 4 o.')).toBeInTheDocument();
+    expect(useImport.getState().setups['yoke-1']?.stitches).toBe(128);
   });
 });

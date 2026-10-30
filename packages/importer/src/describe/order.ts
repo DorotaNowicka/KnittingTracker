@@ -105,10 +105,20 @@ const OTHER_WAY: Readonly<Partial<Record<ProjectKind, RegExp>>> = {
 export const NUMBERING =
   /^\s*(?:(?:krok|część|czesc|etap|step|part)\s*\d+\s*[:.–-]?\s*|\d+[.)]\s*)/iu;
 
+/**
+ * The end of a sentence wrapped onto its own line ("robótki.", "MIERZYĆ STĄD!", "KARCZEK jak w
+ * opisie poniżej.") is not a heading: it starts in lower case, ends in "!", or is a sentence
+ * without a "Heading:" in front ("Korpus: nabierz 200 oczek." is one).
+ */
+export const wrappedSentence = (rest: string): boolean =>
+  /^\p{Ll}/u.test(rest) ||
+  /!\s*$/u.test(rest) ||
+  (/\.\s*$/u.test(rest) && /\s\p{Ll}{2,}/u.test(rest) && !/[:–]/u.test(rest));
+
 /** A part's heading on this line, or null: a short line, a line in capitals, or "Name:". */
 function headingOf(line: string, headings: Headings): { id: string; text: string } | null {
   const rest = line.replace(NUMBERING, '').trim();
-  if (!rest) return null;
+  if (!rest || wrappedSentence(rest)) return null;
   const upper = rest === rest.toUpperCase() && /\p{Lu}/u.test(rest);
   for (const [id, re] of headings) {
     const m = re.exec(rest);

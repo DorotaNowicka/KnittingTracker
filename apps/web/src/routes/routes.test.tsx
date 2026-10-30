@@ -462,6 +462,42 @@ describe('screens', () => {
     expect(screen.queryByTestId('row-mark')).toBeNull();
   });
 
+  it('a grid shows the message of a highlighted round, and bands are listed under their part', async () => {
+    const user = userEvent.setup();
+    const base = sample();
+    const [first, second, ...rest] = base.patterns;
+    if (!first || !second) throw new Error('sample has two patterns');
+    const project = {
+      ...base,
+      patterns: [
+        {
+          ...first,
+          group: 'Karczek',
+          rowNotes: [
+            { id: 'arrow-1', rows: [2], message: 'Strzałka 1: równomiernie dodaj 38 oczek.' },
+          ],
+        },
+        { ...second, group: 'Karczek' },
+        ...rest,
+      ],
+    };
+    await useLibrary.getState().addProject(project);
+    navigate(`/projekt/s1/wzor/${first.id}`);
+    render(<App />);
+    const done = await screen.findByRole('button', { name: /^Ukończ (okrążenie|rząd)$/ });
+    expect(screen.queryByTestId('row-mark')).toBeNull();
+    await user.click(done);
+    expect(await screen.findByTestId('row-mark')).toHaveTextContent(
+      /robisz (okrążenie|rząd) 2 Strzałka 1: równomiernie dodaj 38 oczek\./,
+    );
+    await user.click(screen.getByRole('button', { name: /^Ukończ (okrążenie|rząd)$/ }));
+    expect(screen.queryByTestId('row-mark')).toBeNull();
+    navigate('/projekt/s1');
+    const group = (await screen.findByRole('heading', { name: /Karczek/ })).closest('li');
+    expect(group).toHaveTextContent('2 etapy');
+    expect(within(group as HTMLElement).getAllByRole('listitem')).toHaveLength(2);
+  });
+
   it('highlighted rows are set up on the settings page of a part without a chart', async () => {
     const user = userEvent.setup();
     const project = insertPattern(

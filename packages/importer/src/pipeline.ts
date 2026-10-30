@@ -16,6 +16,7 @@ import {
   type RecognizedChart,
   type Template,
 } from './raster/classify';
+import { findArrows } from './raster/arrows';
 import { rasterizeVectors } from './raster/draw';
 import { assignFillColors, rgbOf, type FoundColor } from './raster/fills';
 import { crop, meanGray, toGray, type GrayImage } from './raster/gray';
@@ -76,6 +77,11 @@ export interface FoundChart {
   readonly name?: string;
   readonly grid: DetectedGrid;
   readonly recognized: RecognizedChart;
+  /**
+   * Rows (1 = bottom) marked by an arrow beside the chart: rounds with an even increase or
+   * decrease, numbered in working order ("Strzałka-1", "Arrow-1"). Absent without arrows.
+   */
+  readonly arrows?: readonly number[];
   /** Area to show next to the grid (source pixels): the grid plus room for its title. */
   readonly view: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
 }
@@ -233,8 +239,10 @@ function recognizeSources(
   sources.forEach(({ gray, index }, n) => {
     if (options.signal?.aborted) throw new Error('aborted');
     options.onProgress?.({ stage: 'grids', done: n, total: sources.length });
-    for (const grid of findGrids(gray, options.threshold, options.photo)) {
+    const grids = findGrids(gray, options.threshold, options.photo);
+    for (const grid of grids) {
       const pad = grid.pitch * 0.6;
+      const arrows = findArrows(gray, grid, grids);
       const title = grid.pitch * 3.2;
       const x = Math.max(0, grid.box.x - pad);
       const y = Math.max(0, grid.box.y - title);
@@ -242,6 +250,7 @@ function recognizeSources(
         source: index,
         grid,
         recognized: recognizeGrid(gray, grid, templates),
+        ...(arrows.length > 0 ? { arrows } : {}),
         view: {
           x,
           y,

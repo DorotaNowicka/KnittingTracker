@@ -194,6 +194,21 @@ function patternInfo(project: Project, pattern: Pattern, done: number): PatternI
   }
 }
 
+/**
+ * The patterns in knitting order, consecutive patterns of one group (the bands of a yoke) together;
+ * `index` is the pattern's place in the whole list.
+ */
+function groupRuns(patterns: readonly Pattern[]) {
+  const runs: { group: string | null; items: { pattern: Pattern; index: number }[] }[] = [];
+  patterns.forEach((pattern, index) => {
+    const group = pattern.group ?? null;
+    const last = runs[runs.length - 1];
+    if (group !== null && last?.group === group) last.items.push({ pattern, index });
+    else runs.push({ group, items: [{ pattern, index }] });
+  });
+  return runs;
+}
+
 /** The patterns of the project in knitting order, with their progress. */
 function Patterns({ project }: { project: Project }) {
   const { t } = useTranslation();
@@ -229,6 +244,133 @@ function Patterns({ project }: { project: Project }) {
     await storage.deleteProgress(project.id, pattern.id).catch(() => undefined);
   };
 
+  /** One pattern's card: name, what it is, its progress and what can be done with it. */
+  const card = (pattern: Pattern, i: number) => {
+    const done = progress[pattern.id]?.done ?? 0;
+    const info = patternInfo(project, pattern, done);
+    const round = pattern.construction === 'round';
+    const finished = project.finishedRows?.[pattern.id];
+    return (
+      <li key={pattern.id} className="card card--row">
+        <Link className="card__main" to={paths.tracker(project.id, pattern.id)}>
+          <span className="card__title">
+            <span className="num card__index">{i + 1}.</span> {pattern.name}
+            {pattern.id === project.activePatternId && (
+              <span className="badge">{t('project.active')}</span>
+            )}
+          </span>
+          <span className="card__meta">
+            <span>{t(round ? 'editor.round' : 'editor.flat')}</span>
+            <span>{t('project.charts', { count: pattern.charts.length })}</span>
+            {info && (
+              <span className="num">
+                {t('editor.stitchesPerSize', { list: info.stitches.join('-') || '0' })}
+              </span>
+            )}
+            {pattern.rows === undefined ? (
+              <span>{t('editor.stageOpen')}</span>
+            ) : (
+              <span className="num">{t('editor.stageRows', { list: rowsList(pattern.rows) })}</span>
+            )}
+            {pattern.tracking === 'rows' && <span>{t('editor.stageCounter')}</span>}
+            {pattern.layout.some((seg) => seg.kind === 'chart' && seg.continueFrom) && (
+              <span>{t('editor.stageContinues')}</span>
+            )}
+          </span>
+          <span className="card__progress num">
+            {finished !== undefined
+              ? t(round ? 'project.finishedRounds' : 'project.finishedRows', {
+                  count: finished,
+                })
+              : info?.row
+                ? `${t(round ? 'status.round' : 'status.row', { row: info.row })}${
+                    info.percent !== null ? ` · ${Math.floor(info.percent)}%` : ''
+                  }`
+                : t('project.notStarted')}
+          </span>
+        </Link>
+        <div className="card__actions">
+          <Link
+            className="btn btn--small"
+            to={
+              // Drawn (or still empty) patterns open in the creator; charts read from a
+              // file in the pattern editor.
+              pattern.design || pattern.charts.length === 0
+                ? paths.designer(project.id, pattern.id)
+                : paths.pattern(project.id, pattern.id)
+            }
+          >
+            <Icon name="edit" size={18} />
+            {t('project.editPattern')}
+          </Link>
+          <button
+            type="button"
+            className="btn btn--small"
+            title={t('editor.continueStageHint')}
+            onClick={() =>
+              create(
+                (p) =>
+                  continuePattern(
+                    p,
+                    pattern.id,
+                    t('editor.continueName', { name: pattern.name }).slice(0, 60),
+                  ),
+                'pattern',
+              )
+            }
+          >
+            {t('editor.continueStage')}
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('project.duplicate', { name: pattern.name })}
+            onClick={() =>
+              create((p) =>
+                duplicatePattern(
+                  p,
+                  pattern.id,
+                  t('editor.copyName', { name: pattern.name }).slice(0, 60),
+                ),
+              )
+            }
+          >
+            <Icon name="copy" />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('editor.moveStageUp', { name: pattern.name })}
+            disabled={i === 0}
+            onClick={() => update((p) => movePattern(p, i, i - 1))}
+          >
+            <Icon name="up" />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('editor.moveStageDown', { name: pattern.name })}
+            disabled={i === project.patterns.length - 1}
+            onClick={() => update((p) => movePattern(p, i, i + 1))}
+          >
+            <Icon name="down" />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={t('editor.removeStage', { name: pattern.name })}
+            onClick={() => {
+              setRemoving(pattern);
+              removeRef.current?.showModal();
+            }}
+          >
+            <Icon name="trash" />
+          </button>
+        </div>
+      </li>
+    );
+  };
+
   return (
     <section className="editor-section" aria-labelledby={`${ids}-patterns`}>
       <h2 id={`${ids}-patterns`} className="section-title">
@@ -239,133 +381,22 @@ function Patterns({ project }: { project: Project }) {
         <p className="empty-line">{t('project.noPatterns')}</p>
       ) : (
         <ol className="card-list card-list--rows" data-testid="pattern-list">
-          {project.patterns.map((pattern, i) => {
-            const done = progress[pattern.id]?.done ?? 0;
-            const info = patternInfo(project, pattern, done);
-            const round = pattern.construction === 'round';
-            const finished = project.finishedRows?.[pattern.id];
-            return (
-              <li key={pattern.id} className="card card--row">
-                <Link className="card__main" to={paths.tracker(project.id, pattern.id)}>
-                  <span className="card__title">
-                    <span className="num card__index">{i + 1}.</span> {pattern.name}
-                    {pattern.id === project.activePatternId && (
-                      <span className="badge">{t('project.active')}</span>
-                    )}
-                  </span>
-                  <span className="card__meta">
-                    <span>{t(round ? 'editor.round' : 'editor.flat')}</span>
-                    <span>{t('project.charts', { count: pattern.charts.length })}</span>
-                    {info && (
-                      <span className="num">
-                        {t('editor.stitchesPerSize', { list: info.stitches.join('-') || '0' })}
-                      </span>
-                    )}
-                    {pattern.rows === undefined ? (
-                      <span>{t('editor.stageOpen')}</span>
-                    ) : (
-                      <span className="num">
-                        {t('editor.stageRows', { list: rowsList(pattern.rows) })}
-                      </span>
-                    )}
-                    {pattern.tracking === 'rows' && <span>{t('editor.stageCounter')}</span>}
-                    {pattern.layout.some((seg) => seg.kind === 'chart' && seg.continueFrom) && (
-                      <span>{t('editor.stageContinues')}</span>
-                    )}
-                  </span>
-                  <span className="card__progress num">
-                    {finished !== undefined
-                      ? t(round ? 'project.finishedRounds' : 'project.finishedRows', {
-                          count: finished,
-                        })
-                      : info?.row
-                        ? `${t(round ? 'status.round' : 'status.row', { row: info.row })}${
-                            info.percent !== null ? ` · ${Math.floor(info.percent)}%` : ''
-                          }`
-                        : t('project.notStarted')}
-                  </span>
-                </Link>
-                <div className="card__actions">
-                  <Link
-                    className="btn btn--small"
-                    to={
-                      // Drawn (or still empty) patterns open in the creator; charts read from a
-                      // file in the pattern editor.
-                      pattern.design || pattern.charts.length === 0
-                        ? paths.designer(project.id, pattern.id)
-                        : paths.pattern(project.id, pattern.id)
-                    }
-                  >
-                    <Icon name="edit" size={18} />
-                    {t('project.editPattern')}
-                  </Link>
-                  <button
-                    type="button"
-                    className="btn btn--small"
-                    title={t('editor.continueStageHint')}
-                    onClick={() =>
-                      create(
-                        (p) =>
-                          continuePattern(
-                            p,
-                            pattern.id,
-                            t('editor.continueName', { name: pattern.name }).slice(0, 60),
-                          ),
-                        'pattern',
-                      )
-                    }
-                  >
-                    {t('editor.continueStage')}
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={t('project.duplicate', { name: pattern.name })}
-                    onClick={() =>
-                      create((p) =>
-                        duplicatePattern(
-                          p,
-                          pattern.id,
-                          t('editor.copyName', { name: pattern.name }).slice(0, 60),
-                        ),
-                      )
-                    }
-                  >
-                    <Icon name="copy" />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={t('editor.moveStageUp', { name: pattern.name })}
-                    disabled={i === 0}
-                    onClick={() => update((p) => movePattern(p, i, i - 1))}
-                  >
-                    <Icon name="up" />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={t('editor.moveStageDown', { name: pattern.name })}
-                    disabled={i === project.patterns.length - 1}
-                    onClick={() => update((p) => movePattern(p, i, i + 1))}
-                  >
-                    <Icon name="down" />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={t('editor.removeStage', { name: pattern.name })}
-                    onClick={() => {
-                      setRemoving(pattern);
-                      removeRef.current?.showModal();
-                    }}
-                  >
-                    <Icon name="trash" />
-                  </button>
-                </div>
+          {groupRuns(project.patterns).map((run) =>
+            run.group === null ? (
+              run.items.map(({ pattern, index }) => card(pattern, index))
+            ) : (
+              // A part worked as several patterns (a yoke's bands): listed under its name.
+              <li key={`group-${run.items[0]?.pattern.id ?? ''}`} className="pattern-group">
+                <h3 className="pattern-group__title">
+                  {run.group}
+                  <span className="hint">{t('project.bands', { count: run.items.length })}</span>
+                </h3>
+                <ol className="card-list card-list--rows">
+                  {run.items.map(({ pattern, index }) => card(pattern, index))}
+                </ol>
               </li>
-            );
-          })}
+            ),
+          )}
         </ol>
       )}
       <div className="choose__actions">

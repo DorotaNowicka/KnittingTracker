@@ -1,5 +1,5 @@
 import { PROJECT_KIND_INFO, type ProjectKind } from '@kt/core';
-import { HEADINGS, NUMBERING, word, type Headings } from './order';
+import { HEADINGS, NUMBERING, word, wrappedSentence, type Headings } from './order';
 
 /**
  * The pattern text cut at its headings, so the knitter can see which part each piece of the
@@ -87,6 +87,13 @@ const GENERAL = word(
 
 const PIECED: readonly ProjectKind[] = ['sweater', 'cardigan', 'vest'];
 
+/**
+ * Sub-headings inside a part ("ROZMIARY S, M i L:", "ŚCIEG FANTAZYJNY:", "ZAMYKANIE OCZEK:"): under
+ * a part's heading they go on with that part; before any part they are general sections.
+ */
+const SUBSECTION =
+  /^(?:rozmiar\p{L}*\s+\S|wszystkie rozmiary|all sizes|sizes?\s+\S|ścieg|scieg|zamykani|dodawani|ujmowani|stitch pattern|increas|decreas)/iu;
+
 /** Is this line a heading (any heading, known or not)? */
 function looksLikeHeading(rest: string): boolean {
   const letters = rest.replace(/[^\p{L}]/gu, '');
@@ -111,6 +118,7 @@ function headingOf(
 ): { type: 'part' | 'general' | 'unknown'; partId: string | null } | null {
   const rest = line.replace(NUMBERING, '').trim();
   if (!rest) return null;
+  if (wrappedSentence(rest)) return null;
   const upper = rest === rest.toUpperCase() && /\p{Lu}/u.test(rest);
   const short = (m: RegExpExecArray) =>
     rest.length <= 32 || upper || /^\s*[:–-]/.test(rest.slice(m[0].length));
@@ -153,7 +161,11 @@ export function descriptionBlocks(text: string, kind: ProjectKind): DescriptionB
   for (const raw of text.split('\n')) {
     const line = raw.trimEnd();
     const h = headingOf(line, headings);
-    if (h) {
+    const sub =
+      h?.type !== 'part' &&
+      current.type === 'part' &&
+      SUBSECTION.test(line.replace(NUMBERING, '').trim());
+    if (h && !sub) {
       close();
       current = { ...h, heading: line.trim() };
       lines = [];

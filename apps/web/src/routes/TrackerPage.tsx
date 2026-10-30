@@ -327,6 +327,20 @@ function Tracker({ projectId, patternId }: { projectId: string; patternId: strin
             {t('position.short')}
           </button>
         </p>
+        {/* A highlighted row of a grid (an arrow's increase round): its message while it is worked. */}
+        {showGrid && next !== null && rowNotesAt(grid.pattern, summary.currentRow).length > 0 && (
+          <div className="status__mark" role="status" data-testid="row-mark">
+            <Icon name="marker" size={18} />
+            <p>
+              <b>
+                {t(round ? 'counter.markRound' : 'counter.markRow', { row: summary.currentRow })}
+              </b>{' '}
+              {rowNotesAt(grid.pattern, summary.currentRow)
+                .map((n) => n.message.trim() || t('counter.markNoMessage'))
+                .join(' ')}
+            </p>
+          </div>
+        )}
         {complete && nextPattern && (
           <p className="status__next">
             <button

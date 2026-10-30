@@ -259,6 +259,23 @@ textarea {
   grid-template-columns: 1fr;
 }
 
+/* A part worked as several patterns one after another (a yoke's bands), under its name. */
+.pattern-group {
+  display: grid;
+  gap: var(--sp-2);
+  padding-left: var(--sp-3);
+  border-left: 3px solid var(--rule);
+}
+
+.pattern-group__title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: baseline;
+  margin: var(--sp-2) 0 0;
+  font-size: 1.05rem;
+}
+
 .card {
   display: flex;
   flex-direction: column;

@@ -74,6 +74,7 @@ Progress is **not** part of project files; it travels in backups.
   "targetCm": [40, 42],             // optional, open-ended patterns: length to knit
   "expectedStitches": [250, 262],   // optional cross-check against the pattern text
   "tracking": "stitches",           // optional: "rows" = row counter only (ribbing, stockinette)
+  "group": "Karczek",               // optional: a band of a part worked as several patterns
   "rowNotes": [                     // optional, max 20: rows the row counter highlights
     { "id": "note", "every": 10, "from": 4, "message": "Buttonhole" },
     { "id": "note-2", "rows": [24], "message": "Change colour" }
@@ -94,7 +95,13 @@ Progress is **not** part of project files; it travels in backups.
   `name` is the knitter's own name for it, shown instead of that wording.
 - `rowNotes`: each note marks the listed `rows`, or every `every` rows starting at `from` (default:
   row `every`). Rows count from 1 within the pattern. The row counter colours a marked row and shows
-  the `message`.
+  the `message`; above a grid, the message shows while that row is worked (the import marks the
+  increase round of an arrow this way: "Strzałka 1: równomiernie dodaj 38 oczek – będzie 162 oczka").
+- `group` (optional): the part of the garment a pattern is a band of, when the part is worked as
+  several patterns one after another — a yoke's bands between increase arrows (each band over its
+  own stitch count), or a body's motif to a length followed by a border. Consecutive patterns with the
+  same group are listed under it on the project page; the import names them "Karczek 1 · A.1",
+  "Karczek 2 · A.1"…
 - `modifications`: `{ "kind": "replaceChart", "chartId": "A.1", "chart": { … } }` shows other
   content for a chart everywhere it is placed (e.g. "A.1 in plain knit") without changing the chart
   as drawn or the stitch count.

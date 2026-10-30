@@ -86,10 +86,10 @@ export function DescriptionMap({
   const untracked = toParts.filter((p) => !p.tracked);
   const described = new Set(toParts.filter((p) => p.tracked).map((p) => p.item?.id));
   const withoutText = items.filter((it) => elements[it.id]?.include && !described.has(it.id));
-  const attention = loose.length + untracked.length;
 
+  // Folded until the knitter opens it: the summary already says what went to no part.
   return (
-    <details className="fix description-map" open={attention > 0 || undefined}>
+    <details className="fix description-map">
       <summary>
         <b>{t('describeMap.title')}</b>
         <span>

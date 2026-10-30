@@ -27,6 +27,10 @@ import {
   PIECED_BODY,
   detectPartOrder,
   parseDescription,
+  partSteps,
+  planCharts,
+  planName,
+  type ChartPlan,
   type KindGuess,
   type PartOrder,
   type ImportProgress,
@@ -41,9 +45,13 @@ import { useDraft } from '../state/draft';
 import { useNewProject } from '../state/newProject';
 import { useLibrary } from '../state/library';
 import { ImportClient, ImportError, type CheckedFile } from './client';
+import { importStacks } from './stacks';
 import {
   buildProjectFromElements,
   defaultSetup,
+  describedSequence,
+  mainItemId,
+  type StackEntry,
   initialElements,
   kindItems,
   orderedItems,
@@ -110,6 +118,21 @@ interface ImportState {
   setLegendColor(index: number, hex: string): void;
   /** The yarns of the project the import makes (colourwork): the legend's colours, then the charts'. */
   yarns(): Yarn[];
+  /**
+   * Which chart is which, read from the text: names, the sizes a chart is drawn for, bands and
+   * the arrows' chain (see `planCharts`). Null before a file is read.
+   */
+  plan(): ChartPlan | null;
+  /**
+   * Parts worked as a stack of patterns at the chosen size (a yoke's bands, a body's motif and
+   * border), and the charts they take from the other parts.
+   */
+  stacks(lang: Locale): { stacks: Record<string, StackEntry[]>; taken: number[] };
+  /** The stack entry a pattern of the draft is, if it is one (with its part). */
+  entryOf(
+    patternId: string,
+    lang: Locale,
+  ): { partId: string; entry: StackEntry; index: number; count: number } | null;
   readonly description: { text: string; parsed: ParsedDescription };
   readonly error: string | null;
   /** Name typed on the "new project" screen; proposed for the project the import creates. */
@@ -387,10 +410,12 @@ export const useImport = create<ImportState>((set, get) => ({
         : it.options.some((o) => o.parts.some((p) => p.id === partId)),
     );
     if (!item) return { sequence: [], stitches: 1 };
+    const element = state.elements[item.id];
+    const taken = new Set(state.stacks('pl').taken);
     return defaultSetup({
       kind: state.projectKind,
       item,
-      state: state.elements[item.id],
+      state: element && { ...element, charts: element.charts.filter((c) => !taken.has(c)) },
       charts: state.charts.map(draftChartOf),
       layout: describedLayout(state, Math.max(1, state.sizes.length), ['', '']),
       sizeIndex: state.chosenSize(),
@@ -472,10 +497,24 @@ export const useImport = create<ImportState>((set, get) => ({
         ...(corners ? { corners } : {}),
         onProgress: (progress) => set({ progress }),
       });
+      // Chart images have no names in the text layer: the text tells which is which.
+      const sizes = result.description.sizes?.value ?? [];
+      const plan = planCharts(
+        result.charts.map((c) => ({
+          rows: c.recognized.cells.map((row) => row.map((x) => x.symbolId)),
+          source: c.source,
+          ...(c.arrows ? { arrows: c.arrows } : {}),
+          ...(c.name ? { name: c.name } : {}),
+        })),
+        result.text,
+        sizes,
+      );
       set({
         status: 'verify',
         result,
-        charts: result.charts.map((c, i) => draftOf(c.recognized, c.name ?? `Schemat ${i + 1}`)),
+        charts: result.charts.map((c, i) =>
+          draftOf(c.recognized, c.name ?? planName(plan, i, sizes) ?? `Schemat ${i + 1}`),
+        ),
         legend: result.legend.map((l) => (l.confidence >= 0.6 ? l.symbolId : null)),
         legendNames: result.legend.map(() => ''),
         legendKinds: result.legend.map((l) => l.kind),
@@ -592,6 +631,64 @@ export const useImport = create<ImportState>((set, get) => ({
     return out.sort((a, b) => a.id.localeCompare(b.id));
   },
 
+  plan() {
+    const { result, charts, description, sizes } = get();
+    if (!result) return null;
+    return planCharts(
+      charts.map((c, i) => {
+        const found = result.charts[i];
+        return {
+          rows: c.rows,
+          ...(found ? { source: found.source } : {}),
+          ...(found?.arrows ? { arrows: found.arrows } : {}),
+          ...(found?.name ? { name: found.name } : {}),
+        };
+      }),
+      description.text || result.text,
+      sizes,
+    );
+  },
+
+  stacks(lang) {
+    const state = get();
+    const plan = state.plan();
+    if (!plan || !state.result) return { stacks: {}, taken: [] };
+    const text = state.description.text || state.result.text;
+    // The main part laid out as the text's round of charts keeps that layout.
+    const main = mainItemId(state.projectKind);
+    const described =
+      describedSequence(
+        { sequence: state.description.parsed.sequence?.value ?? [], sectionNames: ['', ''] },
+        state.charts,
+      ) !== null;
+    // A part the knitter laid out herself ("Popraw" of the whole part) keeps her layout.
+    const skip = [...Object.keys(state.setups), ...(described ? [main] : [])];
+    return importStacks({
+      plan,
+      charts: state.charts,
+      arrows: state.result.charts.map((c) => c.arrows),
+      steps: partSteps(text, state.projectKind, Math.max(1, state.sizes.length)),
+      kind: state.projectKind,
+      elements: state.elements,
+      size: state.chosenSize(),
+      lang,
+      skip,
+    });
+  },
+
+  entryOf(patternId, lang) {
+    for (const [partId, entries] of Object.entries(get().stacks(lang).stacks)) {
+      // A stack of one entry is the part's own pattern.
+      const index =
+        entries.length === 1 && patternId === partId
+          ? 0
+          : entries.findIndex((e) => e.id === patternId);
+      const entry = entries[index];
+      if (entry) return { partId, entry, index, count: entries.length };
+    }
+    return null;
+  },
+
   updateChart(index, change) {
     set({ charts: get().charts.map((c, i) => (i === index ? { ...c, ...change } : c)) });
   },
@@ -679,7 +776,10 @@ export const useImport = create<ImportState>((set, get) => ({
 
   draftProject({ title, sizes, sections, lang }, id = 'draft') {
     const state = get();
+    const { stacks, taken } = state.stacks(lang);
     const built = buildProjectFromElements({
+      stacks,
+      taken,
       id,
       name: title,
       kind: state.projectKind,

@@ -2088,6 +2088,23 @@ body {
   text-align: center;
 }
 
+/* The same note above a grid: the round being worked is highlighted (an arrow's increases). */
+.status__mark {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-control);
+  background: var(--marker);
+  color: #1a1408;
+  font-weight: 600;
+}
+
+.status__mark p {
+  margin: 0;
+}
+
 .row-counter__mark-row {
   display: inline-flex;
   justify-content: center;

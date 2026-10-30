@@ -306,6 +306,12 @@ export const patternSchema = z.object({
   ready: z.boolean().optional(),
   /** Rows to highlight in the row counter, each with a message. */
   rowNotes: z.array(rowNoteSchema).max(20).optional(),
+  /**
+   * The part of the garment this pattern is a band of, when the part is worked as several
+   * patterns one after another (a yoke's bands between increase rounds): consecutive patterns
+   * with the same group are listed under it.
+   */
+  group: z.string().min(1).max(60).optional(),
 });
 
 /** What a project is (the "what are you knitting" choice); `custom` = anything else. */
