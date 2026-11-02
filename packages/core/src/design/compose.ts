@@ -280,7 +280,13 @@ export function applyDesign(
   // Knitted "until N cm": no planned rows, the chart repeats upwards. It is composed as tall as
   // it takes every piece to come round again, so each keeps its own rhythm across repeats.
   const open = pattern.targetCm !== undefined;
-  const composed = open ? repeatingDesign(design) : design;
+  // Pieces whose rhythms come round together only after too many rows: each stretch of columns
+  // becomes a chart of its own, repeating upwards by its own pieces (as charts side by side do).
+  if (open && repeatingDesign(design) === null) {
+    const strips = stripsOf(design, registry, name);
+    if (strips) return { ...rest, ...strips };
+  }
+  const composed = open ? (repeatingDesign(design) ?? design) : design;
   const rows = knittedRows(composed, registry);
   const colors = composeColors(composed);
   // Planned rows: the grid's height, per size when the sizes have their own heights.
@@ -331,19 +337,28 @@ export function applyDesign(
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 const lcm = (a: number, b: number) => (a / gcd(a, b)) * b;
 
+/** Rows a composed chart may have when it repeats upwards. */
+const TALLEST = 1000;
+
 /**
  * A design made tall enough to repeat seamlessly: the grid's height and every piece's height come
- * round together (at most 1000 rows), brush stitches repeating with the grid.
+ * round together, brush stitches repeating with the grid. Null when that takes more than 1000 rows.
  */
-function repeatingDesign(withShape: Design): Design {
-  // Knitted until N cm, the grid repeats upwards: a shape does not repeat with it.
-  const { shaping: _none, ...design } = withShape;
-  const heights = design.placements.flatMap((p) => {
-    const m = design.motifs.find((x) => x.id === p.motifId);
+function repeatingDesign(withShape: Design): Design | null {
+  const heights = withShape.placements.flatMap((p) => {
+    const m = withShape.motifs.find((x) => x.id === p.motifId);
     return m ? [m.height] : [];
   });
-  const height = heights.reduce(lcm, design.height);
-  if (height === design.height || height > 1000) return design;
+  const height = heights.reduce(lcm, withShape.height);
+  return height > TALLEST ? null : repeatedTo(withShape, height);
+}
+
+/** The design composed `height` rows tall (a multiple of its own height, or a stretch of pieces). */
+function repeatedTo(withShape: Design, height: number): Design {
+  // Knitted until N cm, the grid repeats upwards: a shape does not repeat with it.
+  const { shaping: _none, ...design } = withShape;
+  if (height === design.height) return design;
+  if (height < design.height || height % design.height !== 0) return { ...design, height };
   const copies = height / design.height;
   return {
     ...design,
@@ -359,6 +374,116 @@ function repeatingDesign(withShape: Design): Design {
         }
       : {}),
   };
+}
+
+/**
+ * Per display column (1 = leftmost, index 0), the rows after which it repeats: the heights of the
+ * pieces on it that run all the way up from row 1; the grid's own height where something else
+ * lies on it (a piece starting higher or repeated a number of times, the brush, colours); 1 for
+ * plain background. Mirrored columns repeat like the columns they copy.
+ */
+function columnPeriods(design: Design): number[] {
+  const period = Array<number>(design.width).fill(1);
+  const motifs = new Map(design.motifs.map((m) => [m.id, m] as const));
+  for (const placement of design.placements) {
+    const motif = motifs.get(placement.motifId);
+    if (!motif) continue;
+    const area = placementArea(design, placement, motif);
+    if (!area) continue;
+    const own = placement.row === 1 && placement.repeatY === 'fill' ? motif.height : design.height;
+    for (let x = area.left; x <= area.right; x++) period[x - 1] = lcm(period[x - 1] ?? 1, own);
+  }
+  for (const cell of [...design.cells, ...(design.colorCells ?? [])]) {
+    const x = design.width - cell.col + 1;
+    if (x >= 1 && x <= design.width) period[x - 1] = lcm(period[x - 1] ?? 1, design.height);
+  }
+  for (const area of mirrorAreas(design)) {
+    const width = area.lastCol - area.firstCol + 1;
+    const source = [...period];
+    for (let k = 0; k < width; k++)
+      period[area.firstCol - 1 + k] = source[area.axisCol + width - 2 - k] ?? 1;
+  }
+  return period;
+}
+
+/**
+ * An open design as charts side by side, each a stretch of columns that repeats by its own rows
+ * (see `columnPeriods`), cut where the grid is split in halves. A symbol over several columns
+ * stays in one stretch. Null when the whole grid would be one stretch anyway.
+ */
+function stripsOf(
+  withShape: Design,
+  registry: SymbolRegistry,
+  name: string,
+): Pick<Pattern, 'charts' | 'layout'> | null {
+  const { shaping: _none, ...design } = withShape;
+  const period = columnPeriods(design).map((p) => (p > TALLEST ? design.height : p));
+  const flat = knittedRows(design, registry);
+  const halves = design.halves && design.width >= 2 ? design.halves : null;
+  const cut = halves ? cutOf(design) : -1;
+  // Stretches of display columns [from, to] (1-based) with one period.
+  const strips: { from: number; to: number; period: number }[] = [];
+  for (let x = 1; x <= design.width; x++) {
+    const last = strips[strips.length - 1];
+    const joined = flat.some((row) => row[x - 1] === CONTINUATION);
+    const p = period[x - 1] ?? 1;
+    if (last && x - 1 !== cut && (joined || last.period === p)) {
+      last.to = x;
+      last.period = lcm(last.period, p);
+    } else strips.push({ from: x, to: x, period: p });
+  }
+  for (const s of strips) if (s.period > TALLEST) s.period = design.height;
+  if (strips.length < 2) return null;
+  const composed = new Map<number, { rows: string[][]; colors: (string | null)[][] }>();
+  const at = (height: number) => {
+    let c = composed.get(height);
+    if (!c) {
+      const d = repeatedTo(design, height);
+      c = { rows: knittedRows(d, registry), colors: composeColors(d) };
+      composed.set(height, c);
+    }
+    return c;
+  };
+  // The piece on top of a stretch names its chart.
+  const motifs = new Map(design.motifs.map((m) => [m.id, m] as const));
+  const nameOf = (from: number, to: number) => {
+    let found = name;
+    for (const placement of design.placements) {
+      const motif = motifs.get(placement.motifId);
+      const area = motif ? placementArea(design, placement, motif) : null;
+      if (motif && area && area.left <= from && area.right >= to) found = motif.name || name;
+    }
+    return found.slice(0, 40);
+  };
+  // Work order: stitch 1 is the rightmost column.
+  const ordered = [...strips].reverse();
+  const charts: Chart[] = ordered.map((s, i) => {
+    const { rows, colors } = at(s.period);
+    const id = i === 0 ? DESIGN_CHART_ID : `${DESIGN_CHART_ID}-${i + 1}`;
+    return withColorRows(
+      applySymbolRows(
+        blankChart({ id, name: nameOf(s.from, s.to) }, 1, 1),
+        repairRows(
+          rows.map((r) => r.slice(s.from - 1, s.to)),
+          registry,
+        ),
+      ),
+      colors.map((r) => r.slice(s.from - 1, s.to)),
+    );
+  });
+  const layout: Pattern['layout'] = [
+    halves
+      ? { kind: 'marker', id: 'start', sectionName: halves[0] }
+      : { kind: 'marker', id: 'start' },
+  ];
+  ordered.forEach((s, i) => {
+    const chart = charts[i];
+    if (!chart) return;
+    // The back half begins left of the cut.
+    if (halves && s.to === cut) layout.push({ kind: 'marker', id: 'side', sectionName: halves[1] });
+    layout.push({ kind: 'chart', placementId: `${chart.id}-1`, chartId: chart.id });
+  });
+  return { charts, layout };
 }
 
 // ── Sizes ─────────────────────────────────────────────────────────────────────────────────

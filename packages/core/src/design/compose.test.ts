@@ -381,4 +381,55 @@ describe('pattern creator designs', () => {
       'p k',
     ]);
   });
+
+  it('knitted until N cm with rhythms too long to come round together: each repeats on its own', () => {
+    // Pieces 7, 11 and 13 rows tall come round together only after 1001 rows.
+    const piece = (id: string, height: number) =>
+      applySymbolRows(
+        blankChart({ id, name: id.slice(4) }, 1, 1),
+        Array.from({ length: height }, (_, r) => [r === 0 ? 'std:p' : 'std:k', 'std:k']),
+      );
+    const design: Design = {
+      ...blankDesign(7, 13),
+      motifs: [piece('own:A.1', 7), piece('own:A.2', 11), piece('own:A.3', 13)],
+      placements: [
+        { id: 'a', motifId: 'own:A.1', col: 1, row: 1, repeatX: 1, repeatY: 'fill' },
+        { id: 'b', motifId: 'own:A.2', col: 3, row: 1, repeatX: 1, repeatY: 'fill' },
+        { id: 'c', motifId: 'own:A.3', col: 5, row: 1, repeatX: 1, repeatY: 'fill' },
+      ],
+      cells: [],
+      halves: ['Przód', 'Tył'],
+    };
+    const open = applyDesign({ ...blankPattern('body', 'Korpus'), design, targetCm: 40 }, registry);
+    expect(open.charts.map((c) => [c.name, c.width, c.height])).toEqual([
+      ['A.1', 2, 7],
+      ['A.2', 2, 11],
+      ['A.3', 2, 13],
+      ['Korpus', 1, 1],
+    ]);
+    // Split in halves (4 stitches | 3): the back starts after A.2.
+    expect(open.layout.map((s) => (s.kind === 'marker' ? s.sectionName : s.chartId))).toEqual([
+      'Przód',
+      'design',
+      'design-2',
+      'Tył',
+      'design-3',
+      'design-4',
+    ]);
+    const project = insertPattern(
+      blankProject({ id: 'p', name: 'P', sizes: ['M'], now: '2026-11-02T10:00:00.000Z' }),
+      open,
+    ).project;
+    expect(validateProject(project).ok).toBe(true);
+    // Row 8: A.1 starts again (purl on stitch 1), A.2 and A.3 are still in their first repeat.
+    const grid = resolvePattern(project, 'body', { registry });
+    const row = (r: number) =>
+      Array.from({ length: 7 }, (_, c) =>
+        grid.cellAtCol(r, c + 1).symbolId === 'std:p' ? 'p' : 'k',
+      ).join('');
+    expect(row(8)).toBe('kkkkkpk');
+    // Row 12: A.2 starts again (its purl on the left of its two stitches).
+    expect(row(12)).toBe('kkkpkkk');
+    expect(row(14)).toBe('kpkkkkk');
+  });
 });
